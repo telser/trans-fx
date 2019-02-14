@@ -1,0 +1,62 @@
+cabal-version:  1.12
+name:           trans-fx-testing
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/trans-fx-test#readme>
+homepage:       https://github.com/nbloomf/trans-fx#readme
+bug-reports:    https://github.com/nbloomf/trans-fx/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+extra-source-files:
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/trans-fx/trans-fx-testing
+
+library
+  default-language: Haskell2010
+  hs-source-dirs: src
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx
+    , QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+  exposed-modules:
+      Test.Tasty.QuickCheck.Laws.FX.MonadTrans
+    , Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
+
+    , Control.FX.Arbitrary
+    , Control.FX.EqIn
+    , Control.FX.EqIn.Class
+    , Control.FX.Show
+    , Control.FX.Functor.Arbitrary
+    , Control.FX.Monad.Arbitrary
+    , Control.FX.Monad.EqIn
+    , Control.FX.Monad.Show
+    , Control.FX.Monad.Trans.Arbitrary
+    , Control.FX.Monad.Trans.EqIn
+    , Control.FX.Monad.Trans.Show
+    , Control.FX.Monad.Trans.Trans.Arbitrary
+    , Control.FX.Monad.Trans.Trans.EqIn
+    , Control.FX.Monad.Trans.Trans.Show
+
+test-suite trans-fx-testing-test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx
+    , trans-fx-testing
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2

@@ -1,0 +1,8 @@
+resolver: lts-13.6
+
+packages:
+- ./trans-fx
+- ./trans-fx-testing
+
+extra-deps:
+- tasty-quickcheck-laws-0.0.2
