@@ -27,15 +27,15 @@ instance
 
 instance
   ( Arbitrary a, CoArbitrary r
-  ) => Arbitrary (Reader mark r a)
+  ) => Arbitrary (ReadOnly mark r a)
   where
-    arbitrary = Reader <$> arbitrary
+    arbitrary = ReadOnly <$> arbitrary
 
 instance
   ( Arbitrary a, Arbitrary w, Monoid w
-  ) => Arbitrary (Writer mark w a)
+  ) => Arbitrary (WriteOnly mark w a)
   where
-    arbitrary = Writer <$> arbitrary
+    arbitrary = WriteOnly <$> arbitrary
 
 instance
   ( Arbitrary a, Arbitrary g

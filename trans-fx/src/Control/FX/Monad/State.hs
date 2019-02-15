@@ -17,7 +17,7 @@ import Control.FX.Functor
 import Control.FX.Monad.Class
 
 newtype State
-  (k :: * -> *)
+  (mark :: * -> *)
   (s :: *)
   (a :: *)
     = State

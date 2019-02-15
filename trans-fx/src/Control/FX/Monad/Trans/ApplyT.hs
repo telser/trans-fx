@@ -62,11 +62,16 @@ instance
       ApplyT (x >>= (unApplyT . f))
 
 instance
-  ( Monad c, Central c, MonadTrans t
-  , forall m. (Monad m, Central m) => Central (t m)
-  ) => Central (ApplyT t c)
+  ( Central c, MonadTrans t
+  , forall m. (Central m) => Central (t m)
+  ) => Commutant (ApplyT t c)
   where
     commute = fmap ApplyT . commute . unApplyT
+
+instance
+  ( Central c, MonadTrans t
+  , forall m. (Central m) => Central (t m)
+  ) => Central (ApplyT t c)
 
 instance
   ( MonadTrans t
@@ -113,8 +118,8 @@ instance
 
 instance
   ( Monad m, Monoid w, MonadTrans t, MonadIdentity mark
-  , forall x. (Monad x) => MonadWriter mark w (t x)
-  ) => MonadWriter mark w (ApplyT t m)
+  , forall x. (Monad x) => MonadWriteOnly mark w (t x)
+  ) => MonadWriteOnly mark w (ApplyT t m)
   where
     draft = ApplyT . draft . unApplyT
 
@@ -134,8 +139,8 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
-  , forall x. (Monad x) => MonadReader mark r (t x)
-  ) => MonadReader mark r (ApplyT t m)
+  , forall x. (Monad x) => MonadReadOnly mark r (t x)
+  ) => MonadReadOnly mark r (ApplyT t m)
   where
     ask = ApplyT ask
 

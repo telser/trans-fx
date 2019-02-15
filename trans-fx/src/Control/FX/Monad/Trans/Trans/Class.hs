@@ -50,7 +50,7 @@ instance MonadTransFunctor ApplyT where
   raiseT f = ApplyT . hoist f . unApplyT
 
 class
-  ( MonadTransTrans u, Functor f, Central f
+  ( MonadTransTrans u, Commutant f
   ) => RunMonadTransTrans z u f | u -> z f
   where
     runTT

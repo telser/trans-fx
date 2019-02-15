@@ -20,11 +20,11 @@ instance
 
 instance
   ( Arbitrary (m a), CoArbitrary r, Functor m
-  ) => Arbitrary (ReaderT mark r m a)
+  ) => Arbitrary (ReadOnlyT mark r m a)
   where
     arbitrary = do
       f <- arbitrary
-      return (ReaderT $ Reader f)
+      return (ReadOnlyT $ ReadOnly f)
 
 instance
   ( Arbitrary (m (Pair s a)), CoArbitrary s
@@ -33,10 +33,10 @@ instance
     arbitrary = StateT <$> arbitrary
 
 instance
-  ( Arbitrary (m (Writer mark w a)), Functor m
-  ) => Arbitrary (WriterT mark w m a)
+  ( Arbitrary (m (WriteOnly mark w a)), Functor m
+  ) => Arbitrary (WriteOnlyT mark w m a)
   where
-    arbitrary = WriterT <$> arbitrary
+    arbitrary = WriteOnlyT <$> arbitrary
 
 instance
   ( Arbitrary (m a), Arbitrary e, Functor m

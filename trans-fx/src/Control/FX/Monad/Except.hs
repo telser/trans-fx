@@ -51,11 +51,15 @@ instance Monad (Except mark e) where
       Except e -> Except e
       Accept x -> f x
 
-instance Central (Except mark e) where
-  commute :: (Applicative f) => Except mark e (f a) -> f (Except mark e a)
+instance Commutant (Except mark e) where
+  commute
+    :: ( Applicative f )
+    => Except mark e (f a) -> f (Except mark e a)
   commute x = case x of
     Except e -> pure (Except e)
     Accept m -> Accept <$> m
+
+instance Central (Except mark e)
 
 instance RunMonad () (Except mark e) (Except mark e) where
   run () = id

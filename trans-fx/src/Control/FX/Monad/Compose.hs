@@ -60,11 +60,17 @@ instance
       Compose . fmap join . join . fmap commute . fmap (fmap (unCompose . f)) $ x
 
 instance
-  ( Functor m1, Functor m2, Central m1, Central m2
-  ) => Central (Compose m1 m2)
+  ( Commutant c1, Commutant c2
+  ) => Commutant (Compose c1 c2)
   where
-    commute :: (Applicative f) => Compose m1 m2 (f a) -> f (Compose m1 m2 a)
+    commute
+      :: ( Applicative f )
+      => Compose c1 c2 (f a) -> f (Compose c1 c2 a)
     commute = fmap Compose . commute . fmap commute . unCompose
+
+instance
+  ( Central c1, Central c2
+  ) => Central (Compose c1 c2)
 
 instance
   ( RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m2

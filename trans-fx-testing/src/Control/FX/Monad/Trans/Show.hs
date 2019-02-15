@@ -14,8 +14,8 @@ instance
   where
     show (MaybeT x) = "MaybeT " ++ show x
 
-instance Show (ReaderT mark r m a) where
-  show _ = "ReaderT"
+instance Show (ReadOnlyT mark r m a) where
+  show _ = "ReadOnlyT"
 
 instance Show (StateT mark s m a) where
   show _ = "StateT"

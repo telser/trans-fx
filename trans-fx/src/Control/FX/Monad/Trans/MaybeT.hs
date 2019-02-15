@@ -62,11 +62,17 @@ instance
           Just a  -> unMaybeT $ f a
 
 instance
-  ( Monad m, Central m
-  ) => Central (MaybeT m)
+  ( Central c
+  ) => Commutant (MaybeT c)
   where
-    commute :: (Applicative f) => MaybeT m (f a) -> f (MaybeT m a)
+    commute
+      :: ( Applicative f )
+      => MaybeT c (f a) -> f (MaybeT c a)
     commute = fmap MaybeT . commute . fmap commute . unMaybeT
+
+instance
+  ( Central c
+  ) => Central (MaybeT c)
 
 instance MonadTrans MaybeT where
   lift x = MaybeT (x >>= (return . Just))

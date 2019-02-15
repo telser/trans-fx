@@ -21,10 +21,10 @@ instance
 
 instance
   ( EqIn h (m a), Functor m
-  ) => EqIn (r,h) (ReaderT mark r m a)
+  ) => EqIn (r,h) (ReadOnlyT mark r m a)
   where
-    eqIn (r,h) (ReaderT x) (ReaderT y) =
-      eqIn h (unReader x r) (unReader y r)
+    eqIn (r,h) (ReadOnlyT x) (ReadOnlyT y) =
+      eqIn h (unReadOnly x r) (unReadOnly y r)
 
 instance
   ( EqIn h (m (Pair s a))
@@ -41,10 +41,10 @@ instance
       eqIn h x y
 
 instance
-  ( EqIn h (m (Writer mark e a))
-  ) => EqIn ((),h) (WriterT mark e m a)
+  ( EqIn h (m (WriteOnly mark e a))
+  ) => EqIn ((),h) (WriteOnlyT mark e m a)
   where
-    eqIn ((),h) (WriterT x) (WriterT y) =
+    eqIn ((),h) (WriteOnlyT x) (WriteOnlyT y) =
       eqIn h x y
 
 instance

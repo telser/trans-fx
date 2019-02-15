@@ -47,7 +47,7 @@ class
       => (forall u. m u -> n u) -> t m a -> t n a
 
 class
-  ( MonadTrans t, Functor f, Central f
+  ( MonadTrans t, Commutant f
   ) => RunMonadTrans z t f | t -> z f
   where
     runT

@@ -59,7 +59,7 @@ monadTransLawIdentity _ _ _ _ eq w a =
 
 -- | @lift (x >>= f) == lift x >>= (lift . f)@
 testMonadTransLawHomomorphism
-  :: (MonadTrans t, Monad m, Eq b
+  :: ( MonadTrans t, Monad m, Eq b
      , Show w, Show (m a)
      , Arbitrary w, CoArbitrary a, Arbitrary (m a), Arbitrary (m b)
      )

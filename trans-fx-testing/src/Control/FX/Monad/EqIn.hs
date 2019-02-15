@@ -35,7 +35,7 @@ instance
 
 instance
   ( Eq a, Eq b
-  ) => EqIn () (Writer mark a b)
+  ) => EqIn () (WriteOnly mark a b)
   where
     eqIn () x y = x == y
 
@@ -47,9 +47,9 @@ instance
 
 instance
   ( Eq a
-  ) => EqIn r (Reader mark r a)
+  ) => EqIn r (ReadOnly mark r a)
   where
-    eqIn r (Reader x) (Reader y) =
+    eqIn r (ReadOnly x) (ReadOnly y) =
       (x r) == (y r)
 
 instance

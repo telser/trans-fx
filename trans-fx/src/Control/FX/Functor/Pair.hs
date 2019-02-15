@@ -14,6 +14,8 @@ import Data.Typeable (Typeable)
 
 import Control.FX.Functor.Class
 
+
+
 data Pair
   (a1 :: *)
   (a2 :: *)
@@ -30,6 +32,5 @@ fromTup (a,b) = Pair a b
 instance Functor (Pair a1) where
   fmap f (Pair a1 a2) = Pair a1 (f a2)
 
-instance Central (Pair a1) where
-  commute :: (Applicative g) => Pair a1 (g a) -> g (Pair a1 a)
+instance Commutant (Pair a1) where
   commute (Pair a1 x) = fmap (Pair a1) x

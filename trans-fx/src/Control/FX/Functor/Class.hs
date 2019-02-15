@@ -4,25 +4,29 @@
 #-}
 
 module Control.FX.Functor.Class (
-    Central(..)
+    Commutant(..)
 ) where
 
 class
-  ( Functor f
-  ) => Central f
+  ( Functor d
+  ) => Commutant d
   where
     commute
-      :: (Applicative g)
-      => f (g a) -> g (f a)
+      :: (Applicative f)
+      => d (f a) -> f (d a)
 
-instance Central Maybe where
-  commute :: (Applicative g) => Maybe (g a) -> g (Maybe a)
+instance Commutant Maybe where
+  commute
+    :: ( Applicative f )
+    => Maybe (f a) -> f (Maybe a)
   commute x = case x of
     Nothing -> pure Nothing
     Just m  -> fmap Just m
 
-instance Central (Either e) where
-  commute :: (Applicative g) => Either e (g a) -> g (Either e a)
+instance Commutant (Either e) where
+  commute
+    :: ( Applicative f )
+    => Either e (f a) -> f (Either e a)
   commute x = case x of
     Left e  -> pure (Left e)
     Right m -> fmap Right m

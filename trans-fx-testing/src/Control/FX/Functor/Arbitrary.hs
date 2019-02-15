@@ -15,3 +15,23 @@ instance
   ) => Arbitrary (Tag g)
   where
     arbitrary = Tag <$> arbitrary
+
+instance
+  ( Arbitrary a
+  ) => Arbitrary (LeftZero a)
+  where
+    arbitrary = do
+      p <- arbitrary
+      if p
+        then return LeftUnit
+        else LeftZero <$> arbitrary
+
+instance
+  ( Arbitrary a
+  ) => Arbitrary (RightZero a)
+  where
+    arbitrary = do
+      p <- arbitrary
+      if p
+        then return RightUnit
+        else RightZero <$> arbitrary

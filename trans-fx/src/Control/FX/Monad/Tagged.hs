@@ -47,9 +47,13 @@ instance Monad (Tagged g) where
     let Tagged g2 y = f x in
     Tagged (g1 <> g2) y
 
-instance Central (Tagged g) where
-  commute :: (Applicative f) => Tagged g (f a) -> f (Tagged g a)
+instance Commutant (Tagged g) where
+  commute
+    :: ( Applicative f )
+    => Tagged g (f a) -> f (Tagged g a)
   commute (Tagged g x) = fmap (Tagged g) x
+
+instance Central (Tagged g)
 
 instance RunMonad () (Tagged g) (Tagged g) where
   run :: () -> Tagged g a -> Tagged g a

@@ -62,11 +62,17 @@ instance
       Flip . fmap join . join . fmap commute . fmap (fmap (unFlip . f)) $ x
 
 instance
-  ( Functor c1, Functor c2, Central c1, Central c2
-  ) => Central (Flip c1 c2)
+  ( Commutant c1, Commutant c2
+  ) => Commutant (Flip c1 c2)
   where
-    commute :: (Applicative f) => Flip c1 c2 (f a) -> f (Flip c1 c2 a)
+    commute
+      :: ( Applicative f )
+      => Flip c1 c2 (f a) -> f (Flip c1 c2 a)
     commute = fmap Flip . commute . fmap commute . unFlip
+
+instance
+  ( Central c1, Central c2
+  ) => Central (Flip c1 c2)
 
 instance
   ( RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m1

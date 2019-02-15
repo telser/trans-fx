@@ -50,11 +50,15 @@ instance
       Apply (x >>= (unApply . f))
 
 instance
-  ( Central c
-  ) => Central (Apply c)
+  ( Commutant c
+  ) => Commutant (Apply c)
   where
     commute :: (Applicative f) => Apply c (f a) -> f (Apply c a)
     commute = fmap Apply . commute . unApply
+
+instance
+  ( Central c
+  ) => Central (Apply c)
 
 instance
   ( RunMonad z m f

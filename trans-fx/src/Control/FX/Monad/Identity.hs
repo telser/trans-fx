@@ -43,9 +43,13 @@ instance Monad Identity where
   (>>=) :: Identity a -> (a -> Identity b) -> Identity b
   (Identity x) >>= f = f x
 
-instance Central Identity where
-  commute :: (Applicative f) => Identity (f a) -> f (Identity a)
+instance Commutant Identity where
+  commute
+    :: ( Applicative f )
+    => Identity (f a) -> f (Identity a)
   commute (Identity x) = Identity <$> x
+
+instance Central Identity
 
 instance RunMonad () Identity Identity where
   run () = id

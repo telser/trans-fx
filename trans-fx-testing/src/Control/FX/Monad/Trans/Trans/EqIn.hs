@@ -12,15 +12,19 @@ module Control.FX.Monad.Trans.Trans.EqIn where
 
 import Test.QuickCheck (Arbitrary(..))
 
+import Control.FX.Monad.Unit
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans
 import Control.FX.EqIn.Class
 
+instance Arbitrary (Unit m) where
+  arbitrary = return Unit
+
 instance
   ( EqIn h (t m a)
-  ) => EqIn ((),h) (IdentityTT t m a)
+  ) => EqIn (Unit m ,h) (IdentityTT t m a)
   where
-    eqIn ((),h) (IdentityTT x) (IdentityTT y) = eqIn h x y
+    eqIn (Unit, h) (IdentityTT x) (IdentityTT y) = eqIn h x y
 
 instance Show (Eval p m) where
   show _ = "Eval"

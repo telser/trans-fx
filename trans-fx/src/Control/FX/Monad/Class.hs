@@ -5,14 +5,35 @@
     MultiParamTypeClasses
 #-}
 
-module Control.FX.Monad.Class where
+module Control.FX.Monad.Class (
+    Central(..)
+  , RunMonad(..)
+
+  , MonadIdentity(..)
+  , MonadMaybe(..)
+  , MonadExcept(..)
+  , MonadState(..)
+  , MonadWriteOnly(..)
+  , MonadReadOnly(..)
+) where
 
 import Control.FX.Functor
 
 
 
 class
-  ( Monad m, Functor f, Central f
+  ( Commutant c, Monad c
+  ) => Central c
+
+instance Central Maybe
+instance Central (Either e)
+instance Central Tag
+
+
+
+
+class
+  ( Monad m, Commutant f
   ) => RunMonad z m f
   where
     run :: z -> m a -> f a
@@ -52,14 +73,14 @@ class
 
 class
   ( Monad m, Monoid w, MonadIdentity mark
-  ) => MonadWriter mark w m
+  ) => MonadWriteOnly mark w m
   where
     tell :: mark w -> m ()
     draft :: m a -> m (Pair (mark w) a)
 
 class
   ( Monad m, MonadIdentity mark
-  ) => MonadReader mark r m
+  ) => MonadReadOnly mark r m
   where
     ask :: m (mark r)
     local :: (mark r -> mark r) -> m a -> m a

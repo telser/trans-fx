@@ -60,11 +60,17 @@ instance
       IdentityT (x >>= (unIdentityT . f))
 
 instance
-  ( Monad m, Central m
-  ) => Central (IdentityT m)
+  ( Central c
+  ) => Commutant (IdentityT c)
   where
-    commute :: (Applicative f) => IdentityT m (f a) -> f (IdentityT m a)
+    commute
+      :: ( Applicative f )
+      => IdentityT c (f a) -> f (IdentityT c a)
     commute = fmap IdentityT . commute . unIdentityT
+
+instance
+  ( Central c
+  ) => Central (IdentityT c)
 
 instance MonadTrans IdentityT where
   lift = IdentityT

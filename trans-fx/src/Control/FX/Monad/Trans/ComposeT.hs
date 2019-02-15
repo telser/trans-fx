@@ -19,9 +19,9 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 import Control.FX.Monad.Trans.ExceptT
-import Control.FX.Monad.Trans.WriterT
+import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.StateT
-import Control.FX.Monad.Trans.ReaderT
+import Control.FX.Monad.Trans.ReadOnlyT
 import Control.FX.Monad.Trans.MaybeT
 
 newtype ComposeT
@@ -117,7 +117,7 @@ instance {-# OVERLAPPABLE #-}
 
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t2, Monoid w, MonadIdentity mark
-  ) => MonadWriter mark w (ComposeT (WriterT mark w) t2 m)
+  ) => MonadWriteOnly mark w (ComposeT (WriteOnlyT mark w) t2 m)
   where
     draft = ComposeT . draft . unComposeT
 
@@ -126,8 +126,8 @@ instance {-# OVERLAPS #-}
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2, Monoid w
   , LiftDraft z1 t1 f1, MonadIdentity mark
-  , forall x. (Monad x) => MonadWriter mark w (t2 x)
-  ) => MonadWriter mark w (ComposeT t1 t2 m)
+  , forall x. (Monad x) => MonadWriteOnly mark w (t2 x)
+  ) => MonadWriteOnly mark w (ComposeT t1 t2 m)
   where
     draft = ComposeT . liftDraft draft . unComposeT
 
@@ -160,9 +160,9 @@ instance {-# OVERLAPPABLE #-}
 
 instance  {-# OVERLAPS #-}
   ( Monad m, MonadTrans t2, MonadIdentity mark
-  ) => MonadReader mark r (ComposeT (ReaderT mark r) t2 m)
+  ) => MonadReadOnly mark r (ComposeT (ReadOnlyT mark r) t2 m)
   where
-    ask :: ComposeT (ReaderT mark r) t2 m (mark r)
+    ask :: ComposeT (ReadOnlyT mark r) t2 m (mark r)
     ask = ComposeT ask
 
     local f = ComposeT . local f . unComposeT
@@ -170,8 +170,8 @@ instance  {-# OVERLAPS #-}
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2
   , LiftLocal z1 t1 f1, MonadIdentity mark
-  , forall x. (Monad x) => MonadReader mark r (t2 x)
-  ) => MonadReader mark r (ComposeT t1 t2 m)
+  , forall x. (Monad x) => MonadReadOnly mark r (t2 x)
+  ) => MonadReadOnly mark r (ComposeT t1 t2 m)
   where
     ask :: ComposeT t1 t2 m (mark r)
     ask = ComposeT $ lift ask

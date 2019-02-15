@@ -66,11 +66,17 @@ instance
           Accept a -> unExceptT $ f a
 
 instance
-  ( Monad m, Central m
-  ) => Central (ExceptT mark e m)
+  ( Central c
+  ) => Commutant (ExceptT mark e c)
   where
-    commute :: (Applicative f) => ExceptT mark e m (f a) -> f (ExceptT mark e m a)
+    commute
+      :: ( Applicative f )
+      => ExceptT mark e c (f a) -> f (ExceptT mark e c a)
     commute = fmap ExceptT . commute . fmap commute . unExceptT
+
+instance
+  ( Central c
+  ) => Central (ExceptT mark e c)
 
 instance MonadTrans (ExceptT mark e) where
   lift x = ExceptT (x >>= (return . pure))

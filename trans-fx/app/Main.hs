@@ -10,7 +10,7 @@ import Control.FX
 main :: IO ()
 main = return ()
 
-type Foo a = (ComposeTT IdentityTT (OverTT IdentityTT (ReaderT Identity Char))) IdentityT Identity a
+type Foo a = (ComposeTT IdentityTT (OverTT IdentityTT (ReadOnlyT Identity Char))) IdentityT Identity a
 
 test :: Int -> Foo Int
 test k = return k

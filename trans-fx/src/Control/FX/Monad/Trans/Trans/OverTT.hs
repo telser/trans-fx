@@ -105,8 +105,8 @@ instance
 instance
   ( Monad m, MonadTrans t, MonadFunctor w, Monoid w'
   , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadWriter mark w' (w x)
-  ) => MonadWriter mark w' (OverTT u w t m)
+  , forall x. (Monad x) => MonadWriteOnly mark w' (w x)
+  ) => MonadWriteOnly mark w' (OverTT u w t m)
   where
     tell = OverTT . tell
 
@@ -123,8 +123,8 @@ instance
 instance
   ( Monad m, MonadTrans t, MonadFunctor w
   , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadReader mark r (w x)
-  ) => MonadReader mark r (OverTT u w t m)
+  , forall x. (Monad x) => MonadReadOnly mark r (w x)
+  ) => MonadReadOnly mark r (OverTT u w t m)
   where
     ask = OverTT ask
 

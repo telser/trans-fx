@@ -11,6 +11,8 @@ import Data.Typeable (Typeable)
 
 import Control.FX.Functor.Class
 
+
+
 data Tag a
   = Blank | Tag a
   deriving (Eq, Show, Typeable)
@@ -31,8 +33,26 @@ instance Functor Tag where
       Blank -> Blank
       Tag a -> Tag (f a)
 
-instance Central Tag where
-  commute :: (Applicative f) => Tag (f a) -> f (Tag a)
+instance Applicative Tag where
+  pure = Tag
+
+  f' <*> x' =
+    case f' of
+      Blank -> Blank
+      Tag f -> case x' of
+        Blank -> Blank
+        Tag x -> Tag (f x)
+
+instance Monad Tag where
+  return = Tag
+
+  x' >>= f =
+    case x' of
+      Blank -> Blank
+      Tag x -> f x
+
+instance Commutant Tag where
+  commute :: (Applicative m) => Tag (m a) -> m (Tag a)
   commute x =
     case x of
       Blank -> pure Blank

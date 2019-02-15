@@ -29,7 +29,10 @@ library
     , tasty-quickcheck >=0.10
     , tasty-quickcheck-laws >=0.0.2
   exposed-modules:
-      Test.Tasty.QuickCheck.Laws.FX.MonadTrans
+      Test.Tasty.QuickCheck.Laws.FX
+    , Test.Tasty.QuickCheck.Laws.FX.Central
+    , Test.Tasty.QuickCheck.Laws.FX.Commutant
+    , Test.Tasty.QuickCheck.Laws.FX.MonadTrans
     , Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
 
     , Control.FX.Arbitrary
@@ -37,6 +40,7 @@ library
     , Control.FX.EqIn.Class
     , Control.FX.Show
     , Control.FX.Functor.Arbitrary
+    , Control.FX.Functor.EqIn
     , Control.FX.Monad.Arbitrary
     , Control.FX.Monad.EqIn
     , Control.FX.Monad.Show
