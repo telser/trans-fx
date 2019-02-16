@@ -1,3 +1,11 @@
+-- | Module      : Control.FX.Monad.Except
+--   Description : Concrete exception monad
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
 {-#
   LANGUAGE
     InstanceSigs,
@@ -11,16 +19,23 @@ module Control.FX.Monad.Except (
   , runExcept
 ) where
 
+
+
 import Data.Typeable (Typeable)
 
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
+
+
+-- | Concrete exception monad, throwing marked exceptions of type
+-- @mark e@ and producing values of type @a@
 data Except
   (k :: * -> *)
   (e :: *)
   (a :: *)
-    = Except e | Accept a
+    = Except e -- ^ Exceptional result
+    | Accept a -- ^ Normal result
     deriving (Eq, Show, Typeable)
 
 instance Functor (Except mark e) where
@@ -64,6 +79,7 @@ instance Central (Except mark e)
 instance RunMonad () (Except mark e) (Except mark e) where
   run () = id
 
+-- | Run an @Except e a@, producing either an @Except e@ or an @Accept a@.
 runExcept :: Except mark e a -> Except mark e a
 runExcept = run ()
 

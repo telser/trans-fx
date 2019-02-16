@@ -1,0 +1,83 @@
+cabal-version:  1.12
+name:           trans-fx-core
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/nbloomf/trans-fx#readme>
+homepage:       https://github.com/nbloomf/trans-fx#readme
+bug-reports:    https://github.com/nbloomf/trans-fx/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+extra-source-files:
+    ../CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/trans-fx/trans-fx-core
+
+executable trans-fx-demo
+  default-language: Haskell2010
+  main-is: Main.hs
+  hs-source-dirs: app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+
+library
+  hs-source-dirs: src
+  default-language: Haskell2010
+  exposed-modules:
+      Control.FX
+    , Control.FX.Functor
+    , Control.FX.Functor.Class
+    , Control.FX.Functor.Pair
+    , Control.FX.Functor.Tag
+    , Control.FX.Functor.LeftZero
+    , Control.FX.Functor.RightZero
+    , Control.FX.Monad
+    , Control.FX.Monad.Class
+    , Control.FX.Monad.Identity
+    , Control.FX.Monad.Compose
+    , Control.FX.Monad.Flip
+    , Control.FX.Monad.Apply
+    , Control.FX.Monad.Tagged
+    , Control.FX.Monad.From
+    , Control.FX.Monad.ReadOnly
+    , Control.FX.Monad.State
+    , Control.FX.Monad.Except
+    , Control.FX.Monad.WriteOnly
+    , Control.FX.Monad.Unit
+    , Control.FX.Monad.Trans
+    , Control.FX.Monad.Trans.Class
+    , Control.FX.Monad.Trans.IdentityT
+    , Control.FX.Monad.Trans.ComposeT
+    , Control.FX.Monad.Trans.ApplyT
+    , Control.FX.Monad.Trans.ReadOnlyT
+    , Control.FX.Monad.Trans.StateT
+    , Control.FX.Monad.Trans.MaybeT
+    , Control.FX.Monad.Trans.ExceptT
+    , Control.FX.Monad.Trans.WriteOnlyT
+    , Control.FX.Monad.Trans.Trans
+    , Control.FX.Monad.Trans.Trans.Class
+    , Control.FX.Monad.Trans.Trans.IdentityTT
+    , Control.FX.Monad.Trans.Trans.ComposeTT
+    , Control.FX.Monad.Trans.Trans.PromptTT
+    , Control.FX.Monad.Trans.Trans.ApplyTT
+    , Control.FX.Monad.Trans.Trans.OverTT
+  build-depends:
+      base >=4.7 && <5
+
+test-suite trans-fx-test
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-testing

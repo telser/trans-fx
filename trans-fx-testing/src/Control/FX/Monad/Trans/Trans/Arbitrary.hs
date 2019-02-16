@@ -36,3 +36,9 @@ instance
       if w
         then prompt <$> arbitrary
         else liftT <$> arbitrary
+
+instance
+  ( Monad m, MonadTrans t, MonadTrans w, MonadTransTrans u, Arbitrary (w (u t m) a)
+  ) => Arbitrary (OverTT u w t m a)
+  where
+    arbitrary = OverTT <$> arbitrary

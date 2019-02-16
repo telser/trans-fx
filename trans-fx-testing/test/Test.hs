@@ -932,48 +932,75 @@ test_all_MonadTransTrans_FAM :: TestTree
 test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
   [ testGroup "IdentityTT"
     -- IdentityT
-    [ test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy IdentityT) pU
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy MaybeT) pU
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (ExceptT Identity Bool)) pU
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (ExceptT Identity Int))  pU
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (ReadOnlyT Identity Bool)) pB
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (ReadOnlyT Identity Int))  pI
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (StateT Identity Bool)) pB
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit) (Proxy :: Proxy (StateT Identity Int))  pI
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy IdentityTT) (Proxy :: Proxy Unit)
     ]
 
   , testGroup "PromptTT"
-    [ test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy IdentityT) pU
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity))
+    ]
 
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy MaybeT) pU
+  , testGroup "OverTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (IdentityT))) (pSS (Proxy :: Proxy Unit) pU)
 
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (ExceptT Identity Bool)) pU
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (ExceptT Identity Int))  pU
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (MaybeT))) (pSS (Proxy :: Proxy Unit) pU)
 
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (ReadOnlyT Identity Bool)) pB
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (ReadOnlyT Identity Int))  pI
-
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (StateT Identity Bool)) pB
-    , test_MonadTransTrans_Monad_FAM (Proxy :: Proxy (PromptTT Identity)) (Proxy :: Proxy (Eval Identity)) (Proxy :: Proxy (StateT Identity Int))  pI
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Bool))) (pSS (Proxy :: Proxy Unit) pU)
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Int)))  (pSS (Proxy :: Proxy Unit) pU)
     ]
   ]
 
+
+pSS
+  :: Proxy (z :: (* -> *) -> *)
+  -> Proxy (a :: *)
+  -> Proxy (Trip z a)
+pSS _ _ = Proxy
 
 
 test_all_MonadTransTrans_TT :: TestTree
 test_all_MonadTransTrans_TT = testGroup "All MonadTransTrans (TT)"
   [ testMonadTransTransLaws (Proxy :: Proxy IdentityTT) (Proxy :: Proxy IdentityT) (Proxy :: Proxy Identity) (pT2 (pUnit pId) (pT2 pU pU)) pB pI eqIn
   ]
+
+
+
+test_MonadTransTrans_MonadTrans_FAM
+  :: ( MonadTransTrans u, Typeable u
+       , forall m1. (Monad m1) => Show (uw m1)
+       , forall x m t
+           . ( Show x, Monad m, MonadTrans t
+             , forall x. (Show x) => Show (t m x) )
+          => Show (u t m x)
+       , forall m1. (Monad m1) => Arbitrary (uw m1)
+       , forall x m t
+           . ( Arbitrary x, Monad m, MonadTrans t
+             , forall x. (Arbitrary x) => Arbitrary (t m x) )
+          => Arbitrary (u t m x)
+     , forall x m mw t tw f1 f2
+         . ( Eq x, Eq mw, Monad m, MonadTrans t
+           , forall z. (Eq z) => EqIn (tw,mw) (t m z) )
+        => EqIn (uw m, (tw,mw)) (u t m x) )
+  => Proxy (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)
+  -> Proxy (uw :: (* -> *) -> *)
+  -> TestTree
+test_MonadTransTrans_MonadTrans_FAM proxyU proxyUW =
+  testGroup "MonadTransTrans - MonadTrans (FAM)"
+    [ test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy IdentityT) (pU)
+
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy MaybeT) (pU)
+
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Bool)) (pU)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Int))  (pU)
+
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (WriteOnlyT Identity Bool)) (pU)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (WriteOnlyT Identity Int))  (pU)
+
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ReadOnlyT Identity Bool)) (pB)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ReadOnlyT Identity Int))  (pI)
+
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (StateT Identity Bool)) (pB)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (StateT Identity Int))  (pI)
+    ]
 
 
 
@@ -991,10 +1018,16 @@ test_MonadTransTrans_Monad_FAM
            . ( Arbitrary x, Monad m
              , forall x. (Arbitrary x) => Arbitrary (m x) )
           => Arbitrary (u t m x)
-     , forall x m mw
-         . ( Eq x, Monad m
-           , forall z. (Eq z) => EqIn mw (m z) )
-        => EqIn (uw m, (tw,mw)) (u t m x) )
+     , forall x m mw f1 f2
+         . ( Eq x, Eq mw, Monad m
+           , forall z. (Eq z) => EqIn (tw,mw) (t m z) )
+        => EqIn (uw m, (tw,mw)) (u t m x)
+     , forall x mw. (Eq x, Eq mw) => (EqIn (tw, mw) (t (ReadOnly Identity mw) x))
+     , forall x mw. (Eq x, Eq mw, Monoid mw) => (EqIn (tw, ()) (t (WriteOnly Identity mw) x))
+     , forall x mw. (Eq x, Eq mw) => (EqIn (tw, ()) (t (Except Identity mw) x))
+     , forall x. (Eq x) => (EqIn (tw, ()) (t (Maybe) x))
+     , forall x. (Eq x) => (EqIn (tw, ()) (t (Identity) x))
+     , forall x mw. (Eq x, Eq mw) => (EqIn (tw, mw) (t (State Identity mw) x)) )
   => Proxy (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)
   -> Proxy (uw :: (* -> *) -> *)
   -> Proxy (t :: (* -> *) -> * -> *)
@@ -1033,7 +1066,9 @@ test_MonadTransTrans_FAM
        , forall x
            . ( Arbitrary x )
           => Arbitrary (u t m x)
-     , forall x. (Eq x) => EqIn (uw m, (tw,mw)) (u t m x) )
+     , forall x
+         . ( Eq x )
+        => EqIn (uw m, (tw,mw)) (u t m x) )
   => Proxy (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)
   -> Proxy (uw :: (* -> *) -> *)
   -> Proxy (t :: (* -> *) -> * -> *)
@@ -1047,6 +1082,8 @@ test_MonadTransTrans_FAM proxyU proxyUW proxyT proxyTW proxyM proxyMW =
     , testApplicativeLaws2 (pTT proxyU proxyT proxyM) (pT2 (pUU proxyUW proxyM) (pT2 proxyTW proxyMW)) pB pI eqIn
     , testMonadLaws2       (pTT proxyU proxyT proxyM) (pT2 (pUU proxyUW proxyM) (pT2 proxyTW proxyMW)) pB pI eqIn
     ]
+
+
 
 pTT
   :: Proxy (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)

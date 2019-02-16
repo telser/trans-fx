@@ -1,3 +1,11 @@
+-- | Module      : Control.FX.Monad.Identity
+--   Description : Concrete identity monad
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
 {-#
   LANGUAGE
     InstanceSigs,
@@ -11,14 +19,19 @@ module Control.FX.Monad.Identity (
   , runIdentity
 ) where
 
+
+
 import Data.Typeable (Typeable)
 
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
+
+
+-- | Concrete identity monad
 data Identity (a :: *)
   = Identity
-      { unIdentity :: a
+      { unIdentity :: a -- ^ Extract a pure value
       } deriving (Eq, Typeable)
 
 instance (Show a) => Show (Identity a) where
@@ -54,6 +67,7 @@ instance Central Identity
 instance RunMonad () Identity Identity where
   run () = id
 
+-- | Run an @Identity a@, producing a pure value.
 runIdentity :: Identity a -> a
 runIdentity = unIdentity . run ()
 
