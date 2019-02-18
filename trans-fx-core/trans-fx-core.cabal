@@ -1,7 +1,7 @@
 cabal-version:  1.12
 name:           trans-fx-core
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/nbloomf/trans-fx#readme>
+description:    Effect framework
 homepage:       https://github.com/nbloomf/trans-fx#readme
 bug-reports:    https://github.com/nbloomf/trans-fx/issues
 author:         Nathan Bloomfield
@@ -11,25 +11,15 @@ license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
 
-extra-source-files:
-    ../CHANGELOG.md
-
 source-repository head
   type: git
   location: https://github.com/nbloomf/trans-fx/trans-fx-core
 
-executable trans-fx-demo
-  default-language: Haskell2010
-  main-is: Main.hs
-  hs-source-dirs: app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      base >=4.7 && <5
-    , trans-fx-core
-
 library
   hs-source-dirs: src
   default-language: Haskell2010
+  build-depends:
+      base >=4.7 && <5
   exposed-modules:
       Control.FX
     , Control.FX.Functor
@@ -68,10 +58,8 @@ library
     , Control.FX.Monad.Trans.Trans.PromptTT
     , Control.FX.Monad.Trans.Trans.ApplyTT
     , Control.FX.Monad.Trans.Trans.OverTT
-  build-depends:
-      base >=4.7 && <5
 
-test-suite trans-fx-test
+test-suite trans-fx-core-test
   default-language: Haskell2010
   type: exitcode-stdio-1.0
   main-is: Test.hs
@@ -80,4 +68,4 @@ test-suite trans-fx-test
   build-depends:
       base >=4.7 && <5
     , trans-fx-core
-    , trans-fx-testing
+    , trans-fx-test

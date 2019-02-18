@@ -73,17 +73,17 @@ instance
     liftT = ComposeTT . liftT . liftT
 
 instance
-  ( RunMonadTransTrans z u1 f1, RunMonadTransTrans z u2 f2
-  ) => RunMonadTransTrans (Dub z) (ComposeTT u1 u2) (Compose f2 f1)
+  ( RunMonadTransTrans z1 u1 f1, RunMonadTransTrans z2 u2 f2
+  ) => RunMonadTransTrans (Dub z1 z2) (ComposeTT u1 u2) (Compose f2 f1)
   where
     runTT
       :: (Monad m, MonadTrans t)
-      => Dub z m -> ComposeTT u1 u2 t m a -> t m (Compose f2 f1 a)
+      => Dub z1 z2 m -> ComposeTT u1 u2 t m a -> t m (Compose f2 f1 a)
     runTT (Dub z1 z2) =
       fmap Compose . runTT z2 . runTT z1 . unComposeTT
 
 runComposeTT
   :: ( Monad m, MonadTrans t
      , RunMonadTransTrans z u1 f1, RunMonadTransTrans z u2 f2 )
-  => z m -> z m -> ComposeTT u1 u2 t m a -> t m (f2 (f1 a))
-runComposeTT z1 z2 = fmap unCompose . runTT (Dub z1 z2)
+  => (z m, z m) -> ComposeTT u1 u2 t m a -> t m (f2 (f1 a))
+runComposeTT (z1,z2) = fmap unCompose . runTT (Dub z1 z2)

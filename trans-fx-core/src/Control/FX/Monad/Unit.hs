@@ -9,9 +9,10 @@ data Unit (a :: * -> *)
   deriving (Eq, Show, Typeable)
 
 data Dub
-  (z :: (* -> *) -> *)
+  (z1 :: (* -> *) -> *)
+  (z2 :: (* -> *) -> *)
   (m :: * -> *)
-    = Dub (z m) (z m)
+    = Dub (z1 m) (z2 m)
 
 data Sing
   (z :: (* -> *) -> *)

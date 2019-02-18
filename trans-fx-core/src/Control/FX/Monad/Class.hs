@@ -1,5 +1,5 @@
 -- | Module      : Control.FX.Monad.Class
---   Description : Basic effect classes
+--   Description : Basic monadic effect classes
 --   Copyright   : 2019, Automattic, Inc.
 --   License     : BSD3
 --   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
@@ -9,6 +9,7 @@
 {-#
   LANGUAGE
     InstanceSigs,
+    KindSignatures,
     FlexibleInstances,
     MultiParamTypeClasses
 #-}
@@ -24,6 +25,7 @@ module Control.FX.Monad.Class (
   , MonadState(..)
   , MonadWriteOnly(..)
   , MonadReadOnly(..)
+  , MonadPrompt(..)
 ) where
 
 
@@ -182,3 +184,11 @@ class
     -- | Run a computation with a locally modified
     --   read-only state
     local :: (mark r -> mark r) -> m a -> m a
+
+
+
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadPrompt mark (p :: * -> *) m
+  where
+    prompt :: p (mark a) -> m (mark a)

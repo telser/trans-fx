@@ -75,6 +75,18 @@ instance
   where
     liftT = OverTT . lift . liftT
 
+{-
+instance
+  ( MonadFunctor w, MonadTransFunctor u
+  ) => MonadTransFunctor (OverTT u w)
+  where
+    hoistT
+      :: (Monad m, MonadFunctor t1, MonadFunctor t2)
+      => (forall n w. (Monad n) => t1 n w -> t2 n w)
+      -> OverTT u w t1 m a -> OverTT u w t2 m a
+    hoistT f = OverTT . hoistT f . unOverTT
+-}
+
 instance
   ( RunMonadTransTrans z1 u f1, RunMonadTrans z2 w f2, MonadFunctor w
   ) => RunMonadTransTrans (Sing z1 z2) (OverTT u w) (Compose f1 f2)
@@ -139,3 +151,10 @@ instance
     get = OverTT get
 
     put = OverTT . put
+
+instance
+  ( Monad m, MonadTrans t, MonadFunctor w
+  , MonadTransTrans u, MonadPrompt mark p (u t m)
+  ) => MonadPrompt mark p (OverTT u w t m)
+  where
+    prompt = OverTT . lift . prompt

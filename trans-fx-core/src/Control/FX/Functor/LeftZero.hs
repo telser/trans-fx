@@ -1,3 +1,11 @@
+-- | Module      : Control.FX.Functor.LeftZero
+--   Description : Left zero semigroup with identity on a type
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
 {-#
   LANGUAGE
     InstanceSigs,
@@ -8,23 +16,41 @@ module Control.FX.Functor.LeftZero (
     LeftZero(..)
 ) where
 
+
+
 import Data.Typeable (Typeable)
 
 import Control.FX.Functor.Class
 
+
+
+-- | Type representing the left zero semigroup on @a@ with
+-- an identity attached. As a functor @LeftZero@ is isomorphic
+-- to @Maybe@.
 data LeftZero
   (a :: *)
     = LeftZero a | LeftUnit
     deriving (Eq, Show, Typeable)
 
 instance Functor LeftZero where
+  fmap
+    :: (a -> b)
+    -> LeftZero a
+    -> LeftZero b
   fmap f x = case x of
     LeftZero a -> LeftZero (f a)
     LeftUnit   -> LeftUnit
 
 instance Applicative LeftZero where
+  pure
+    :: a
+    -> LeftZero a
   pure = LeftZero
 
+  (<*>)
+    :: LeftZero (a -> b)
+    -> LeftZero a
+    -> LeftZero b
   f' <*> x' =
     case f' of
       LeftUnit   -> LeftUnit
@@ -33,13 +59,24 @@ instance Applicative LeftZero where
         LeftZero x -> LeftZero (f x)
 
 instance Semigroup (LeftZero a) where
+  (<>)
+    :: LeftZero a
+    -> LeftZero a
+    -> LeftZero a
   x <> y =
     case x of
       LeftUnit -> y
       _ -> x
 
 instance Monoid (LeftZero a) where
-  mempty  = LeftUnit
+  mempty
+    :: LeftZero a
+  mempty = LeftUnit
+
+  mappend
+    :: LeftZero a
+    -> LeftZero a
+    -> LeftZero a
   mappend = (<>)
 
 instance Commutant LeftZero where
