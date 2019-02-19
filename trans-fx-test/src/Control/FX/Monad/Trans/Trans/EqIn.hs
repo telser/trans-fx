@@ -13,7 +13,6 @@ module Control.FX.Monad.Trans.Trans.EqIn where
 
 import Test.QuickCheck (Arbitrary(..))
 
-import Control.FX.Monad.Unit
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans
 import Control.FX.EqIn.Class

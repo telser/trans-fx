@@ -33,12 +33,10 @@ library
     , Control.FX.Monad.Compose
     , Control.FX.Monad.Flip
     , Control.FX.Monad.Apply
-    , Control.FX.Monad.From
     , Control.FX.Monad.ReadOnly
     , Control.FX.Monad.State
     , Control.FX.Monad.Except
     , Control.FX.Monad.WriteOnly
-    , Control.FX.Monad.Unit
     , Control.FX.Monad.Trans
     , Control.FX.Monad.Trans.Class
     , Control.FX.Monad.Trans.IdentityT

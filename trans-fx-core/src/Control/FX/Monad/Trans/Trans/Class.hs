@@ -12,12 +12,18 @@ module Control.FX.Monad.Trans.Trans.Class (
     MonadTransTrans(..)
   , MonadTransFunctor(..)
   , RunMonadTransTrans(..)
-  , CatchT, LiftCatchT(..)
+  , Unit(..), Dub(..), Sing(..)
 ) where
+
+
+
+import Data.Typeable (Typeable)
 
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans
+
+
 
 class
   ( forall t. (MonadTrans t) => MonadTrans (u t)
@@ -59,19 +65,18 @@ class
 
 
 
-{- Specialized Lifts -}
+data Unit (a :: * -> *)
+  = Unit
+  deriving (Eq, Show, Typeable)
 
-type CatchT
-  (e :: *)
-  (t :: (* -> *) -> * -> *)
+data Dub
+  (z1 :: (* -> *) -> *)
+  (z2 :: (* -> *) -> *)
   (m :: * -> *)
-  (a :: *)
-    = t m a -> (e -> t m a) -> t m a
+    = Dub (z1 m) (z2 m)
 
-class
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => LiftCatchT z u f
-  where
-    liftCatchT
-      :: (Monad m, MonadTrans t)
-      => (forall a. CatchT e t m (f a)) -> (forall a. CatchT e (u t) m a)
+data Sing
+  (z :: (* -> *) -> *)
+  (y :: *)
+  (m :: * -> *)
+    = Sing (z m) y

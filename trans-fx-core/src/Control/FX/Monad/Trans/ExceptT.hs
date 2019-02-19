@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -94,16 +95,33 @@ instance
   ) => Central (ExceptT mark e c)
 
 instance MonadTrans (ExceptT mark e) where
+  lift
+    :: ( Monad m )
+    => m a
+    -> ExceptT mark e m a
   lift x = ExceptT (x >>= (return . pure))
 
 instance MonadFunctor (ExceptT mark e) where
+  hoist
+    :: ( Monad m, Monad n )
+    => ( forall u. m u -> n u )
+    -> ExceptT mark e m a
+    -> ExceptT mark e n a
+
   hoist f = ExceptT . f . unExceptT
 
-instance RunMonadTrans () (ExceptT mark e) (Except mark e) where
-  runT :: () -> ExceptT mark e m a -> m (Except mark e a)
-  runT () (ExceptT x) = x
+instance
+  RunMonadTrans (mark ()) (ExceptT mark e) (Except mark e)
+  where
+    runT
+      :: mark ()
+      -> ExceptT mark e m a
+      -> m (Except mark e a)
+    runT _ (ExceptT x) = x
 
-runExceptT :: ExceptT mark e m a -> m (Except mark e a)
+runExceptT
+  :: ExceptT mark e m a
+  -> m (Except mark e a)
 runExceptT = unExceptT
 
 
@@ -125,16 +143,22 @@ instance
 
 {- Specialized Lifts -}
 
-instance LiftDraft () (ExceptT mark e) (Except mark e) where
-  liftDraft
-    :: (Monad m)
-    => Draft w m (Except mark e a) -> Draft w (ExceptT mark e m) a
-  liftDraft draft =
-    ExceptT . fmap commute . draft . unExceptT
+instance
+  LiftDraft (mark ()) (ExceptT mark e) (Except mark e)
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w m (Except mark e a)
+      -> Draft w (ExceptT mark e m) a
+    liftDraft draft =
+      ExceptT . fmap commute . draft . unExceptT
 
-instance LiftLocal () (ExceptT mark e) (Except mark e) where
-  liftLocal
-    :: (Monad m)
-    => Local r m (Except mark e a) -> Local r (ExceptT mark e m) a
-  liftLocal local f =
-    ExceptT . local f . unExceptT
+instance
+  LiftLocal (mark ()) (ExceptT mark e) (Except mark e)
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r m (Except mark e a)
+      -> Local r (ExceptT mark e m) a
+    liftLocal local f =
+      ExceptT . local f . unExceptT

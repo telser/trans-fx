@@ -69,16 +69,19 @@ instance Monad (ReadOnly mark r) where
     let a = x r
     in unReadOnly (f a) r
 
-instance RunMonad r (ReadOnly mark r) Identity where
+instance
+  ( MonadIdentity mark
+  ) => RunMonad (mark r) (ReadOnly mark r) Identity where
   run
-    :: r
+    :: mark r
     -> ReadOnly mark r a
     -> Identity a
-  run r (ReadOnly x) = Identity (x r)
+  run r (ReadOnly x) = Identity (x (unwrap r))
 
 -- | Run a @ReadOnly mark r a@ inside the read-only context @r@, producing an @a@. 
 runReadOnly
-  :: r
+  :: ( MonadIdentity mark )
+  => mark r
   -> ReadOnly mark r a
   -> a
 runReadOnly r = unIdentity . run r

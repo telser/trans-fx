@@ -72,20 +72,25 @@ instance Monad (State mark s) where
     let Pair s2 x = x' s1 in
     (unState . f) x s2
 
-instance RunMonad s (State mark s) (Pair s) where
+instance
+  ( MonadIdentity mark
+  ) => RunMonad (mark s) (State mark s) (Pair (mark s)) where
   run
-    :: s
+    :: mark s
     -> State mark s a
-    -> Pair s a
-  run s (State x) = x s
+    -> Pair (mark s) a
+  run s (State x) =
+    let Pair s1 a = x (unwrap s)
+    in Pair (return s1) a
 
 
 
 -- | Run a @State mark s a@ with an initial state @s@, producing a @Pair s a@.
 runState
-  :: s
+  :: ( MonadIdentity mark )
+  => mark s
   -> State mark s a
-  -> Pair s a
+  -> Pair (mark s) a
 runState = run
 
 instance

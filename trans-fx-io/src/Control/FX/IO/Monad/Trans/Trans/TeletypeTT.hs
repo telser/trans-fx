@@ -112,7 +112,7 @@ instance
       -> TeletypeTT mark t m a
       -> t m (Except TeletypeError IOException a)
     runTT eval (TeletypeTT x) =
-      fmap (unIdentity . unCompose) $ runTT (Sing eval ()) x
+      fmap (unIdentity . unCompose) $ runTT (Sing eval (pure ())) x
 
 runTeletypeTT
   :: ( Monad m, MonadTrans t )

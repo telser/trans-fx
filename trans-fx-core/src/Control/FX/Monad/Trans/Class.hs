@@ -43,12 +43,14 @@ class
       => m a
       -> t m a
 
-instance MonadTrans Apply where
-  lift
-    :: ( Monad m )
-    => m a
-    -> Apply m a
-  lift = Apply
+instance
+  MonadTrans Apply
+  where
+    lift
+      :: ( Monad m )
+      => m a
+      -> Apply m a
+    lift = Apply
 
 instance
   ( Central c
@@ -60,6 +62,7 @@ instance
       -> Flip c m a
     lift = Flip . commute . return
 
+-- | Class representing monad functors
 class
   ( MonadTrans t
   ) => MonadFunctor t

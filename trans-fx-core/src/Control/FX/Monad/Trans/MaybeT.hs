@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -55,8 +56,15 @@ instance
   ( Monad m
   ) => Applicative (MaybeT m)
   where
+    pure
+      :: a
+      -> MaybeT m a
     pure = MaybeT . return . Just
 
+    (<*>)
+      :: MaybeT m (a -> b)
+      -> MaybeT m a
+      -> MaybeT m b
     (MaybeT mf) <*> (MaybeT mx) =
       MaybeT $ do
         f' <- mf
@@ -72,8 +80,15 @@ instance
   ( Monad m
   ) => Monad (MaybeT m)
   where
+    return
+      :: a
+      -> MaybeT m a
     return = MaybeT . return . Just
 
+    (>>=)
+      :: MaybeT m a
+      -> (a -> MaybeT m b)
+      -> MaybeT m b
     (MaybeT x) >>= f =
       MaybeT $ do
         a' <- x
@@ -87,7 +102,8 @@ instance
   where
     commute
       :: ( Applicative f )
-      => MaybeT c (f a) -> f (MaybeT c a)
+      => MaybeT c (f a)
+      -> f (MaybeT c a)
     commute = fmap MaybeT . commute . fmap commute . unMaybeT
 
 instance
@@ -95,16 +111,37 @@ instance
   ) => Central (MaybeT c)
 
 instance MonadTrans MaybeT where
+  lift
+    :: ( Monad m )
+    => m a
+    -> MaybeT m a
   lift x = MaybeT (x >>= (return . Just))
 
-instance MonadFunctor MaybeT where
-  hoist f = MaybeT . f . unMaybeT
+instance
+  MonadFunctor MaybeT
+  where
+    hoist
+      :: ( Monad m, Monad n )
+      => ( forall u. m u -> n u )
+      -> MaybeT m a
+      -> MaybeT n a
+    hoist f = MaybeT . f . unMaybeT
 
-instance RunMonadTrans () MaybeT Maybe where
-  runT :: (Monad m) => () -> MaybeT m a -> m (Maybe a)
-  runT () (MaybeT x) = x
+instance
+  RunMonadTrans () MaybeT Maybe
+  where
+    runT
+      :: ( Monad m )
+      => ()
+      -> MaybeT m a
+      -> m (Maybe a)
+    runT () (MaybeT x) = x
 
-runMaybeT :: (Monad m) => MaybeT m a -> m (Maybe a)
+-- | Run a @MaybeT@ computation
+runMaybeT
+  :: ( Monad m )
+  => MaybeT m a
+  -> m (Maybe a)
 runMaybeT = runT ()
 
 
@@ -115,27 +152,36 @@ instance
   ( Monad m
   ) => MonadMaybe (MaybeT m)
   where
-    bail :: MaybeT m a
+    bail
+      :: MaybeT m a
     bail = MaybeT $ return Nothing
 
 
 
 {- Specialized Lifts -}
 
-instance LiftCatch () MaybeT Maybe where
-  liftCatch catch x h = MaybeT $
-    catch (runMaybeT x) (runMaybeT . h)
+instance
+  LiftCatch () MaybeT Maybe
+  where
+    liftCatch catch x h = MaybeT $
+      catch (runMaybeT x) (runMaybeT . h)
 
-instance LiftDraft () MaybeT Maybe where
-  liftDraft
-    :: (Monad m)
-    => Draft w m (Maybe a) -> Draft w (MaybeT m) a
-  liftDraft draft =
-    MaybeT . fmap commute . draft . unMaybeT
+instance
+  LiftDraft () MaybeT Maybe
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w m (Maybe a)
+      -> Draft w (MaybeT m) a
+    liftDraft draft =
+      MaybeT . fmap commute . draft . unMaybeT
 
-instance LiftLocal () MaybeT Maybe where
-  liftLocal
-    :: (Monad m)
-    => Local r m (Maybe a) -> Local r (MaybeT m) a
-  liftLocal local f =
-    MaybeT . local f . unMaybeT
+instance
+  LiftLocal () MaybeT Maybe
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r m (Maybe a)
+      -> Local r (MaybeT m) a
+    liftLocal local f =
+      MaybeT . local f . unMaybeT

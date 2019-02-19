@@ -6,13 +6,11 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    MultiParamTypeClasses
-#-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Except (
     Except(..)
@@ -76,12 +74,21 @@ instance Commutant (Except mark e) where
 
 instance Central (Except mark e)
 
-instance RunMonad () (Except mark e) (Except mark e) where
-  run () = id
+instance
+  ( MonadIdentity mark
+  ) => RunMonad (mark ()) (Except mark e) (Except mark e) where
+  run _ = id
 
 -- | Run an @Except e a@, producing either an @Except e@ or an @Accept a@.
-runExcept :: Except mark e a -> Except mark e a
-runExcept = run ()
+runExcept
+  :: forall mark e a
+   . ( MonadIdentity mark )
+  => Except mark e a
+  -> Except mark e a
+runExcept = run (wrap ())
+  where
+    wrap :: () -> mark ()
+    wrap = return
 
 instance
   ( MonadIdentity mark
