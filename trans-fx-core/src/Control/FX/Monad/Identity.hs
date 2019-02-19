@@ -82,7 +82,9 @@ instance RunMonad () Identity Identity where
   run () = id
 
 -- | Run an @Identity a@, producing a pure value.
-runIdentity :: Identity a -> a
+runIdentity
+  :: Identity a
+  -> a
 runIdentity = unIdentity . run ()
 
 instance MonadIdentity Identity where

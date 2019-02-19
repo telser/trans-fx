@@ -1,15 +1,24 @@
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    MultiParamTypeClasses
-#-}
+-- | Module      : Control.FX.Monad.Trans.MaybeT
+--   Description : Concrete maybe monad transformer
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.MaybeT (
     MaybeT(..)
   , runMaybeT
 ) where
+
+
 
 import Data.Typeable (Typeable)
 
@@ -17,6 +26,9 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 
+
+
+-- | Concrete @Maybe@ monad transformer
 newtype MaybeT
   (m :: * -> *)
   (a :: *)
@@ -24,10 +36,18 @@ newtype MaybeT
         { unMaybeT :: m (Maybe a)
         } deriving (Typeable)
 
+deriving instance
+  ( Show (m (Maybe a))
+  ) => Show (MaybeT m a)
+
 instance
   ( Monad m
   ) => Functor (MaybeT m)
   where
+    fmap
+      :: (a -> b)
+      -> MaybeT m a
+      -> MaybeT m b
     fmap f =
       MaybeT . fmap (fmap f) . unMaybeT
 

@@ -38,12 +38,6 @@ instance
     arbitrary = WriteOnly <$> arbitrary
 
 instance
-  ( Arbitrary a, Arbitrary g
-  ) => Arbitrary (Tagged g a)
-  where
-    arbitrary = Tagged <$> arbitrary <*> arbitrary
-
-instance
   ( Arbitrary a, Arbitrary e
   ) => Arbitrary (Except mark e a)
   where

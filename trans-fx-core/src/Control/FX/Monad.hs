@@ -12,7 +12,6 @@ module Control.FX.Monad (
   , module Control.FX.Monad.Compose
   , module Control.FX.Monad.Flip
   , module Control.FX.Monad.Apply
-  , module Control.FX.Monad.Tagged
   , module Control.FX.Monad.From
   , module Control.FX.Monad.ReadOnly
   , module Control.FX.Monad.State
@@ -26,7 +25,6 @@ import Control.FX.Monad.Identity
 import Control.FX.Monad.Compose
 import Control.FX.Monad.Flip
 import Control.FX.Monad.Apply
-import Control.FX.Monad.Tagged
 import Control.FX.Monad.From
 import Control.FX.Monad.ReadOnly
 import Control.FX.Monad.State

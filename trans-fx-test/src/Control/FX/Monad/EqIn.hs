@@ -40,12 +40,6 @@ instance
     eqIn () x y = x == y
 
 instance
-  ( Eq a, Eq b
-  ) => EqIn () (Tagged a b)
-  where
-    eqIn () x y = x == y
-
-instance
   ( Eq a
   ) => EqIn r (ReadOnly mark r a)
   where

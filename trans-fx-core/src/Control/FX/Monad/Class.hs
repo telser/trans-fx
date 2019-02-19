@@ -6,13 +6,10 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    MultiParamTypeClasses
-#-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Class (
     Central(..)
@@ -48,7 +45,6 @@ class
 
 instance Central Maybe
 instance Central (Either e)
-instance Central Tag
 
 
 
@@ -58,6 +54,7 @@ class
   ( Monad m, Commutant f
   ) => RunMonad z m f
   where
+    -- | Run a monadic computation in context
     run :: z -> m a -> f a
 
 instance RunMonad () Maybe Maybe where
@@ -187,8 +184,10 @@ class
 
 
 
+-- | Class representing monads which can prompt an oracle for a monadic result.
 class
   ( Monad m, MonadIdentity mark
   ) => MonadPrompt mark (p :: * -> *) m
   where
-    prompt :: p (mark a) -> m (mark a)
+    -- | Prompt an oracle of type @mark (p a)@, receiving a monadic result
+    prompt :: mark (p a) -> m (mark a)

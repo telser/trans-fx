@@ -11,12 +11,6 @@ instance
     arbitrary = Pair <$> arbitrary <*> arbitrary
 
 instance
-  ( Arbitrary g
-  ) => Arbitrary (Tag g)
-  where
-    arbitrary = Tag <$> arbitrary
-
-instance
   ( Arbitrary a
   ) => Arbitrary (LeftZero a)
   where

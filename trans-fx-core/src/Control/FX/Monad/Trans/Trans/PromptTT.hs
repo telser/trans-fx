@@ -132,6 +132,6 @@ instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   ) => MonadPrompt mark p (PromptTT mark p t m)
   where
-    prompt :: p (mark a) -> PromptTT mark p t m (mark a)
-    prompt p = PromptTT $ \end cont ->
-      cont p end
+    prompt :: mark (p a) -> PromptTT mark p t m (mark a)
+    prompt p = fmap return $ PromptTT $ \end cont ->
+      cont (unwrap p) end

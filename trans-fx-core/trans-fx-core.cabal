@@ -25,7 +25,6 @@ library
     , Control.FX.Functor
     , Control.FX.Functor.Class
     , Control.FX.Functor.Pair
-    , Control.FX.Functor.Tag
     , Control.FX.Functor.LeftZero
     , Control.FX.Functor.RightZero
     , Control.FX.Monad
@@ -34,7 +33,6 @@ library
     , Control.FX.Monad.Compose
     , Control.FX.Monad.Flip
     , Control.FX.Monad.Apply
-    , Control.FX.Monad.Tagged
     , Control.FX.Monad.From
     , Control.FX.Monad.ReadOnly
     , Control.FX.Monad.State

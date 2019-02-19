@@ -6,11 +6,8 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures
-#-}
+{-# LANGUAGE InstanceSigs   #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Control.FX.Functor.LeftZero (
     LeftZero(..)

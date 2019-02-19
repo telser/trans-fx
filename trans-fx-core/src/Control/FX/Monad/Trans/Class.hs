@@ -1,41 +1,63 @@
-{-#
-  LANGUAGE
-    Rank2Types,
-    KindSignatures,
-    QuantifiedConstraints,
-    MultiParamTypeClasses,
-    FunctionalDependencies
-#-}
+-- | Module      : Control.FX.Monad.Trans.Class
+--   Description : Monad transformer classes
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE InstanceSigs           #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE QuantifiedConstraints  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Control.FX.Monad.Trans.Class (
-    MonadTrans(lift)
-  , MonadFunctor(hoist)
-  , RunMonadTrans(runT)
+    MonadTrans(..)
+  , MonadFunctor(..)
+  , RunMonadTrans(..)
 
+  -- * Specialized Lifts
   , Catch, LiftCatch(..)
   , Draft, LiftDraft(..)
   , Local, LiftLocal(..)
 ) where
 
+
+
 import Control.FX.Functor
 import Control.FX.Monad
 
+
+
+-- | Class representing monad transformers
 class
   ( forall m. (Monad m) => Monad (t m)
   ) => MonadTrans
     (t :: (* -> *) -> * -> *)
   where
+    -- | Lift a computation from the inner monad to the transformed monad
     lift
-      :: (Monad m)
-      => m a -> t m a
+      :: ( Monad m )
+      => m a
+      -> t m a
 
 instance MonadTrans Apply where
+  lift
+    :: ( Monad m )
+    => m a
+    -> Apply m a
   lift = Apply
 
 instance
-  ( Monad m, Central m
-  ) => MonadTrans (Flip m)
+  ( Central c
+  ) => MonadTrans (Flip c)
   where
+    lift
+      :: ( Monad m )
+      => m a
+      -> Flip c m a
     lift = Flip . commute . return
 
 class
@@ -43,16 +65,20 @@ class
   ) => MonadFunctor t
   where
     hoist
-      :: (Monad m, Monad n)
-      => (forall u. m u -> n u) -> t m a -> t n a
+      :: ( Monad m, Monad n )
+      => (forall u. m u -> n u)
+      -> t m a
+      -> t n a
 
 class
   ( MonadTrans t, Commutant f
   ) => RunMonadTrans z t f | t -> z f
   where
     runT
-      :: (Monad m)
-      => z -> t m a -> m (f a)
+      :: ( Monad m )
+      => z
+      -> t m a
+      -> m (f a)
 
 
 
@@ -65,8 +91,9 @@ class
   ) => LiftCatch z t f
   where
     liftCatch
-      :: (Monad m)
-      => Catch e m (f a) -> Catch e (t m) a
+      :: ( Monad m )
+      => Catch e m (f a)
+      -> Catch e (t m) a
 
 
 
@@ -77,8 +104,9 @@ class
   ) => LiftDraft z t f
   where
     liftDraft
-      :: (Monad m)
-      => Draft w m (f a) -> Draft w (t m) a
+      :: ( Monad m )
+      => Draft w m (f a)
+      -> Draft w (t m) a
 
 
 
@@ -89,5 +117,6 @@ class
   ) => LiftLocal z t f
   where
     liftLocal
-      :: (Monad m)
-      => Local r m (f a) -> Local r (t m) a
+      :: ( Monad m )
+      => Local r m (f a)
+      -> Local r (t m) a

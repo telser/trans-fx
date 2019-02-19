@@ -29,14 +29,14 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
-  , Arbitrary (p (mark a)), Arbitrary (t m a)
+  , Arbitrary (mark (p a)), Arbitrary (t m a)
   ) => Arbitrary (PromptTT mark p t m a)
   where
     arbitrary = do
       w <- arbitrary
       if w
         then do
-          p <- arbitrary :: Gen (p (mark a))
+          p <- arbitrary :: Gen (mark (p a))
           return $ fmap unwrap $ prompt p
         else liftT <$> arbitrary
 

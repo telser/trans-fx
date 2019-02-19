@@ -215,9 +215,6 @@ test_all_Monad_FAM = testGroup "All Monad (FAM)"
 
   , test_Monad_FAM (Proxy :: Proxy (ReadOnly Identity Bool)) pB
   , test_Monad_FAM (Proxy :: Proxy (ReadOnly Identity Int))  pI
-
-  , test_Monad_FAM (Proxy :: Proxy (Tagged Bool)) pU
-  , test_Monad_FAM (Proxy :: Proxy (Tagged Int))  pU
   ]
 
 

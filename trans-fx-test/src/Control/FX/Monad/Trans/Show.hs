@@ -1,18 +1,9 @@
-{-#
-  LANGUAGE
-    UndecidableInstances
-#-}
+{-# LANGUAGE UndecidableInstances #-}
 
 module Control.FX.Monad.Trans.Show where
 
 import Control.FX.Monad
 import Control.FX.Monad.Trans
-
-instance
-  ( Show (m (Maybe a))
-  ) => Show (MaybeT m a)
-  where
-    show (MaybeT x) = "MaybeT " ++ show x
 
 instance Show (ReadOnlyT mark r m a) where
   show _ = "ReadOnlyT"

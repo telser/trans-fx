@@ -1,16 +1,25 @@
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    QuantifiedConstraints,
-    MultiParamTypeClasses
-#-}
+-- | Module      : Control.FX.Monad.Trans.ExceptT
+--   Description : Concrete exception monad transformer
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE UndecidableInstances  #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.ExceptT (
     ExceptT(..)
   , runExceptT
 ) where
+
+
 
 import Data.Typeable (Typeable)
 import Control.Applicative (liftA2)
@@ -19,6 +28,9 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 
+
+
+-- | Concrete exception monad transformer
 newtype ExceptT
   (k :: * -> *)
   (e :: *)
@@ -28,24 +40,27 @@ newtype ExceptT
         { unExceptT :: m (Except k e a)
         } deriving (Typeable)
 
-instance
-  ( Show e, Show a
-  , forall u. (Show u) => Show (m u)
-  ) => Show (ExceptT mark e m a)
-  where
-    show (ExceptT x) = "(ExceptT " ++ show x ++ ")"
+deriving instance
+  ( Show (m (Except k e a))
+  ) => Show (ExceptT k e m a)
 
 instance
   ( Monad m
   ) => Functor (ExceptT mark e m)
   where
+    fmap
+      :: (a -> b)
+      -> ExceptT mark e m a
+      -> ExceptT mark e m b
     fmap f = ExceptT . fmap (fmap f) . unExceptT
 
 instance
   ( Monad m
   ) => Applicative (ExceptT mark e m)
   where
-    pure :: a -> ExceptT mark e m a
+    pure
+      :: a
+      -> ExceptT mark e m a
     pure = ExceptT . pure . pure
 
     (ExceptT f) <*> (ExceptT x) =
