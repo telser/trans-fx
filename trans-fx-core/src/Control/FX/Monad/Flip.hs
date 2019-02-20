@@ -15,7 +15,6 @@
 
 module Control.FX.Monad.Flip (
     Flip(..)
-  , runFlip
 ) where
 
 
@@ -69,7 +68,7 @@ instance
       Flip (liftA2 (<*>) f x)
 
 instance
-  ( Monad m, Monad c, Central c
+  ( Monad m, Central c
   ) => Monad (Flip c m)
   where
     return
@@ -107,12 +106,3 @@ instance
       -> Flip m1 m2 a
       -> Flip f1 f2 a
     run (z1,z2) = Flip . fmap (run z1) . run z2 . unFlip
-
--- | Run a flipped composite monad computation in context
-runFlip
-  :: (RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m1)
-  => z1
-  -> z2
-  -> Flip m1 m2 a
-  -> f2 (f1 a)
-runFlip z1 z2 x = unFlip $ run (z1,z2) x

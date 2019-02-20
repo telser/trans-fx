@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -16,7 +17,6 @@
 
 module Control.FX.Monad.Trans.WriteOnlyT (
     WriteOnlyT(..)
-  , runWriteOnlyT
 ) where
 
 
@@ -32,20 +32,20 @@ import Control.FX.Monad.Trans.Class
 
 -- | Concrete write-only state monad transformer
 newtype WriteOnlyT
-  (k :: * -> *)
+  (mark :: * -> *)
   (w :: *)
   (m :: * -> *)
   (a :: *)
     = WriteOnlyT
-        { unWriteOnlyT :: m (WriteOnly k w a)
+        { unWriteOnlyT :: m (WriteOnly mark w a)
         } deriving (Typeable)
 
 deriving instance
-  ( Show (m (WriteOnly k w a))
-  ) => Show (WriteOnlyT k w m a)
+  ( Show (m (WriteOnly mark w a))
+  ) => Show (WriteOnlyT mark w m a)
 
 instance
-  ( Monoid w, Monad m
+  ( Monoid w, Monad m, MonadIdentity mark
   ) => Functor (WriteOnlyT mark w m)
   where
     fmap
@@ -55,7 +55,7 @@ instance
     fmap f = WriteOnlyT . fmap (fmap f) . unWriteOnlyT
 
 instance
-  ( Monoid w, Monad m
+  ( Monoid w, Monad m, MonadIdentity mark
   ) => Applicative (WriteOnlyT mark w m)
   where
     pure
@@ -71,7 +71,7 @@ instance
       WriteOnlyT $ (liftA2 (<*>) f x)
 
 instance
-  ( Monoid w, Monad m
+  ( Monoid w, Monad m, MonadIdentity mark
   ) => Monad (WriteOnlyT mark w m)
   where
     return
@@ -90,7 +90,7 @@ instance
         return $ WriteOnly $ Pair (w1 <> w2) b
 
 instance
-  ( Monoid w, Central c
+  ( Monoid w, Central c, MonadIdentity mark
   ) => Commutant (WriteOnlyT mark w c)
   where
     commute
@@ -100,11 +100,11 @@ instance
     commute = fmap (WriteOnlyT) . commute . fmap commute . unWriteOnlyT
 
 instance
-  ( Monoid w, Central c
+  ( Monoid w, Central c, MonadIdentity mark
   ) => Central (WriteOnlyT mark w c)
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => MonadTrans (WriteOnlyT mark w)
   where
     lift
@@ -114,53 +114,56 @@ instance
     lift x = WriteOnlyT $ (x >>= (return . pure))
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => MonadFunctor (WriteOnlyT mark w)
   where
+    hoist
+      :: ( Monad m, Monad n )
+      => (forall u. m u -> n u)
+      -> WriteOnlyT mark w m a
+      -> WriteOnlyT mark w n a
     hoist f = WriteOnlyT . f . unWriteOnlyT
 
 instance
-  ( Monoid w
-  ) => RunMonadTrans () (WriteOnlyT mark w) (Pair w)
+  ( Monoid w, MonadIdentity mark
+  ) => RunMonadTrans (mark ()) (WriteOnlyT mark w) (Pair (mark w))
   where
     runT
       :: ( Monad m )
-      => ()
+      => mark ()
       -> WriteOnlyT mark w m a
-      -> m (Pair w a)
-    runT () (WriteOnlyT x) = fmap unWriteOnly x
-
-runWriteOnlyT
-  :: ( Monoid w, Monad m )
-  => WriteOnlyT mark w m a
-  -> m (Pair w a)
-runWriteOnlyT = runT ()
+      -> m (Pair (mark w) a)
+    runT _ (WriteOnlyT x) =
+      fmap (bimap1 pure . unWriteOnly) x
 
 
 
 {- Specialized Lifts -}
 
 instance
-  ( Monoid w
-  ) => LiftCatch () (WriteOnlyT mark w) (Pair w)
+  ( Monoid w, MonadIdentity mark
+  ) => LiftCatch (mark ()) (WriteOnlyT mark w) (Pair (mark w))
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (Pair w a)
+      => Catch e m (Pair (mark w) a)
       -> Catch e (WriteOnlyT mark w m) a
-    liftCatch catch x h = WriteOnlyT $ fmap WriteOnly $ catch
-      (runWriteOnlyT x) (\e -> runWriteOnlyT $ h e)
+    liftCatch catch x h = WriteOnlyT $
+      fmap (WriteOnly . bimap1 unwrap) $ catch
+        (fmap (bimap1 pure . unWriteOnly) $ unWriteOnlyT x)
+        (\e -> fmap (bimap1 pure . unWriteOnly) $ unWriteOnlyT $ h e)
 
 instance
-  ( Monoid w
-  ) => LiftLocal () (WriteOnlyT mark w) (Pair w)
+  ( Monoid w, MonadIdentity mark
+  ) => LiftLocal (mark ()) (WriteOnlyT mark w) (Pair (mark w))
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Pair w a)
+      => Local r m (Pair (mark w) a)
       -> Local r (WriteOnlyT mark w m) a
     liftLocal local f =
-      WriteOnlyT . fmap WriteOnly . local f . fmap unWriteOnly . unWriteOnlyT
+      WriteOnlyT . fmap (WriteOnly . bimap1 unwrap) . local f
+        . fmap (bimap1 pure . unWriteOnly) . unWriteOnlyT
 
 
 

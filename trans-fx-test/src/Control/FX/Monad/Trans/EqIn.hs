@@ -35,9 +35,9 @@ instance
 
 instance
   ( EqIn h (m (Except mark e a))
-  ) => EqIn ((),h) (ExceptT mark e m a)
+  ) => EqIn (mark (),h) (ExceptT mark e m a)
   where
-    eqIn ((),h) (ExceptT x) (ExceptT y) =
+    eqIn (_,h) (ExceptT x) (ExceptT y) =
       eqIn h x y
 
 instance

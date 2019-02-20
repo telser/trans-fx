@@ -13,12 +13,11 @@
 
 module Control.FX.Monad.ReadOnly (
     ReadOnly(..)
-  , runReadOnly
 ) where
 
 
 
-import Data.Typeable (Typeable)
+import Data.Typeable (Typeable, typeOf)
 
 import Control.FX.Functor
 import Control.FX.Monad.Class
@@ -28,63 +27,74 @@ import Control.FX.Monad.Identity
 
 -- | Concrete read-only state monad
 newtype ReadOnly
-  (k :: * -> *)
+  (mark :: * -> *)
   (r :: *)
   (a :: *)
     = ReadOnly
         { unReadOnly :: r -> a
         } deriving (Typeable)
 
-instance Functor (ReadOnly mark r) where
-  fmap
-    :: (a -> b)
-    -> ReadOnly mark r a
-    -> ReadOnly mark r b
-  fmap f (ReadOnly x) = ReadOnly (f . x)
-
-instance Applicative (ReadOnly mark r) where
-  pure
-    :: a
-    -> ReadOnly mark r a
-  pure = ReadOnly . const
-
-  (<*>)
-    :: ReadOnly mark r (a -> b)
-    -> ReadOnly mark r a
-    -> ReadOnly mark r b
-  (ReadOnly f) <*> (ReadOnly x) =
-    ReadOnly $ \r -> (f r) (x r)
-
-instance Monad (ReadOnly mark r) where
-  return
-    :: a
-    -> ReadOnly mark r a
-  return x = ReadOnly $ \_ -> x
-
-  (>>=)
-    :: ReadOnly mark r a
-    -> (a -> ReadOnly mark r b)
-    -> ReadOnly mark r b
-  (ReadOnly x) >>= f = ReadOnly $ \r ->
-    let a = x r
-    in unReadOnly (f a) r
+instance
+  ( Typeable r, Typeable a, Typeable mark
+  ) => Show (ReadOnly mark r a)
+  where
+    show
+      :: ReadOnly mark r a
+      -> String
+    show = show . typeOf
 
 instance
   ( MonadIdentity mark
-  ) => RunMonad (mark r) (ReadOnly mark r) Identity where
-  run
-    :: mark r
-    -> ReadOnly mark r a
-    -> Identity a
-  run r (ReadOnly x) = Identity (x (unwrap r))
+  ) => Functor (ReadOnly mark r)
+  where
+    fmap
+      :: (a -> b)
+      -> ReadOnly mark r a
+      -> ReadOnly mark r b
+    fmap f (ReadOnly x) = ReadOnly (f . x)
 
--- | Run a @ReadOnly mark r a@ inside the read-only context @r@, producing an @a@. 
-runReadOnly
-  :: ( MonadIdentity mark )
-  => mark r
-  -> ReadOnly mark r a
-  -> a
-runReadOnly r = unIdentity . run r
+instance
+  ( MonadIdentity mark
+  ) => Applicative (ReadOnly mark r)
+  where
+    pure
+      :: a
+      -> ReadOnly mark r a
+    pure = ReadOnly . const
+
+    (<*>)
+      :: ReadOnly mark r (a -> b)
+      -> ReadOnly mark r a
+      -> ReadOnly mark r b
+    (ReadOnly f) <*> (ReadOnly x) =
+      ReadOnly $ \r -> (f r) (x r)
+
+instance
+  ( MonadIdentity mark
+  ) => Monad (ReadOnly mark r)
+  where
+    return
+      :: a
+      -> ReadOnly mark r a
+    return x = ReadOnly $ \_ -> x
+
+    (>>=)
+      :: ReadOnly mark r a
+      -> (a -> ReadOnly mark r b)
+      -> ReadOnly mark r b
+    (ReadOnly x) >>= f = ReadOnly $ \r ->
+      let a = x r
+      in unReadOnly (f a) r
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => RunMonad (mark r) (ReadOnly mark r) mark
+  where
+    run
+      :: mark r
+      -> ReadOnly mark r a
+      -> mark a
+    run r (ReadOnly x) = pure (x (unwrap r))
 
 
 

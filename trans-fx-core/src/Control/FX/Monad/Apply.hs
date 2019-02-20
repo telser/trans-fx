@@ -14,7 +14,6 @@
 
 module Control.FX.Monad.Apply (
     Apply(..)
-  , runApply
 ) where
 
 
@@ -57,6 +56,10 @@ instance
       -> Apply m a
     pure = Apply . pure
 
+    (<*>)
+      :: Apply m (a -> b)
+      -> Apply m a
+      -> Apply m b
     (Apply f) <*> (Apply x) =
       Apply (f <*> x)
 
@@ -99,11 +102,3 @@ instance
       -> Apply m a
       -> f a
     run z (Apply x) = run z x
-
--- | Run the applied monad with context @z@, producing an @f a@
-runApply
-  :: (RunMonad z m f)
-  => z
-  -> Apply m a
-  -> f a
-runApply = run

@@ -1,24 +1,34 @@
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    MultiParamTypeClasses
-#-}
+-- | Module      : Control.FX.Monad.Trans.StateT
+--   Description : Concrete mutable state monad transformer
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.StateT (
     StateT(..)
-  , runStateT
 ) where
 
-import Data.Typeable (Typeable)
+
+
+import Data.Typeable (Typeable, typeOf)
 
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 
+
+
+-- | Concrete @State@ monad transformer
 newtype StateT
-  (k :: * -> *)
+  (mark :: * -> *)
   (s :: *)
   (m :: * -> *)
   (a :: *)
@@ -27,22 +37,41 @@ newtype StateT
         } deriving (Typeable)
 
 instance
-  ( Monad m
+  ( Typeable s, Typeable m, Typeable a, Typeable mark
+  ) => Show (StateT mark s m a)
+  where
+    show
+      :: StateT mark s m a
+      -> String
+    show = show . typeOf
+
+instance
+  ( Monad m, MonadIdentity mark
   ) => Functor (StateT mark s m)
   where
-    fmap :: (a -> b) -> StateT mark s m a -> StateT mark s m b
+    fmap
+      :: (a -> b)
+      -> StateT mark s m a
+      -> StateT mark s m b
     fmap f (StateT x) =
       StateT $ \s1 -> do
         Pair s2 a <- x s1
         return $ Pair s2 (f a)
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Applicative (StateT mark s m)
   where
+    pure
+      :: a
+      -> StateT mark s m a
     pure x =
       StateT $ \s -> pure $ Pair s x
 
+    (<*>)
+      :: StateT mark s m (a -> b)
+      -> StateT mark s m a
+      -> StateT mark s m b
     (StateT f) <*> (StateT x) =
       StateT $ \s1 -> do
         Pair s2 g <- f s1
@@ -50,32 +79,60 @@ instance
         return $ Pair s3 (g a)
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Monad (StateT mark s m)
   where
+    return
+      :: a
+      -> StateT mark s m a
     return x =
       StateT $ \s -> return $ Pair s x
 
+    (>>=)
+      :: StateT mark s m a
+      -> (a -> StateT mark s m b)
+      -> StateT mark s m b
     (StateT x) >>= f =
       StateT $ \s1 -> do
         Pair s2 a <- x s1
         unStateT (f a) s2
 
-instance MonadTrans (StateT mark s) where
-  lift x = StateT $ \s -> fmap (\a -> Pair s a) x
+instance
+  ( MonadIdentity mark
+  ) => MonadTrans (StateT mark s)
+  where
+    lift
+      :: ( Monad m )
+      => m a
+      -> StateT mark s m a
+    lift x = StateT $ \s -> fmap (\a -> Pair s a) x
 
-instance MonadFunctor (StateT mark s) where
-  hoist f (StateT x) =
-    StateT $ \s -> do
-      a <- f $ fmap slot2 (x s)
-      return $ Pair s a
+instance
+  ( MonadIdentity mark
+  ) => MonadFunctor (StateT mark s)
+  where
+    hoist
+      :: ( Monad m, Monad n )
+      => (forall u. m u -> n u)
+      -> StateT mark s m a
+      -> StateT mark s n a
+    hoist f (StateT x) =
+      StateT $ \s -> do
+        a <- f $ fmap slot2 (x s)
+        return $ Pair s a
 
-instance RunMonadTrans s (StateT mark s) (Pair s) where
-  runT :: (Monad m) => s -> StateT mark s m a -> m (Pair s a)
-  runT s (StateT x) = x s
-
-runStateT :: s -> StateT mark s m a -> m (Pair s a)
-runStateT s (StateT x) = x s
+instance
+  ( MonadIdentity mark
+  ) => RunMonadTrans (mark s) (StateT mark s) (Pair (mark s))
+  where
+    runT
+      :: ( Monad m )
+      => mark s
+      -> StateT mark s m a
+      -> m (Pair (mark s) a)
+    runT s (StateT x) = do
+      Pair s1 a <- x (unwrap s)
+      return $ Pair (pure s1) a
 
 
 
@@ -85,33 +142,54 @@ instance
   ( Monad m, MonadIdentity mark
   ) => MonadState mark s (StateT mark s m)
   where
-    get :: StateT mark s m (mark s)
+    get
+      :: StateT mark s m (mark s)
     get = StateT $ \s -> return (Pair s (pure s))
 
-    put :: mark s -> StateT mark s m ()
+    put
+      :: mark s
+      -> StateT mark s m ()
     put s = StateT $ \_ -> return (Pair (unwrap s) ())
 
 
 
 {- Specialized Lifts -}
 
-instance LiftCatch s (StateT mark s) (Pair s) where
-  liftCatch catch x h = StateT $ \s ->
-    catch (runStateT s x) (\e -> runStateT s (h e))
+instance
+  ( MonadIdentity mark
+  ) => LiftCatch (mark s) (StateT mark s) (Pair (mark s))
+  where
+    liftCatch
+      :: ( Monad m )
+      => Catch e m (Pair (mark s) a)
+      -> Catch e (StateT mark s m) a
+    liftCatch catch x h = StateT $ \s ->
+      fmap (bimap1 unwrap) $ catch
+        (fmap (bimap1 pure) $ unStateT x s)
+        (\e -> fmap (bimap1 pure) $ unStateT (h e) s)
 
-instance LiftDraft s (StateT mark s) (Pair s) where
-  liftDraft
-    :: (Monad m)
-    => Draft w m (Pair s a) -> Draft w (StateT mark s m) a
-  liftDraft draft x =
-    StateT $ \s -> do
-      Pair s (Pair w a) <- draft $ runStateT s x
-      return $ Pair w (Pair s a)
+instance
+  ( MonadIdentity mark
+  ) => LiftDraft (mark s) (StateT mark s) (Pair (mark s))
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w m (Pair (mark s) a)
+      -> Draft w (StateT mark s m) a
+    liftDraft draft x =
+      StateT $ \s -> do
+        Pair w (Pair s a) <- draft $ fmap (bimap1 pure) $ unStateT x s
+        return $ Pair (unwrap s) (Pair w a)
 
-instance LiftLocal s (StateT mark s) (Pair s) where
-  liftLocal
-    :: (Monad m)
-    => Local r m (Pair s a) -> Local r (StateT mark s m) a
-  liftLocal local f x =
-    StateT $ \s -> do
-      local f $ runStateT s x
+instance
+  ( MonadIdentity mark
+  ) => LiftLocal (mark s) (StateT mark s) (Pair (mark s))
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r m (Pair (mark s) a)
+      -> Local r (StateT mark s m) a
+    liftLocal local f x =
+      StateT $ \s -> do
+        Pair s1 a <- local f $ fmap (bimap1 pure) $ unStateT x s
+        return $ Pair (unwrap s1) a

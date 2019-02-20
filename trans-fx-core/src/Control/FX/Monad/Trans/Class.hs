@@ -73,6 +73,7 @@ class
       -> t m a
       -> t n a
 
+-- | Class representing monad transformers which can be run in a context @z@, producting a value in a context @f@
 class
   ( MonadTrans t, Commutant f
   ) => RunMonadTrans z t f | t -> z f
@@ -87,8 +88,10 @@ class
 
 {- Specialized Lifts -}
 
+-- | The signature of @catch@ from @MonadExcept@
 type Catch e m a = m a -> (e -> m a) -> m a
 
+-- | Class representing monad transformers through which @catch@ from @MonadExcept@ can be lifted
 class
   ( MonadTrans t, RunMonadTrans z t f
   ) => LiftCatch z t f
@@ -100,8 +103,10 @@ class
 
 
 
+-- | The signature of @draft@ from @MonadWriteOnly@
 type Draft w m a = m a -> m (Pair w a)
 
+-- | Class representing monad transformers through which @draft@ from @MonadWriteOnly@ can be lifted
 class
   ( MonadTrans t, RunMonadTrans z t f
   ) => LiftDraft z t f
@@ -113,8 +118,10 @@ class
 
 
 
+-- | The signature of @local@ from @MonadReadOnly@
 type Local r m a = (r -> r) -> m a -> m a
 
+-- | Class representing monad transformers through which @local@ from @MonadReadOnly@ can be lifted
 class
   ( MonadTrans t, RunMonadTrans z t f
   ) => LiftLocal z t f

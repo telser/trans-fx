@@ -21,16 +21,44 @@ import Control.FX.Functor.Class
 
 
 
--- | Tuple type, isomorphic to @(a,b)@. This is here so we can have a partially applied tuple type @Pair a@ without syntax hacks.
+-- | Tuple type, isomorphic to @(a,b)@. This is here so we can
+-- have a partially applied tuple type @Pair a@ without syntax hacks.
 data Pair
-  (a1 :: *)
-  (a2 :: *)
+  (a :: *)
+  (b :: *)
     = Pair
-       { slot1 :: a1, slot2 :: a2
+       { slot1 :: a, slot2 :: b
        } deriving (Eq, Show, Typeable)
 
-instance Functor (Pair a1) where
-  fmap f (Pair a1 a2) = Pair a1 (f a2)
+instance
+  Functor (Pair c)
+  where
+    fmap
+      :: (a -> b)
+      -> Pair c a
+      -> Pair c b
+    fmap f (Pair c a) = Pair c (f a)
 
-instance Commutant (Pair a1) where
-  commute (Pair a1 x) = fmap (Pair a1) x
+instance
+  Commutant (Pair c)
+  where
+    commute
+      :: ( Applicative f )
+      => Pair c (f a)
+      -> f (Pair c a)
+    commute (Pair c x) = fmap (Pair c) x
+
+instance
+  Bifunctor Pair
+  where
+    bimap1
+      :: (a -> c)
+      -> Pair a b
+      -> Pair c b
+    bimap1 f (Pair a b) = Pair (f a) b
+
+    bimap2
+      :: (b -> c)
+      -> Pair a b
+      -> Pair a c
+    bimap2 f (Pair a b) = Pair a (f b)

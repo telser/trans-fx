@@ -18,7 +18,6 @@
 
 module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
     TeletypeTT(..)
-  , runTeletypeTT
 
   , TeletypeAction(..)
   , evalTeletypeIO
@@ -101,7 +100,8 @@ instance MonadIdentity TeletypeError where
 
 
 instance
-  RunMonadTransTrans
+  ( MonadIdentity mark, Commutant mark
+  ) => RunMonadTransTrans
     (Eval TeletypeAction)
     (TeletypeTT mark)
     (Except TeletypeError IOException)
@@ -112,14 +112,7 @@ instance
       -> TeletypeTT mark t m a
       -> t m (Except TeletypeError IOException a)
     runTT eval (TeletypeTT x) =
-      fmap (unIdentity . unCompose) $ runTT (Sing eval (pure ())) x
-
-runTeletypeTT
-  :: ( Monad m, MonadTrans t )
-  => (forall a. TeletypeAction a -> m a)
-  -> TeletypeTT mark t m a
-  -> t m (Except TeletypeError IOException a)
-runTeletypeTT f = runTT (Eval f)
+      fmap (unwrap . unCompose) $ runTT (Sing eval (pure ())) x
 
 
 

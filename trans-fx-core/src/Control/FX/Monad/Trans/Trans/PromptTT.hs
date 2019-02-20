@@ -1,27 +1,37 @@
-{-#
-  LANGUAGE
-    Rank2Types,
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    QuantifiedConstraints,
-    MultiParamTypeClasses
-#-}
+-- | Module      : Control.FX.Monad.Trans.Trans.PromptTT
+--   Description : Concrete prompt monad transformer transformer
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.Trans.PromptTT (
     PromptTT(..)
-  , runPromptTT
   , Eval(..)
 ) where
 
-import Data.Typeable (Typeable)
 
+
+import Data.Typeable (Typeable, typeOf)
+
+import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans.Class
 import Control.FX.Monad.Trans.Trans.IdentityTT
 import Control.FX.Monad.Trans.Trans.ApplyTT
 
+
+
+-- | Concrete prompt monad transformer transformer
 data PromptTT
   (mark :: * -> *)
   (p :: * -> *)
@@ -35,15 +45,17 @@ data PromptTT
                 -> t m v
         } deriving (Typeable)
 
-data Eval
-  (p :: * -> *)
-  (m :: * -> *)
-    = Eval
-        { unEval :: forall u. p u -> m u
-        } deriving (Typeable)
+instance
+  ( Typeable p, Typeable t, Typeable m, Typeable a, Typeable mark
+  ) => Show (PromptTT mark p t m a)
+  where
+    show
+      :: PromptTT mark p t m a
+      -> String
+    show = show . typeOf
 
 instance
-  ( Monad m, MonadTrans t
+  ( Monad m, MonadTrans t, MonadIdentity mark
   ) => Monad (PromptTT mark p t m)
   where
     return
@@ -59,7 +71,7 @@ instance
       x end' cont
 
 instance
-  ( Monad m, MonadTrans t
+  ( Monad m, MonadTrans t, MonadIdentity mark
   ) => Applicative (PromptTT mark p t m)
   where
     pure
@@ -76,7 +88,7 @@ instance
       return (f' x')
 
 instance
-  ( Monad m, MonadTrans t
+  ( Monad m, MonadTrans t, MonadIdentity mark
   ) => Functor (PromptTT mark p t m)
   where
     fmap
@@ -86,7 +98,7 @@ instance
     fmap f x = x >>= (return . f)
 
 instance
-  ( MonadTrans t
+  ( MonadTrans t, MonadIdentity mark
   ) => MonadTrans (PromptTT mark p t)
   where
     lift
@@ -97,7 +109,8 @@ instance
       lift x >>= end
 
 instance
-  MonadTransTrans (PromptTT mark p)
+  ( MonadIdentity mark
+  ) => MonadTransTrans (PromptTT mark p)
   where
     liftT
       :: ( Monad m, MonadTrans t )
@@ -107,31 +120,44 @@ instance
       x >>= end
 
 instance
-  RunMonadTransTrans (Eval p) (PromptTT mark p) Identity
+  ( MonadIdentity mark, Commutant mark
+  ) => RunMonadTransTrans (Eval p) (PromptTT mark p) mark
   where
     runTT
       :: (Monad m, MonadTrans t)
       => Eval p m
       -> PromptTT mark p t m a
-      -> t m (Identity a)
-    runTT (Eval eval) x = fmap Identity $ runPromptTT eval x
+      -> t m (mark a)
+    runTT (Eval eval) (PromptTT x) = fmap pure $
+      x return (\p cont -> (lift $ eval p) >>= cont)
 
-runPromptTT
-  :: ( Monad m, MonadTrans t )
-  => (forall u. p u -> m u)
-  -> PromptTT mark p t m a
-  -> t m a
-runPromptTT eval (PromptTT x) =
-  x return (\p cont -> (lift $ eval p) >>= cont)
+-- | Helper type for running prompt computations
+data Eval
+  (p :: * -> *)
+  (m :: * -> *)
+    = Eval
+        { unEval :: forall u. p u -> m u
+        } deriving (Typeable)
+
+instance
+  ( Typeable p, Typeable m
+  ) => Show (Eval p m)
+  where
+    show
+      :: Eval p m
+      -> String
+    show = show . typeOf
 
 
 
-
+{- Effect Class -}
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   ) => MonadPrompt mark p (PromptTT mark p t m)
   where
-    prompt :: mark (p a) -> PromptTT mark p t m (mark a)
+    prompt
+      :: mark (p a)
+      -> PromptTT mark p t m (mark a)
     prompt p = fmap return $ PromptTT $ \end cont ->
       cont (unwrap p) end

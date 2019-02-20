@@ -15,7 +15,6 @@
 
 module Control.FX.Monad.Compose (
     Compose(..)
-  , runCompose
 ) where
 
 
@@ -36,7 +35,7 @@ newtype Compose
   (a :: *)
     = Compose
         { unCompose :: m1 (m2 a)
-        } deriving (Typeable)
+        } deriving (Eq, Typeable)
 
 deriving instance
   ( Show (m1 (m2 a))
@@ -107,12 +106,3 @@ instance
       -> Compose m1 m2 a
       -> Compose f1 f2 a
     run (z1,z2) = Compose . fmap (run z2) . run z1 . unCompose
-
--- | Run a composite monadic computation
-runCompose
-  :: ( RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m2 )
-  => z1
-  -> z2
-  -> Compose m1 m2 a
-  -> f1 (f2 a)
-runCompose z1 z2 x = unCompose $ run (z1,z2) x

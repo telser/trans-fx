@@ -17,7 +17,6 @@
 
 module Control.FX.Monad.Trans.IdentityT (
     IdentityT(..)
-  , runIdentityT
 ) where
 
 
@@ -31,6 +30,7 @@ import Control.FX.Monad.Trans.Class
 
 
 
+-- | Concrete identity monad transformer
 newtype IdentityT
   (m :: * -> *)
   (a :: *)
@@ -102,7 +102,8 @@ instance
   MonadTrans IdentityT
   where
     lift
-      :: m a
+      :: ( Monad m )
+      => m a
       -> IdentityT m a
     lift = IdentityT
 
@@ -126,12 +127,6 @@ instance
       -> m (Identity a)
     runT () (IdentityT x) = fmap Identity x
 
-runIdentityT
-  :: ( Monad m )
-  => IdentityT m a
-  -> m a
-runIdentityT (IdentityT x) = x
-
 
 
 {- Effect Class -}
@@ -149,27 +144,33 @@ instance
 
 {- Specialized Lifts -}
 
-instance LiftCatch () IdentityT Identity where
-  liftCatch
-    :: ( Monad m )
-    => Catch e m (Identity a)
-    -> Catch e (IdentityT m) a
-  liftCatch catch m h = IdentityT $ fmap unIdentity $ catch
-    (unIdentityT $ fmap Identity m)
-    (unIdentityT . fmap Identity . h)
+instance
+  LiftCatch () IdentityT Identity
+  where
+    liftCatch
+      :: ( Monad m )
+      => Catch e m (Identity a)
+      -> Catch e (IdentityT m) a
+    liftCatch catch m h = IdentityT $ fmap unIdentity $ catch
+      (unIdentityT $ fmap Identity m)
+      (unIdentityT . fmap Identity . h)
 
-instance LiftDraft () IdentityT Identity where
-  liftDraft
-    :: ( Monad m )
-    => Draft w m (Identity a)
-    -> Draft w (IdentityT m) a
-  liftDraft draft =
-    IdentityT . fmap (fmap unIdentity) . draft . (fmap Identity . unIdentityT)
+instance
+  LiftDraft () IdentityT Identity
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w m (Identity a)
+      -> Draft w (IdentityT m) a
+    liftDraft draft =
+      IdentityT . fmap (fmap unIdentity) . draft . (fmap Identity . unIdentityT)
 
-instance LiftLocal () IdentityT Identity where
-  liftLocal
-    :: ( Monad m )
-    => Local r m (Identity a)
-    -> Local r (IdentityT m) a
-  liftLocal local f =
-    IdentityT . fmap unIdentity . local f . fmap Identity . unIdentityT
+instance
+  LiftLocal () IdentityT Identity
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r m (Identity a)
+      -> Local r (IdentityT m) a
+    liftLocal local f =
+      IdentityT . fmap unIdentity . local f . fmap Identity . unIdentityT

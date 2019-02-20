@@ -17,7 +17,6 @@
 
 module Control.FX.Monad.Trans.ExceptT (
     ExceptT(..)
-  , runExceptT
 ) where
 
 
@@ -33,12 +32,12 @@ import Control.FX.Monad.Trans.Class
 
 -- | Concrete exception monad transformer
 newtype ExceptT
-  (k :: * -> *)
+  (mark :: * -> *)
   (e :: *)
   (m :: * -> *)
   (a :: *)
     = ExceptT
-        { unExceptT :: m (Except k e a)
+        { unExceptT :: m (Except mark e a)
         } deriving (Typeable)
 
 deriving instance
@@ -46,7 +45,7 @@ deriving instance
   ) => Show (ExceptT k e m a)
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Functor (ExceptT mark e m)
   where
     fmap
@@ -56,7 +55,7 @@ instance
     fmap f = ExceptT . fmap (fmap f) . unExceptT
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Applicative (ExceptT mark e m)
   where
     pure
@@ -64,16 +63,26 @@ instance
       -> ExceptT mark e m a
     pure = ExceptT . pure . pure
 
+    (<*>)
+      :: ExceptT mark e m (a -> b)
+      -> ExceptT mark e m a
+      -> ExceptT mark e m b
     (ExceptT f) <*> (ExceptT x) =
       ExceptT $ liftA2 (<*>) f x
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Monad (ExceptT mark e m)
   where
-    return :: a -> ExceptT mark e m a
+    return
+      :: a
+      -> ExceptT mark e m a
     return = ExceptT . return . Accept
 
+    (>>=)
+      :: ExceptT mark e m a
+      -> (a -> ExceptT mark e m b)
+      -> ExceptT mark e m b
     (ExceptT x) >>= f =
       ExceptT $ do
         a' <- x
@@ -82,47 +91,47 @@ instance
           Accept a -> unExceptT $ f a
 
 instance
-  ( Central c
+  ( Central c, MonadIdentity mark
   ) => Commutant (ExceptT mark e c)
   where
     commute
       :: ( Applicative f )
-      => ExceptT mark e c (f a) -> f (ExceptT mark e c a)
+      => ExceptT mark e c (f a)
+      -> f (ExceptT mark e c a)
     commute = fmap ExceptT . commute . fmap commute . unExceptT
 
 instance
-  ( Central c
+  ( Central c, MonadIdentity mark
   ) => Central (ExceptT mark e c)
 
-instance MonadTrans (ExceptT mark e) where
+instance
+  ( MonadIdentity mark
+  ) => MonadTrans (ExceptT mark e) where
   lift
     :: ( Monad m )
     => m a
     -> ExceptT mark e m a
   lift x = ExceptT (x >>= (return . pure))
 
-instance MonadFunctor (ExceptT mark e) where
+instance
+  ( MonadIdentity mark
+  ) => MonadFunctor (ExceptT mark e) where
   hoist
     :: ( Monad m, Monad n )
     => ( forall u. m u -> n u )
     -> ExceptT mark e m a
     -> ExceptT mark e n a
-
   hoist f = ExceptT . f . unExceptT
 
 instance
-  RunMonadTrans (mark ()) (ExceptT mark e) (Except mark e)
+  ( MonadIdentity mark
+  ) => RunMonadTrans (mark ()) (ExceptT mark e) (Except mark e)
   where
     runT
       :: mark ()
       -> ExceptT mark e m a
       -> m (Except mark e a)
     runT _ (ExceptT x) = x
-
-runExceptT
-  :: ExceptT mark e m a
-  -> m (Except mark e a)
-runExceptT = unExceptT
 
 
 
@@ -132,7 +141,15 @@ instance
   ( Monad m, MonadIdentity mark
   ) => MonadExcept mark e (ExceptT mark e m)
   where
+    throw
+      :: mark e
+      -> ExceptT mark e m a
     throw = ExceptT . return . Except . unwrap
+
+    catch
+      :: ExceptT mark e m a
+      -> (mark e -> ExceptT mark e m a)
+      -> ExceptT mark e m a
     catch (ExceptT x) h = ExceptT $ do
       a <- x
       case a of
@@ -144,7 +161,8 @@ instance
 {- Specialized Lifts -}
 
 instance
-  LiftDraft (mark ()) (ExceptT mark e) (Except mark e)
+  ( MonadIdentity mark
+  ) => LiftDraft (mark ()) (ExceptT mark e) (Except mark e)
   where
     liftDraft
       :: ( Monad m )
@@ -154,7 +172,8 @@ instance
       ExceptT . fmap commute . draft . unExceptT
 
 instance
-  LiftLocal (mark ()) (ExceptT mark e) (Except mark e)
+  ( MonadIdentity mark
+  ) => LiftLocal (mark ()) (ExceptT mark e) (Except mark e)
   where
     liftLocal
       :: ( Monad m )

@@ -1,15 +1,23 @@
-{-#
-  LANGUAGE
-    InstanceSigs,
-    KindSignatures,
-    FlexibleInstances,
-    MultiParamTypeClasses
-#-}
+-- | Module      : Control.FX.Monad.Trans.ReadOnlyT
+--   Description : Concrete read-only state monad transformer
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
+{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.ReadOnlyT (
     ReadOnlyT(..)
-  , runReadOnlyT
 ) where
+
+
 
 import Data.Typeable (Typeable)
 
@@ -17,59 +25,103 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 
+
+
+-- | Concrete @ReadOnly@ monad transformer
 newtype ReadOnlyT
-  (k :: * -> *)
+  (mark :: * -> *)
   (r :: *)
   (m :: * -> *)
   (a :: *)
     = ReadOnlyT
-        { unReadOnlyT :: ReadOnly k r (m a)
+        { unReadOnlyT :: ReadOnly mark r (m a)
         } deriving (Typeable)
 
+deriving instance
+  ( Typeable r, Typeable m, Typeable a, Typeable mark
+  ) => Show (ReadOnlyT mark r m a)
+
 instance
-  ( Functor m
+  ( Functor m, MonadIdentity mark
   ) => Functor (ReadOnlyT mark r m)
   where
+    fmap
+      :: (a -> b)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r m b
     fmap f (ReadOnlyT x) =
       ReadOnlyT $ fmap (fmap f) x
 
 instance
-  ( Applicative m
+  ( Applicative m, MonadIdentity mark
   ) => Applicative (ReadOnlyT mark r m)
   where
-    pure :: a -> ReadOnlyT mark r m a
+    pure
+      :: a
+      -> ReadOnlyT mark r m a
     pure x =
       ReadOnlyT $ ReadOnly $ \_ -> pure x
 
+    (<*>)
+      :: ReadOnlyT mark r m (a -> b)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r m b
     (ReadOnlyT f) <*> (ReadOnlyT x) =
       ReadOnlyT $ ReadOnly $ \r ->
         (unReadOnly f r) <*> (unReadOnly x r)
 
 instance
-  ( Monad m
+  ( Monad m, MonadIdentity mark
   ) => Monad (ReadOnlyT mark r m)
   where
-    return :: a -> ReadOnlyT mark r m a
+    return
+      :: a
+      -> ReadOnlyT mark r m a
     return x =
       ReadOnlyT $ ReadOnly $ \_ -> return x
 
+    (>>=)
+      :: ReadOnlyT mark r m a
+      -> (a -> ReadOnlyT mark r m b)
+      -> ReadOnlyT mark r m b
     (ReadOnlyT x) >>= f =
       ReadOnlyT $ ReadOnly $ \r ->
         (unReadOnly x r >>= (($ r) . unReadOnly . unReadOnlyT . f))
 
-instance MonadTrans (ReadOnlyT mark r) where
-  lift x = ReadOnlyT $ ReadOnly $ \_ -> x
+instance
+  ( MonadIdentity mark
+  ) => MonadTrans (ReadOnlyT mark r)
+  where
+    lift
+      :: ( Monad m )
+      => m a
+      -> ReadOnlyT mark r m a
+    lift x = ReadOnlyT $ ReadOnly $ \_ -> x
 
-instance MonadFunctor (ReadOnlyT mark r) where
-  hoist f (ReadOnlyT x) =
-    ReadOnlyT $ ReadOnly $ \r -> f (unReadOnly x r)
+instance
+  ( MonadIdentity mark
+  ) => MonadFunctor (ReadOnlyT mark r)
+  where
+    hoist
+      :: ( Monad m, Monad n )
+      => (forall u. m u -> n u)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r n a
+    hoist f (ReadOnlyT x) =
+      ReadOnlyT $ ReadOnly $ \r ->
+        f (unReadOnly x r)
 
-instance RunMonadTrans r (ReadOnlyT mark r) Identity where
-  runT :: (Monad m) => r -> ReadOnlyT mark r m a -> m (Identity a)
-  runT r = fmap Identity . runReadOnlyT r
-
-runReadOnlyT :: (Functor m) => r -> ReadOnlyT mark r m a -> m a
-runReadOnlyT r (ReadOnlyT x) = unReadOnly x r
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => RunMonadTrans (mark r) (ReadOnlyT mark r) mark
+  where
+    runT
+      :: ( Monad m )
+      => mark r
+      -> ReadOnlyT mark r m a
+      -> m (mark a)
+    runT r (ReadOnlyT x) =
+      fmap pure $ unReadOnly x (unwrap r)
 
 
 
@@ -79,10 +131,15 @@ instance
   ( Monad m, MonadIdentity mark
   ) => MonadReadOnly mark r (ReadOnlyT mark r m)
   where
-    ask :: ReadOnlyT mark r m (mark r)
-    ask = ReadOnlyT $ ReadOnly $ \r -> return (pure r)
+    ask
+      :: ReadOnlyT mark r m (mark r)
+    ask = ReadOnlyT $ ReadOnly $ \r ->
+      return (pure r)
 
-    local :: (mark r -> mark r) -> ReadOnlyT mark r m a -> ReadOnlyT mark r m a
+    local
+      :: (mark r -> mark r)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r m a
     local f (ReadOnlyT (ReadOnly x)) =
       ReadOnlyT $ ReadOnly $ x . unwrap . f . pure
 
@@ -90,17 +147,26 @@ instance
 
 {- Specialized Lifts -}
 
-instance LiftCatch r (ReadOnlyT mark r) Identity where
-  liftCatch
-    :: (Monad m)
-    => Catch e m (Identity a) -> Catch e (ReadOnlyT mark r m) a
-  liftCatch catch x h = ReadOnlyT $ ReadOnly $ \r -> fmap unIdentity $ catch
-    (fmap Identity $ runReadOnlyT r x)
-    (\e -> fmap Identity $ runReadOnlyT r $ h e)
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftCatch (mark r) (ReadOnlyT mark r) mark
+  where
+    liftCatch
+      :: ( Monad m )
+      => Catch e m (mark a)
+      -> Catch e (ReadOnlyT mark r m) a
+    liftCatch catch (ReadOnlyT x) h = ReadOnlyT $ ReadOnly $ \r ->
+      fmap unwrap $ catch
+        (fmap pure $ unReadOnly x r)
+        (\e -> fmap pure $ unReadOnly (unReadOnlyT $ h e) r)
 
-instance LiftDraft r (ReadOnlyT mark r) Identity where
-  liftDraft
-    :: (Monad m)
-    => Draft w m (Identity a) -> Draft w (ReadOnlyT mark r m) a
-  liftDraft draft =
-    ReadOnlyT . fmap (fmap (fmap unIdentity) . draft . fmap Identity) . unReadOnlyT
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftDraft (mark r) (ReadOnlyT mark r) mark
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w m (mark a)
+      -> Draft w (ReadOnlyT mark r m) a
+    liftDraft draft =
+      ReadOnlyT . fmap (fmap (fmap unwrap) . draft . fmap pure) . unReadOnlyT

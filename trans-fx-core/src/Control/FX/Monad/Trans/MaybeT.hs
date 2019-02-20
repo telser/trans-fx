@@ -16,7 +16,6 @@
 
 module Control.FX.Monad.Trans.MaybeT (
     MaybeT(..)
-  , runMaybeT
 ) where
 
 
@@ -110,12 +109,14 @@ instance
   ( Central c
   ) => Central (MaybeT c)
 
-instance MonadTrans MaybeT where
-  lift
-    :: ( Monad m )
-    => m a
-    -> MaybeT m a
-  lift x = MaybeT (x >>= (return . Just))
+instance
+  MonadTrans MaybeT
+  where
+    lift
+      :: ( Monad m )
+      => m a
+      -> MaybeT m a
+    lift x = MaybeT (x >>= (return . Just))
 
 instance
   MonadFunctor MaybeT
@@ -137,13 +138,6 @@ instance
       -> m (Maybe a)
     runT () (MaybeT x) = x
 
--- | Run a @MaybeT@ computation
-runMaybeT
-  :: ( Monad m )
-  => MaybeT m a
-  -> m (Maybe a)
-runMaybeT = runT ()
-
 
 
 {- Effect Class -}
@@ -163,8 +157,12 @@ instance
 instance
   LiftCatch () MaybeT Maybe
   where
+    liftCatch
+      :: ( Monad m )
+      => Catch e m (Maybe a)
+      -> Catch e (MaybeT m) a
     liftCatch catch x h = MaybeT $
-      catch (runMaybeT x) (runMaybeT . h)
+      catch (unMaybeT x) (unMaybeT . h)
 
 instance
   LiftDraft () MaybeT Maybe

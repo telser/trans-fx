@@ -20,7 +20,6 @@ import Test.Tasty.QuickCheck.Laws
 import Control.FX
 import Control.FX.Arbitrary
 import Control.FX.EqIn
-import Control.FX.Show
 
 import Test.Tasty.QuickCheck.Laws.FX.Central
 import Test.Tasty.QuickCheck.Laws.FX.Commutant
@@ -76,6 +75,9 @@ pEval _ _ = Proxy
 
 pId :: Proxy Identity
 pId = Proxy
+
+pIdU :: Proxy (Identity ())
+pIdU = Proxy
 
 pAp :: Proxy (m :: * -> *) -> Proxy (a :: *) -> Proxy (m a)
 pAp _ _ = Proxy
@@ -258,7 +260,7 @@ test_Monad_FAM
   :: ( Functor m, Applicative m, Monad m, Typeable m
      , Show w
        , forall u
-           . ( Show u
+           . ( Show u, Typeable u
              )
           => Show (m u)
      , Arbitrary w, forall u. (Arbitrary u) => Arbitrary (m u)
@@ -279,7 +281,7 @@ test_Monad_FAM proxyM proxyW =
 test_Monad_C
   :: ( Central c, Typeable c
      , forall x. (Arbitrary x) => Arbitrary (c x)
-     , forall x. (Show x) => Show (c x)
+     , forall x. (Show x, Typeable x) => Show (c x)
      , forall x. (Eq x) => Eq (c x)
      )
   => Proxy (c :: * -> *)
@@ -318,8 +320,8 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
 
   , test_MonadTrans_FAM (Proxy :: Proxy MaybeT) pU
 
-  , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Bool)) pU
-  , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Int))  pU
+  , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Bool)) pIdU
+  , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Int))  pIdU
 
   , test_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
   , test_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
@@ -335,8 +337,8 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy MaybeT) pU
 
-    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Bool)) pU
-    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Int))  pU
+    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Bool)) pIdU
+    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Int))  pIdU
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
@@ -358,8 +360,8 @@ test_all_MonadTrans_T = testGroup "All MonadTrans (T)"
 
   , test_MonadTrans_T (Proxy :: Proxy MaybeT) pU
 
-  , test_MonadTrans_T (Proxy :: Proxy (ExceptT Identity Bool)) pU
-  , test_MonadTrans_T (Proxy :: Proxy (ExceptT Identity Int))  pU
+  , test_MonadTrans_T (Proxy :: Proxy (ExceptT Identity Bool)) pIdU
+  , test_MonadTrans_T (Proxy :: Proxy (ExceptT Identity Int))  pIdU
 
   , test_MonadTrans_T (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
   , test_MonadTrans_T (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
@@ -391,17 +393,17 @@ test_all_MonadTrans_FX = testGroup "All MonadTrans (FX)"
     ]
 
   , testGroup "Except"
-    [ test_MonadTrans_Except (Proxy :: Proxy (ExceptT Identity Bool)) pU pId pB
+    [ test_MonadTrans_Except (Proxy :: Proxy (ExceptT Identity Bool)) pIdU pId pB
 
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Bool) (IdentityT))) (pT2 pU pU) pId pB
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Int)  (IdentityT))) (pT2 pU pU) pId pI
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Bool) (MaybeT)))    (pT2 pU pU) pId pB
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Int)  (MaybeT)))    (pT2 pU pU) pId pI
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Bool) (IdentityT))) (pT2 pIdU pU) pId pB
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Int)  (IdentityT))) (pT2 pIdU pU) pId pI
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Bool) (MaybeT)))    (pT2 pIdU pU) pId pB
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (ExceptT Identity Int)  (MaybeT)))    (pT2 pIdU pU) pId pI
 
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (IdentityT) (ExceptT Identity Bool))) (pT2 pU pU) pId pB
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (IdentityT) (ExceptT Identity Int)))  (pT2 pU pU) pId pI
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (MaybeT)    (ExceptT Identity Bool))) (pT2 pU pU) pId pB
-    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (MaybeT)    (ExceptT Identity Int)))  (pT2 pU pU) pId pI
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (IdentityT) (ExceptT Identity Bool))) (pT2 pU pIdU) pId pB
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (IdentityT) (ExceptT Identity Int)))  (pT2 pU pIdU) pId pI
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (MaybeT)    (ExceptT Identity Bool))) (pT2 pU pIdU) pId pB
+    , test_MonadTrans_Except (Proxy :: Proxy (ComposeT (MaybeT)    (ExceptT Identity Int)))  (pT2 pU pIdU) pId pI
     ]
 
   , testGroup "WriteOnly"
@@ -441,8 +443,8 @@ test_MonadTrans_FAM
    . ( MonadTrans t, Typeable t
      , Show wt
        , forall u m
-           . ( Show u
-             , forall x. (Show x) => Show (m x) )
+           . ( Show u, Typeable u, Typeable m
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -485,7 +487,7 @@ test_MonadTrans_Monad_FAM
    . ( Functor m, Applicative m, Monad m, Typeable m, MonadTrans t, Typeable t
      , Show wt, Show wm
        , forall u
-           . ( Show u )
+           . ( Show u, Typeable u )
           => Show (t m u)
      , Arbitrary wt, Arbitrary wm
        , forall u
@@ -514,8 +516,8 @@ test_MonadTrans_ComposeT_FAM
    . ( MonadTrans t1, Typeable t1
      , Show wt1
        , forall u m t2
-           . ( Monad m, MonadTrans t2, Show u
-             , forall x. (Show x) => Show (t2 m x) )
+           . ( Monad m, MonadTrans t2, Show u, Typeable m, Typeable t2, Typeable u
+             , forall x. (Show x, Typeable x) => Show (t2 m x) )
           => Show (t1 (t2 m) u)
      , Arbitrary wt1
        , forall u m t2
@@ -535,8 +537,8 @@ test_MonadTrans_ComposeT_FAM proxyT1 proxyWT1 = testGroup "ComposeT"
 
   , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy MaybeT) pU
 
-  , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (ExceptT Identity Bool)) pU
-  , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (ExceptT Identity Int))  pU
+  , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (ExceptT Identity Bool)) pIdU
+  , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (ExceptT Identity Int))  pIdU
 
   , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (WriteOnlyT Identity Bool)) pU
   , test_MonadTrans_ComposeT_Monad_FAM proxyT1 proxyWT1 (Proxy :: Proxy (WriteOnlyT Identity Int))  pU
@@ -556,8 +558,8 @@ test_MonadTrans_ComposeT_Monad_FAM
    . ( MonadTrans t1, Typeable t1, MonadTrans t2, Typeable t2
      , Show wt1, Show wt2
        , forall u m
-           . ( Monad m, Show u
-             , forall x. (Show x) => Show (m x) )
+           . ( Monad m, Show u, Typeable u, Typeable m
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t1 (t2 m) u)
      , Arbitrary wt1, Arbitrary wt2
        , forall u m
@@ -594,8 +596,8 @@ test_MonadTrans_T
    . ( MonadTrans t, Typeable t
      , Show wt
        , forall u m
-           . ( Show u
-             , forall x. (Show x) => Show (m x) )
+           . ( Show u, Typeable u, Typeable m
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -640,7 +642,7 @@ test_MonadTrans_State
      , Eq (mark s), Show (mark s), Arbitrary (mark s), CoArbitrary (mark s)
      , Show wt
        , forall u m
-           . ( Show u )
+           . ( Show u, Typeable u, Typeable m )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -679,7 +681,7 @@ test_MonadTrans_Monad_State
      , Eq (mark s), Show (mark s), Arbitrary (mark s), CoArbitrary (mark s)
      , Show wt, Show wm
        , forall u
-           . ( Show u )
+           . ( Show u, Typeable u )
           => Show (t m u)
      , Arbitrary wt, Arbitrary wm
        , forall u
@@ -712,7 +714,8 @@ test_MonadTrans_Except
      , Eq (mark e), Show (mark e), Arbitrary (mark e), CoArbitrary (mark e)
      , Show wt
        , forall u m
-           . ( Show u, forall x. (Show x) => Show (m x) )
+           . ( Show u, Typeable u, Typeable m
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -751,7 +754,8 @@ test_MonadTrans_Monad_Except
      , Eq (mark e), Show (mark e), Arbitrary (mark e), CoArbitrary (mark e)
      , Show wt, Show wm
        , forall u
-           . ( Show u, forall x. (Show x) => Show (m x) )
+           . ( Show u, Typeable u
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t m u)
      , Arbitrary wt, Arbitrary wm
        , forall u
@@ -784,7 +788,8 @@ test_MonadTrans_WriteOnly
      , Eq (mark w), Show (mark w), Arbitrary (mark w), CoArbitrary (mark w)
      , Show wt
        , forall u m
-           . ( Show u, Show u, forall x. (Show x) => Show (m x) )
+           . ( Show u, Typeable u, Typeable m
+             , forall x. (Show x, Typeable x) => Show (m x) )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -822,8 +827,8 @@ test_MonadTrans_Monad_WriteOnly
      , Typeable m, Typeable t, Typeable mark, Typeable w, Monoid (mark w)
      , Eq (mark w), Show (mark w), Arbitrary (mark w), CoArbitrary (mark w)
      , Show wt, Show wm
-       , forall u. ( Show u ) => Show (m u)
-       , forall u. ( Show u ) => Show (t m u)
+       , forall u. ( Show u, Typeable u ) => Show (m u)
+       , forall u. ( Show u, Typeable u ) => Show (t m u)
      , Arbitrary wt, Arbitrary wm
        , forall u
            . ( Arbitrary u )
@@ -855,7 +860,7 @@ test_MonadTrans_ReadOnly
      , Eq (mark r), Show (mark r), Arbitrary (mark r), CoArbitrary (mark r)
      , Show wt
        , forall u m
-           . ( Show u )
+           . ( Show u, Typeable u, Typeable m )
           => Show (t m u)
      , Arbitrary wt
        , forall u m
@@ -894,7 +899,7 @@ test_MonadTrans_Monad_ReadOnly
      , Eq (mark r), Show (mark r), Arbitrary (mark r), CoArbitrary (mark r)
      , Show wt, Show wm
        , forall u
-           . ( Show u )
+           . ( Show u, Typeable u )
           => Show (t m u)
      , Arbitrary wt, Arbitrary wm
        , forall u
@@ -941,8 +946,8 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
 
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (MaybeT))) (pSS (Proxy :: Proxy Unit) pU)
 
-    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Bool))) (pSS (Proxy :: Proxy Unit) pU)
-    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Int)))  (pSS (Proxy :: Proxy Unit) pU)
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Bool))) (pSS (Proxy :: Proxy Unit) pIdU)
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT IdentityTT (ExceptT Identity Int)))  (pSS (Proxy :: Proxy Unit) pIdU)
     ]
   ]
 
@@ -950,7 +955,7 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
 pSS
   :: Proxy (z :: (* -> *) -> *)
   -> Proxy (a :: *)
-  -> Proxy (Trip z a)
+  -> Proxy (Sing z a)
 pSS _ _ = Proxy
 
 
@@ -963,10 +968,10 @@ test_all_MonadTransTrans_TT = testGroup "All MonadTransTrans (TT)"
 
 test_MonadTransTrans_MonadTrans_FAM
   :: ( MonadTransTrans u, Typeable u
-       , forall m1. (Monad m1) => Show (uw m1)
+       , forall m1. (Monad m1, Typeable m1) => Show (uw m1)
        , forall x m t
-           . ( Show x, Monad m, MonadTrans t
-             , forall x. (Show x) => Show (t m x) )
+           . ( Show x, Monad m, MonadTrans t, Typeable m, Typeable t, Typeable x
+             , forall y. (Show y, Typeable y) => Show (t m y) )
           => Show (u t m x)
        , forall m1. (Monad m1) => Arbitrary (uw m1)
        , forall x m t
@@ -986,8 +991,8 @@ test_MonadTransTrans_MonadTrans_FAM proxyU proxyUW =
 
     , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy MaybeT) (pU)
 
-    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Bool)) (pU)
-    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Int))  (pU)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Bool)) (pIdU)
+    , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (ExceptT Identity Int))  (pIdU)
 
     , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (WriteOnlyT Identity Bool)) (pU)
     , test_MonadTransTrans_Monad_FAM proxyU proxyUW (Proxy :: Proxy (WriteOnlyT Identity Int))  (pU)
@@ -1004,10 +1009,10 @@ test_MonadTransTrans_MonadTrans_FAM proxyU proxyUW =
 test_MonadTransTrans_Monad_FAM
   :: ( MonadTrans t, Typeable t, MonadTransTrans u, Typeable u
      , Show tw
-       , forall m1. (Monad m1) => Show (uw m1)
+       , forall m1. (Monad m1, Typeable m1) => Show (uw m1)
        , forall x m
-           . ( Show x, Monad m
-             , forall x. (Show x) => Show (m x) )
+           . ( Show x, Monad m, Typeable m, Typeable x
+             , forall y. (Show y, Typeable y) => Show (m y) )
           => Show (u t m x)
      , Arbitrary tw
        , forall m1. (Monad m1) => Arbitrary (uw m1)
@@ -1054,9 +1059,9 @@ test_MonadTransTrans_Monad_FAM proxyU proxyUW proxyT proxyTW =
 test_MonadTransTrans_FAM
   :: ( Monad m, Typeable m, MonadTrans t, Typeable t, MonadTransTrans u, Typeable u
      , Show mw, Show tw
-       , forall m1. (Monad m1) => Show (uw m1)
+       , forall m1. (Monad m1, Typeable m1) => Show (uw m1)
        , forall x 
-           . ( Show x )
+           . ( Show x, Typeable x )
           => Show (u t m x)
      , Arbitrary mw, Arbitrary tw
        , forall m1. (Monad m1) => Arbitrary (uw m1)

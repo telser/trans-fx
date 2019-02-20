@@ -13,7 +13,6 @@
 
 module Control.FX.Monad.WriteOnly (
     WriteOnly(..)
-  , runWriteOnly
 ) where
 
 
@@ -27,15 +26,15 @@ import Control.FX.Monad.Class
 
 -- | Concrete write-only state monad
 newtype WriteOnly
-  (k :: * -> *)
+  (mark :: * -> *)
   (w :: *)
   (a :: *)
     = WriteOnly
         { unWriteOnly :: Pair w a
-        } deriving (Show, Eq, Typeable)
+        } deriving (Eq, Show, Typeable)
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => Functor (WriteOnly mark w)
   where
     fmap
@@ -45,7 +44,7 @@ instance
     fmap f = WriteOnly . fmap f . unWriteOnly
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => Applicative (WriteOnly mark w)
   where
     pure
@@ -61,7 +60,7 @@ instance
       WriteOnly (Pair (w1 <> w2) (f x))
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => Monad (WriteOnly mark w)
   where
     return
@@ -78,7 +77,7 @@ instance
       WriteOnly $ Pair (w1 <> w2) y
 
 instance
-  ( Monoid w
+  ( Monoid w, MonadIdentity mark
   ) => Commutant (WriteOnly mark w)
   where
     commute
@@ -89,27 +88,41 @@ instance
       fmap (\a -> (WriteOnly (Pair w a))) x
 
 instance
-  ( Monoid w
+  ( MonadIdentity mark
+  ) => Bifunctor (WriteOnly mark)
+  where
+    bimap1
+      :: (w -> v)
+      -> WriteOnly mark w a
+      -> WriteOnly mark v a
+    bimap1 f = WriteOnly . bimap1 f . unWriteOnly
+
+    bimap2
+      :: (a -> b)
+      -> WriteOnly mark w a
+      -> WriteOnly mark w b
+    bimap2 f = WriteOnly . bimap2 f . unWriteOnly
+
+instance
+  ( Monoid w, MonadIdentity mark
   ) => Central (WriteOnly mark w)
 
 
 
 instance
-  ( Monoid w
-  ) => RunMonad () (WriteOnly mark w) (Pair w)
+  ( Monoid w, MonadIdentity mark
+  ) => RunMonad (mark ()) (WriteOnly mark w) (Pair (mark w))
   where
     run
-      :: ()
+      :: mark ()
       -> WriteOnly mark w a
-      -> Pair w a
-    run () (WriteOnly x) = x
+      -> Pair (mark w) a
+    run _ (WriteOnly (Pair w a)) =
+      Pair (pure w) a
 
--- | Run a @WriteOnly mark w a@, producing a @Pair w a@.
-runWriteOnly
-  :: ( Monoid w )
-  => WriteOnly mark w a
-  -> Pair w a
-runWriteOnly = run ()
+
+
+{- Effect Class -}
 
 instance
   ( Monoid w, MonadIdentity mark
