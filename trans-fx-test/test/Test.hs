@@ -21,7 +21,9 @@ import Control.FX
 import Control.FX.Arbitrary
 import Control.FX.EqIn
 
+import Test.Tasty.QuickCheck.Laws.FX.EqIn
 import Test.Tasty.QuickCheck.Laws.FX.Central
+import Test.Tasty.QuickCheck.Laws.FX.Bifunctor
 import Test.Tasty.QuickCheck.Laws.FX.Commutant
 import Test.Tasty.QuickCheck.Laws.FX.MonadTrans
 import Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
@@ -34,10 +36,14 @@ main = do
   setEnv "TASTY_QUICKCHECK_TESTS" "100"
   setEnv "TASTY_HIDE_SUCCESSES" "TRUE"
   defaultMain $ testGroup "Laws"
-    [ testGroup "Functor"
+    [ testGroup "EqIn"
+      [ test_all_EqIn
+      ]
+    , testGroup "Functor"
       [ test_all_Functor_F
       , test_all_Functor_S
       , test_all_Functor_C
+      , test_all_Functor_B
       ]
 
     , testGroup "Monad"
@@ -142,6 +148,24 @@ pQB :: Proxy (Q Bool)
 pQB = Proxy
 
 
+
+{--------}
+{- EqIn -}
+{--------}
+
+test_all_EqIn :: TestTree
+test_all_EqIn = testGroup "All EqIn"
+  [ testEqInLaws (Proxy :: Proxy ()) (Proxy :: Proxy (Identity Int))
+  , testEqInLaws (Proxy :: Proxy ()) (Proxy :: Proxy (Maybe Int))
+
+  , testEqInLaws (Proxy :: Proxy (Identity ())) (Proxy :: Proxy (Except Identity () Int))
+  , testEqInLaws (Proxy :: Proxy (Identity ())) (Proxy :: Proxy (WriteOnly Identity () Int))
+  , testEqInLaws (Proxy :: Proxy (Identity ())) (Proxy :: Proxy (ReadOnly Identity () Int))
+  , testEqInLaws (Proxy :: Proxy (Identity ())) (Proxy :: Proxy (State Identity () Int))
+  ]
+
+
+
 {-----------}
 {- Functor -}
 {-----------}
@@ -181,6 +205,14 @@ test_all_Functor_C = testGroup "All Functor (C)"
 
   , test_Functor_C (Proxy :: Proxy (WriteOnly Identity Bool))
   , test_Functor_C (Proxy :: Proxy (WriteOnly Identity Int))
+  ]
+
+-- | Test the Bifunctor laws
+test_all_Functor_B :: TestTree
+test_all_Functor_B = testGroup "All Bifunctor"
+  [ testBifunctorLaws (Proxy :: Proxy Pair) pU pI pI pI pI eqIn
+  , testBifunctorLaws (Proxy :: Proxy Either) pU pI pI pI pI eqIn
+  , testBifunctorLaws (Proxy :: Proxy (Except Identity)) pIdU pI pI pI pI eqIn
   ]
 
 -- Test the Commutant class laws for a concrete functor over several applicative functors.
@@ -1040,6 +1072,7 @@ test_MonadTransTrans_Monad_FAM
           => Arbitrary (u t m x)
      , forall x m mw
          . ( Eq x, Eq mw, Monad m
+           , forall z. (Eq z) => EqIn mw (m z)
            , forall z. (Eq z) => EqIn (tw,mw) (t m z) )
         => EqIn (uw m, (tw,mw)) (u t m x)
      , forall x mw mark. (Eq x, Eq mw, MonadIdentity mark) => (EqIn (tw, mark mw) (t (ReadOnly mark mw) x))

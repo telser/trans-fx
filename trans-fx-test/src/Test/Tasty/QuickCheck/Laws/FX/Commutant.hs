@@ -23,7 +23,6 @@ import Control.FX.Functor.Class
 
 
 
--- | @commute . fmap pure === pure@
 testCommutantLaws
   :: ( Commutant c, Applicative f, Eq a
      , Arbitrary w, Arbitrary (c a)

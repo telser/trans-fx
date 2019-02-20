@@ -17,9 +17,14 @@ module Control.FX.Functor.Class (
 
 
 -- | Class representing @Functor@s which "commute" with every
--- @Applicative@ in a precise sense. This looks a lot like
--- the @sequenceA@ function from @Traversable@, but that class
--- entails a bunch of extra technology that we don't really need.
+-- @Applicative@ in a precise sense. Instances should satisfy
+-- the following law:
+--
+-- > (1) commute . fmap pure  ===  pure
+--
+-- This looks a lot like the @sequenceA@ function from @Traversable@,
+-- but that class entails a bunch of extra technology that we don't
+-- really need.
 --
 -- The motivation for @Commutant@ comes from the observation that
 -- most useful monads can be /run/ to produce a "value", though in
@@ -67,6 +72,8 @@ instance
 -- > (3) bimap2 id  ===  id
 -- >
 -- > (4) bimap2 (f . g)  ===  bimap2 f . bimap2 g
+-- >
+-- > (5) bimap1 f . bimap2 g  ===  bimap2 g . bimap1 f
 class
   Bifunctor (f :: * -> * -> *)
   where
@@ -94,3 +101,18 @@ instance
     bimap2 f x = case x of
       Left a -> Left a
       Right b -> Right (f b)
+
+instance
+  Bifunctor (,)
+  where
+    bimap1
+      :: (a -> c)
+      -> (a,b)
+      -> (c,b)
+    bimap1 f (a,b) = (f a, b)
+
+    bimap2
+      :: (b -> c)
+      -> (a,b)
+      -> (a,c)
+    bimap2 f (a,b) = (a, f b)

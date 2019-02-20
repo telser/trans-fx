@@ -111,6 +111,26 @@ instance
 
 instance
   ( MonadIdentity mark
+  ) => Bifunctor (Except mark)
+  where
+    bimap1
+      :: (e -> c)
+      -> Except mark e a
+      -> Except mark c a
+    bimap1 f x = case x of
+      Except e -> Except (f e)
+      Accept a -> Accept a
+
+    bimap2
+      :: (a -> c)
+      -> Except mark e a
+      -> Except mark e c
+    bimap2 f x = case x of
+      Except e -> Except e
+      Accept a -> Accept (f a)
+
+instance
+  ( MonadIdentity mark
   ) => Central (Except mark e)
 
 instance
