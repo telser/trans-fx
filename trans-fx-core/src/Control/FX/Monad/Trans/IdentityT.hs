@@ -24,6 +24,7 @@ module Control.FX.Monad.Trans.IdentityT (
 import Data.Typeable (Typeable)
 import Control.Applicative (liftA2)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -37,6 +38,18 @@ newtype IdentityT
   = IdentityT
       { unIdentityT :: m a
       } deriving (Typeable)
+
+instance
+  ( EqIn h (m a), Functor m
+  ) => EqIn ((),h) (IdentityT m a)
+  where
+    eqIn
+      :: ((),h)
+      -> IdentityT m a
+      -> IdentityT m a
+      -> Bool
+    eqIn ((),h) (IdentityT x) (IdentityT y) =
+      eqIn h x y
 
 deriving instance
   ( Show (m a)

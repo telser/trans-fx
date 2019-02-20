@@ -20,6 +20,7 @@ module Control.FX.Monad.Except (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -34,6 +35,17 @@ data Except
     = Except e -- ^ Exceptional result
     | Accept a -- ^ Normal result
     deriving (Eq, Show, Typeable)
+
+instance
+  ( Eq a, Eq b
+  ) => EqIn (mark ()) (Except mark a b)
+  where
+    eqIn
+      :: mark ()
+      -> Except mark a b
+      -> Except mark a b
+      -> Bool
+    eqIn _ = (==)
 
 instance
   ( MonadIdentity mark

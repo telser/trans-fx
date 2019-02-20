@@ -24,6 +24,7 @@ module Control.FX.Monad.Trans.ExceptT (
 import Data.Typeable (Typeable)
 import Control.Applicative (liftA2)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -39,6 +40,18 @@ newtype ExceptT
     = ExceptT
         { unExceptT :: m (Except mark e a)
         } deriving (Typeable)
+
+instance
+  ( EqIn h (m (Except mark e a)), MonadIdentity mark
+  ) => EqIn (mark (),h) (ExceptT mark e m a)
+  where
+    eqIn
+      :: (mark (), h)
+      -> ExceptT mark e m a
+      -> ExceptT mark e m a
+      -> Bool
+    eqIn (_,h) (ExceptT x) (ExceptT y) =
+      eqIn h x y
 
 deriving instance
   ( Show (m (Except k e a))

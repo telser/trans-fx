@@ -22,6 +22,7 @@ module Control.FX.Monad.Trans.Trans.IdentityTT (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans.Class
@@ -140,3 +141,15 @@ instance
 data Unit (a :: * -> *)
   = Unit
   deriving (Eq, Show, Typeable)
+
+instance
+  ( EqIn h (t m a)
+  ) => EqIn (Unit m, h) (IdentityTT t m a)
+  where
+    eqIn
+      :: (Unit m, h)
+      -> IdentityTT t m a
+      -> IdentityTT t m a
+      -> Bool
+    eqIn (Unit, h) (IdentityTT x) (IdentityTT y) =
+      eqIn h x y

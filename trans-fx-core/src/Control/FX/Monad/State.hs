@@ -19,6 +19,7 @@ module Control.FX.Monad.State (
 
 import Data.Typeable (Typeable, typeOf)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -32,6 +33,18 @@ newtype State
     = State
         { unState :: s -> Pair s a
         } deriving (Typeable)
+
+instance
+  ( Eq a, Eq s, MonadIdentity mark
+  ) => EqIn (mark s) (State mark s a)
+  where
+    eqIn
+      :: mark s
+      -> State mark s a
+      -> State mark s a
+      -> Bool
+    eqIn s (State x) (State y) =
+      (x $ unwrap s) == (y $ unwrap s)
 
 instance
   ( Typeable s, Typeable a, Typeable mark

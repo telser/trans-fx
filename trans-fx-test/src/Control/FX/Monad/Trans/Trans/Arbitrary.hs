@@ -14,6 +14,12 @@ import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans
 
+instance Arbitrary (Unit m) where
+  arbitrary = return Unit
+
+instance (Arbitrary (a m), Arbitrary b) => Arbitrary (Sing a b m) where
+  arbitrary = Sing <$> arbitrary <*> arbitrary
+
 instance
   ( Arbitrary (t m a)
   ) => Arbitrary (IdentityTT t m a)

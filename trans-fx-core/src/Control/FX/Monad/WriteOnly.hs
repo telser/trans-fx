@@ -19,6 +19,7 @@ module Control.FX.Monad.WriteOnly (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -32,6 +33,17 @@ newtype WriteOnly
     = WriteOnly
         { unWriteOnly :: Pair w a
         } deriving (Eq, Show, Typeable)
+
+instance
+  ( Eq w, Eq a
+  ) => EqIn (mark ()) (WriteOnly mark w a)
+  where
+    eqIn
+      :: mark ()
+      -> WriteOnly mark w a
+      -> WriteOnly mark w a
+      -> Bool
+    eqIn _ = (==)
 
 instance
   ( Monoid w, MonadIdentity mark

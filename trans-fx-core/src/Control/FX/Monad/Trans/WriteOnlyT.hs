@@ -24,6 +24,7 @@ module Control.FX.Monad.Trans.WriteOnlyT (
 import Data.Typeable (Typeable)
 import Control.Applicative (liftA2)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -39,6 +40,18 @@ newtype WriteOnlyT
     = WriteOnlyT
         { unWriteOnlyT :: m (WriteOnly mark w a)
         } deriving (Typeable)
+
+instance
+  ( EqIn h (m (WriteOnly mark w a)), MonadIdentity mark
+  ) => EqIn (mark (), h) (WriteOnlyT mark w m a)
+  where
+    eqIn
+      :: (mark (), h)
+      -> WriteOnlyT mark w m a
+      -> WriteOnlyT mark w m a
+      -> Bool
+    eqIn (_,h) (WriteOnlyT x) (WriteOnlyT y) =
+      eqIn h x y
 
 deriving instance
   ( Show (m (WriteOnly mark w a))

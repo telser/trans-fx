@@ -21,6 +21,7 @@ module Control.FX.Monad.Trans.ReadOnlyT (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -36,6 +37,18 @@ newtype ReadOnlyT
     = ReadOnlyT
         { unReadOnlyT :: ReadOnly mark r (m a)
         } deriving (Typeable)
+
+instance
+  ( EqIn h (m a), Functor m, MonadIdentity mark
+  ) => EqIn (mark r, h) (ReadOnlyT mark r m a)
+  where
+    eqIn
+      :: (mark r, h)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r m a
+      -> Bool
+    eqIn (r,h) (ReadOnlyT x) (ReadOnlyT y) =
+      eqIn h (unReadOnly x $ unwrap r) (unReadOnly y $ unwrap r)
 
 deriving instance
   ( Typeable r, Typeable m, Typeable a, Typeable mark

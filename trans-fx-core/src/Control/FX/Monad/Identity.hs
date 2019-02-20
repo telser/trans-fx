@@ -19,6 +19,7 @@ module Control.FX.Monad.Identity (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -30,6 +31,17 @@ data Identity
   = Identity
       { unIdentity :: a -- ^ Extract a pure value
       } deriving (Eq, Show, Typeable)
+
+instance
+  ( Eq a
+  ) => EqIn () (Identity a)
+  where
+    eqIn
+      :: ()
+      -> Identity a
+      -> Identity a
+      -> Bool
+    eqIn () = (==)
 
 instance
   Functor Identity

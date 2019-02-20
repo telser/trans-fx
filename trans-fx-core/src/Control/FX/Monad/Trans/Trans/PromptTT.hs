@@ -22,6 +22,7 @@ module Control.FX.Monad.Trans.Trans.PromptTT (
 
 import Data.Typeable (Typeable, typeOf)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans
@@ -147,6 +148,19 @@ instance
       :: Eval p m
       -> String
     show = show . typeOf
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , Commutant mark, EqIn h (t m (mark a))
+  ) => EqIn (Eval p m, h) (PromptTT mark p t m a)
+  where
+    eqIn
+      :: (Eval p m, h)
+      -> PromptTT mark p t m a
+      -> PromptTT mark p t m a
+      -> Bool
+    eqIn (eval, h) x y =
+      eqIn h (runTT eval x) (runTT eval y)
 
 
 

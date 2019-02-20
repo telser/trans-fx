@@ -6,8 +6,9 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE InstanceSigs   #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Functor.LeftZero (
     LeftZero(..)
@@ -17,6 +18,7 @@ module Control.FX.Functor.LeftZero (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor.Class
 
 
@@ -28,6 +30,17 @@ data LeftZero
   (a :: *)
     = LeftZero a | LeftUnit
     deriving (Eq, Show, Typeable)
+
+instance
+  ( Eq a
+  ) => EqIn () (LeftZero a)
+  where
+    eqIn
+      :: ()
+      -> LeftZero a
+      -> LeftZero a
+      -> Bool
+    eqIn () = (==)
 
 instance Functor LeftZero where
   fmap

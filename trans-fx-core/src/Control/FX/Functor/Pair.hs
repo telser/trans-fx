@@ -6,8 +6,9 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE InstanceSigs   #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Functor.Pair (
     Pair(..)
@@ -17,6 +18,7 @@ module Control.FX.Functor.Pair (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor.Class
 
 
@@ -29,6 +31,17 @@ data Pair
     = Pair
        { slot1 :: a, slot2 :: b
        } deriving (Eq, Show, Typeable)
+
+instance
+  ( Eq a, Eq b
+  ) => EqIn () (Pair a b)
+  where
+    eqIn
+      :: ()
+      -> Pair a b
+      -> Pair a b
+      -> Bool
+    eqIn () = (==)
 
 instance
   Functor (Pair c)

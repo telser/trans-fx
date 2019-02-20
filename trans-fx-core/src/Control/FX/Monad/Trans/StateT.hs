@@ -20,6 +20,7 @@ module Control.FX.Monad.Trans.StateT (
 
 import Data.Typeable (Typeable, typeOf)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -35,6 +36,18 @@ newtype StateT
     = StateT
         { unStateT :: s -> m (Pair s a)
         } deriving (Typeable)
+
+instance
+  ( EqIn h (m (Pair s a)), MonadIdentity mark
+  ) => EqIn (mark s, h) (StateT mark s m a)
+  where
+    eqIn
+      :: (mark s, h)
+      -> StateT mark s m a
+      -> StateT mark s m a
+      -> Bool
+    eqIn (s,h) (StateT x) (StateT y) =
+      eqIn h (x $ unwrap s) (y $ unwrap s)
 
 instance
   ( Typeable s, Typeable m, Typeable a, Typeable mark

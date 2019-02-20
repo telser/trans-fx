@@ -29,6 +29,7 @@ import Control.FX.Monad.Trans
 
 
 
+-- | Class representing monad transformer transformers
 class
   ( forall t. (MonadTrans t) => MonadTrans (u t)
   , forall t m. (Monad m, MonadTrans t) => Monad (u t m)
@@ -42,6 +43,7 @@ class
 instance MonadTransTrans ApplyT where
   liftT = ApplyT
 
+-- | Class representing monad functor functors; need to figure out what this means
 class
   ( MonadTransTrans u
   , forall t. (MonadFunctor t) => MonadFunctor (u t)

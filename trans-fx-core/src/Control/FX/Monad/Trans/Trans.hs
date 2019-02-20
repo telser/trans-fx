@@ -1,3 +1,11 @@
+-- | Module      : Control.FX.Monad.Trans.Trans
+--   Description : Root MonadTransTrans module for the trans-fx-core effect framework
+--   Copyright   : 2019, Automattic, Inc.
+--   License     : BSD3
+--   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
+--   Stability   : experimental
+--   Portability : POSIX
+
 module Control.FX.Monad.Trans.Trans (
     module Control.FX.Monad.Trans.Trans.Class
   , module Control.FX.Monad.Trans.Trans.IdentityTT

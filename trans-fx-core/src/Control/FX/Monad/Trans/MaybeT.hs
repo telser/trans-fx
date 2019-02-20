@@ -22,6 +22,7 @@ module Control.FX.Monad.Trans.MaybeT (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -35,6 +36,18 @@ newtype MaybeT
     = MaybeT
         { unMaybeT :: m (Maybe a)
         } deriving (Typeable)
+
+instance
+  ( EqIn h (m (Maybe a))
+  ) => EqIn ((),h) (MaybeT m a)
+  where
+    eqIn
+      :: ((),h)
+      -> MaybeT m a
+      -> MaybeT m a
+      -> Bool
+    eqIn ((),h) (MaybeT x) (MaybeT y) =
+      eqIn h x y
 
 deriving instance
   ( Show (m (Maybe a))

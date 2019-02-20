@@ -23,6 +23,7 @@ module Control.FX.Monad.Trans.ComposeT (
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
@@ -43,6 +44,18 @@ newtype ComposeT
     = ComposeT
         { unComposeT :: t1 (t2 m) a
         } deriving (Typeable)
+
+instance
+  ( EqIn (h1,(h2,h3)) (t1 (t2 m) a)
+  ) => EqIn ((h1,h2),h3) (ComposeT t1 t2 m a)
+  where
+    eqIn
+      :: ((h1,h2),h3)
+      -> ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+      -> Bool
+    eqIn ((h1,h2),h3) (ComposeT x) (ComposeT y) =
+      eqIn (h1,(h2,h3)) x y
 
 deriving instance
   ( Show (t1 (t2 m) a)
