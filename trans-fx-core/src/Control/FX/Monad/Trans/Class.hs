@@ -91,7 +91,11 @@ class
 -- | The signature of @catch@ from @MonadExcept@
 type Catch e m a = m a -> (e -> m a) -> m a
 
--- | Class representing monad transformers through which @catch@ from @MonadExcept@ can be lifted
+-- | Class representing monad transformers through which
+-- @catch@ from @MonadExcept@ can be lifted. Instances
+-- should satisfy the following law:
+--
+-- > (1) lift (catch x h) === liftCatch catch (lift x) (lift . h)
 class
   ( MonadTrans t, RunMonadTrans z t f
   ) => LiftCatch z t f
@@ -106,7 +110,11 @@ class
 -- | The signature of @draft@ from @MonadWriteOnly@
 type Draft w m a = m a -> m (Pair w a)
 
--- | Class representing monad transformers through which @draft@ from @MonadWriteOnly@ can be lifted
+-- | Class representing monad transformers through which
+-- @draft@ from @MonadWriteOnly@ can be lifted. Instances
+-- should satisfy the following law:
+--
+-- > (1) liftDraft draft (lift x) === lift (draft x)
 class
   ( MonadTrans t, RunMonadTrans z t f
   ) => LiftDraft z t f

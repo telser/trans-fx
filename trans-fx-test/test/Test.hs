@@ -27,6 +27,8 @@ import Test.Tasty.QuickCheck.Laws.FX.Bifunctor
 import Test.Tasty.QuickCheck.Laws.FX.Commutant
 import Test.Tasty.QuickCheck.Laws.FX.MonadTrans
 import Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
+import Test.Tasty.QuickCheck.Laws.FX.LiftCatch
+import Test.Tasty.QuickCheck.Laws.FX.LiftDraft
 
 
 
@@ -56,6 +58,8 @@ main = do
       [ test_all_MonadTrans_FAM
       , test_all_MonadTrans_T
       , test_all_MonadTrans_FX
+      , test_all_MonadTrans_LiftCatch
+      , test_all_MonadTrans_LiftDraft
       ]
 
     , testGroup "MonadTransTrans"
@@ -483,6 +487,30 @@ test_all_MonadTrans_FX = testGroup "All MonadTrans (FX)"
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ComposeT (MaybeT)    (ReadOnlyT Identity Bool))) (pT2 pU pIdB) pId pB
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ComposeT (MaybeT)    (ReadOnlyT Identity Int)))  (pT2 pU pIdI) pId pI
     ]
+  ]
+
+
+
+test_all_MonadTrans_LiftCatch :: TestTree
+test_all_MonadTrans_LiftCatch = testGroup "MonadTrans (LiftCatch)"
+  [ testLiftCatchLaws (Proxy :: Proxy IdentityT)              (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  , testLiftCatchLaws (Proxy :: Proxy MaybeT)                 (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+
+  , testLiftCatchLaws (Proxy :: Proxy (WriterT Identity Int)) (Proxy :: Proxy (Identity (), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  , testLiftCatchLaws (Proxy :: Proxy (ReaderT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  , testLiftCatchLaws (Proxy :: Proxy (StateT Identity Int))  (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  ]
+
+
+
+test_all_MonadTrans_LiftDraft :: TestTree
+test_all_MonadTrans_LiftDraft = testGroup "MonadTrans (LiftDraft)"
+  [ testLiftDraftLaws (Proxy :: Proxy IdentityT)              (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
+  , testLiftDraftLaws (Proxy :: Proxy MaybeT)                 (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
+
+  , testLiftDraftLaws (Proxy :: Proxy (ExceptT Identity Int)) (Proxy :: Proxy (Identity (), Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
+  , testLiftDraftLaws (Proxy :: Proxy (ReaderT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
+  , testLiftDraftLaws (Proxy :: Proxy (StateT Identity Int))  (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
   ]
 
 

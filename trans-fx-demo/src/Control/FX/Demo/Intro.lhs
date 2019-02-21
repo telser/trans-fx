@@ -16,7 +16,7 @@ Hi! This is a technical introduction to `trans-fx`, an effect framework for Hask
 Monads
 ------
 
-Strictly typed pure functional programming is great! It is _literally mathematics_, opening some interesting design possibilities around abstraction and program correctness. In this setting, monads are a powerful tool for writing and reasoning about code with side effects. Recall that a _monad_ is any type constructor equipped with two special functions, `return` and `>>=` (pronounced "bind"):
+Strictly typed pure functional programming is great! It is _literally mathematics_, opening some interesting design possibilities around abstraction and program correctness. In this setting **monads** are a powerful tool for writing and reasoning about code with side effects. Recall that a _monad_ is any type constructor equipped with two special functions, `return` and `>>=` (pronounced "bind"):
 
 ```haskell
 class Monad m where
@@ -34,6 +34,8 @@ But there's more -- these functions also have to satisfy three properties, calle
 (The names for the laws make more sense when interpreted using an equivalent formulation called a _kleisli category_, but that's not important.)
 
 This way of thinking -- a kind of _thing_, with _operators_ on those things that satisfy _axioms_ -- is the bread and butter of algebra and the reason why monads are such an exciting and useful tool.
+
+The monad laws alone are sort of boring. They capture a pretty abstract notion of _computation in context_, but that's about it. To 
 
 
 
