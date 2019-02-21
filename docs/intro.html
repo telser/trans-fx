@@ -91,7 +91,259 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.</li>
 <li>You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.</li>
 </ol>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="kw">module</span> <span class="dt">Control.FX.Demo.Intro</span> <span class="kw">where</span></a></code></pre></div>
-<h2 id="monads">Monads</h2>
+<p>To use <code>trans-fx</code> we’ll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit from the following extensions:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">module</span> <span class="dt">Control.FX.Demo.Intro</span> <span class="kw">where</span></a></code></pre></div>
+<p>In this intro we’ll focus on pure examples. For this we can import just one module:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a></code></pre></div>
+<p>Examples that use <code>IO</code> are not much more complicated, but we’ll save them for later.</p>
+<h1 id="what-is-different">What is different?</h1>
+<p>This library is heavily influenced by but incompatible with <code>transformers</code> and <code>mtl</code>. The two most significant differences are as follows.</p>
+<p>First, our <code>MonadTrans</code> class has an extra quantified constraint.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  ( forall m<span class="fu">.</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (t m)</a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadTrans</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">    (<span class="ot">t ::</span> (<span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>)</a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6"><span class="ot">    lift ::</span> ( <span class="dt">Monad</span> m ) <span class="ot">=&gt;</span> m a <span class="ot">-&gt;</span> t m a</a></code></pre></div>
+<p>This means we can’t have ‘undisciplined’ monad transformers that turn monads into non-monads; <code>t m</code> is required to have a monad instance constrained like <code>(Monad m) =&gt; Monad (t m)</code>. This class definition uses the <code>QuantifiedConstraints</code> extension of GHC.</p>
+<p>The second major departure from <code>mtl</code> is that most of our monadic effect classes take an additional type parameter. For instance, here’s the definition of <code>MonadState</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  ( <span class="dt">Monad</span> m, <span class="dt">MonadIdentity</span> mark</a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">MonadState</span> mark s m</a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5"><span class="ot">    get ::</span> m (mark s)</a>
+<a class="sourceLine" id="cb4-6" data-line-number="6"><span class="ot">    put ::</span> (mark s) <span class="ot">-&gt;</span> m ()</a></code></pre></div>
+<p><code>mark</code> is the extra parameter, and it is required to be isomorphic to <code>Identity</code>. What is the point of that? We could get rid of <code>mark</code> without changing the meanings of the effect functions <code>get</code> and <code>put</code>. But including <code>mark</code> in the class definition allows for a single monad to have multiple <code>MonadState</code> instances, even with the same state type, and the typechecker can disambiguate them using <code>mark</code>. In the library this requires the use of <code>UndecidableInstances</code> (yuk!) but in a disciplined way. Another feature is that if the name of <code>mark</code> is chosen thoughtfully it acts like machine checked documentation of where effect values come from.</p>
+<h1 id="monad-construction-kit">Monad Construction Kit</h1>
+<p>The basic abstraction of <code>trans-fx</code> is called a <em>monad transformer transformer</em>, defined like this:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">  ( forall t<span class="fu">.</span> (<span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">MonadTrans</span> (u t)</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  , forall t m<span class="fu">.</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (u t m)</a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">  ) <span class="ot">=&gt;</span> <span class="dt">MonadTransTrans</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">    (<span class="ot">u ::</span> ((<span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="ot">-&gt;</span> (<span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>)) <span class="ot">-&gt;</span> (<span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="ot">-&gt;</span> <span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>)</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">    liftT</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8"><span class="ot">      ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t)</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">      <span class="ot">=&gt;</span> t m a <span class="ot">-&gt;</span> u t m a</a></code></pre></div>
+<p>Similar to our <code>MonadTrans</code>, <code>MonadTransTrans</code> has quantified constraints that ensure it can’t have undisciplined instances. Intuitively, where a monad transformer takes monads to monads, a monad transformer transformer takes monad transformers to monad transformers.</p>
+<p>What is the purpose of doing that? Isn’t just one kind of transformer enough to build composable effects? In principle, yes. But splitting the <em>base monad</em> of the transformer paradigm into a <em>base monad and transformer</em> will let us write more modular and more easily testable code, as we will see. In a nutshell, in the transformer paradigm we can defer the choice of <code>m</code> to client code, but with transformer transformers we defer the choice of <code>t</code> to the client and then choose <code>m</code> at <em>run time</em>. <code>m</code> is the effect monad. In production it will be <code>IO</code> or similar, but for testing we can swap out <code>IO</code> for a test environment. Then <code>t</code> is the client’s escape hatch for adding functionality to a stack of prepackaged transformer transformers.</p>
+<p>Hopefully this will make more sense with some concrete examples.</p>
+<p>Anyway, monad transformer transformers act like a <em>monad construction kit</em>, much like transformers do. The two most basic tools in our kit are <code>IdentityTT</code> and <code>OverTT</code>.</p>
+<h2 id="identitytt">IdentityTT</h2>
+<p><code>IdentityTT</code> is the “trivial” transformer transformer adding no new features. This sounds boring, but like the <code>mark</code> parameter on our monadic effect classes, <code>IdentityTT</code> has a very important role to play.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">data</span> <span class="dt">IdentityTT</span> t m a</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">IdentityTT</span> {<span class="ot"> unIdentityTT ::</span> t m a }</a></code></pre></div>
+<p>Here’s an example using <code>IdentityTT</code>.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Foo</span> t m a <span class="fu">=</span> <span class="dt">Foo</span></a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  {<span class="ot"> unFoo ::</span> <span class="dt">IdentityTT</span> t m a</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadTrans</span>, <span class="dt">MonadTransTrans</span>)</a></code></pre></div>
+<p>The definition of <code>Foo</code> is typical for code using <code>trans-fx</code>: it is a newtype wrapper around a transformer transformer built from prefabricated parts. Note also how we’re using <code>GeneralizedNewtypeDeriving</code> here; this lets us avoid a bunch of tedious boilerplate.</p>
+<p>Right away we can start writing monadic code with <code>Foo</code>, although we can’t do much! All we know about <code>IdentityTT t m a</code> is that it’s a monad.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="ot">test1 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Foo</span> t m <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">test1 <span class="fu">=</span> return <span class="dt">True</span></a></code></pre></div>
+<p>The most useful thing we can do with a monadic computation, after defining it, is <em>run</em> it. All of the built in monads have a corresponding <code>run</code> function. But unlike the run functions from <code>transformers</code>, the run function in <code>trans-fx</code> is generic; there is a <code>RunMonad</code> class with <code>run</code>, a <code>RunMonadTrans</code> class with <code>runT</code>, and a <code>RunMonadTransTrans</code> class with <code>runTT</code>. In each case <code>run*</code> takes an <em>evaluation context</em> and a monadic computation and produces a value inside an <em>output context</em>.</p>
+<p>For transformer transformers that looks like this:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb9-1" data-line-number="1"><span class="kw">class</span></a>
+<a class="sourceLine" id="cb9-2" data-line-number="2">  ( <span class="dt">MonadTransTrans</span> u, <span class="dt">Commutant</span> f</a>
+<a class="sourceLine" id="cb9-3" data-line-number="3">  ) <span class="ot">=&gt;</span> <span class="dt">RunMonadTransTrans</span> z u f <span class="fu">|</span> u <span class="ot">-&gt;</span> z f</a>
+<a class="sourceLine" id="cb9-4" data-line-number="4">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb9-5" data-line-number="5">    runTT</a>
+<a class="sourceLine" id="cb9-6" data-line-number="6"><span class="ot">      ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t)</a>
+<a class="sourceLine" id="cb9-7" data-line-number="7">      <span class="ot">=&gt;</span> z m <span class="ot">-&gt;</span> u t m a <span class="ot">-&gt;</span> t m (f a)</a></code></pre></div>
+<p>where <code>Commutant</code> is a class of functors which ‘commute’ with every applicative functor. (Handling <code>run*</code> generically like this makes it simple to run composites.)</p>
+<p>The run instance for <code>IdentityTT</code> looks like this:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb10-1" data-line-number="1"><span class="kw">instance</span></a>
+<a class="sourceLine" id="cb10-2" data-line-number="2">  <span class="dt">RunMonadTransTrans</span> <span class="dt">Unit</span> <span class="dt">IdentityTT</span> <span class="dt">Identity</span></a>
+<a class="sourceLine" id="cb10-3" data-line-number="3">  <span class="kw">where</span></a>
+<a class="sourceLine" id="cb10-4" data-line-number="4">    runTT</a>
+<a class="sourceLine" id="cb10-5" data-line-number="5"><span class="ot">      ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t)</a>
+<a class="sourceLine" id="cb10-6" data-line-number="6">      <span class="ot">=&gt;</span> <span class="dt">Unit</span> m</a>
+<a class="sourceLine" id="cb10-7" data-line-number="7">      <span class="ot">-&gt;</span> <span class="dt">IdentityTT</span> t m a</a>
+<a class="sourceLine" id="cb10-8" data-line-number="8">      <span class="ot">-&gt;</span> t m (<span class="dt">Identity</span> a)</a>
+<a class="sourceLine" id="cb10-9" data-line-number="9">    runTT <span class="dt">Unit</span> (<span class="dt">IdentityTT</span> x) <span class="fu">=</span> fmap <span class="dt">Identity</span> x</a>
+<a class="sourceLine" id="cb10-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb10-11" data-line-number="11"><span class="kw">data</span> <span class="dt">Unit</span> (<span class="ot">a ::</span> <span class="fu">*</span> <span class="ot">-&gt;</span> <span class="fu">*</span>) <span class="fu">=</span> <span class="dt">Unit</span></a></code></pre></div>
+<p>Typical client code will settle on one inner transformer <code>t</code> and maybe a handful of effect monads <code>m</code>. We can specialize <code>runTT</code> to our particular monad for convenience.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb11-1" data-line-number="1"><span class="ot">runFoo ::</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Foo</span> <span class="dt">IdentityT</span> m a <span class="ot">-&gt;</span> m a</a>
+<a class="sourceLine" id="cb11-2" data-line-number="2">runFoo <span class="fu">=</span> fmap unIdentity <span class="fu">.</span> unIdentityT <span class="fu">.</span> runTT <span class="dt">Unit</span> <span class="fu">.</span> unFoo</a></code></pre></div>
+<p>Now we can run <code>Foo</code> computations in different effect monads.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb12-1" data-line-number="1"><span class="fu">$&gt;</span> runFoo<span class="ot"> test1 ::</span> <span class="dt">IO</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb12-2" data-line-number="2"><span class="dt">True</span></a>
+<a class="sourceLine" id="cb12-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb12-4" data-line-number="4"><span class="fu">$&gt;</span> runFoo<span class="ot"> test1 ::</span> <span class="dt">Identity</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb12-5" data-line-number="5"><span class="dt">Identity</span> {<span class="ot">unIdentity ::</span> <span class="dt">True</span>}</a>
+<a class="sourceLine" id="cb12-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb12-7" data-line-number="7"><span class="fu">$&gt;</span> runFoo<span class="ot"> test1 ::</span> <span class="dt">Maybe</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb12-8" data-line-number="8"><span class="dt">Just</span> <span class="dt">True</span></a></code></pre></div>
+<p>Neat! This example is typical of how we can use <code>trans-fx</code> in three steps:</p>
+<ol type="1">
+<li>Decide which side effects we want in a monad,</li>
+<li>Define a <code>newtype</code> transformer transformer that provides those effects, and</li>
+<li>Define a specialized <code>run</code> function to evaluate monadic computations.</li>
+</ol>
+<p>Next we’ll add some more effects with <code>OverTT</code>.</p>
+<h2 id="overtt">OverTT</h2>
+<p><code>OverTT</code> is barely a step up from <code>IdentityTT</code>. <code>OverTT u v</code> takes a transformer transformer <code>u</code> and a transformer <code>v</code>, and applies <code>v</code> “over the top” of <code>u</code>. Specifically:</p>
+<div class="sourceCode" id="cb13"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb13-1" data-line-number="1"><span class="kw">data</span> <span class="dt">OverTT</span> u v t m a</a>
+<a class="sourceLine" id="cb13-2" data-line-number="2">  <span class="fu">=</span> <span class="dt">OverTT</span> {<span class="ot"> unOverTT ::</span> v (u t m) a }</a></code></pre></div>
+<p>The way I remember this is that <code>u</code> goes (u)nder and <code>v</code> goes o(v)er. The library comes with the usual monad transformers built-in:</p>
+<ul>
+<li><code>IdentityT</code>: the identity transformer</li>
+<li><code>StateT mark s</code>: mutable state</li>
+<li><code>ReadOnlyT mark r</code>: read-only state</li>
+<li><code>WriteOnlyT mark w</code>: write-only state</li>
+<li><code>ExceptT mark e</code>: exceptions</li>
+<li><code>CompositeT</code>: composite transformers</li>
+</ul>
+<p>(Actually <code>v</code> needs to be something a little stronger – a <code>MonadFunctor</code> – but the built in transformers all satisfy this.)</p>
+<p>Here’s an example type. <code>Bar</code> gives us access to an additional write-only state, a list of booleans tagged with <code>W</code>.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb14-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Bar</span> t m a <span class="fu">=</span> <span class="dt">Bar</span></a>
+<a class="sourceLine" id="cb14-2" data-line-number="2">  {<span class="ot"> unBar ::</span></a>
+<a class="sourceLine" id="cb14-3" data-line-number="3">      <span class="dt">OverTT</span></a>
+<a class="sourceLine" id="cb14-4" data-line-number="4">        <span class="dt">IdentityTT</span></a>
+<a class="sourceLine" id="cb14-5" data-line-number="5">        (<span class="dt">WriteOnlyT</span> <span class="dt">W</span> [<span class="dt">Bool</span>]) t m a</a>
+<a class="sourceLine" id="cb14-6" data-line-number="6">  } <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb14-7" data-line-number="7">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb14-8" data-line-number="8">    , <span class="dt">MonadWriteOnly</span> <span class="dt">W</span> [<span class="dt">Bool</span>] )</a></code></pre></div>
+<p>Note the <code>MonadWriteOnly</code> instance with a <code>W</code> parameter – remember this has to be isomorphic to <code>Identity</code>, so its implementation is trivial. (I haven’t found a good way to avoid writing this code, but it’s not terrible.) We can name <code>W</code> anything we want and in practice it should have a unique and descriptive name.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">data</span> <span class="dt">W</span> a <span class="fu">=</span> <span class="dt">W</span></a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">  {<span class="ot"> unW ::</span> a</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb15-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">  fmap f (<span class="dt">W</span> x) <span class="fu">=</span> <span class="dt">W</span> (f x)</a>
+<a class="sourceLine" id="cb15-6" data-line-number="6"><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-7" data-line-number="7">  pure <span class="fu">=</span> <span class="dt">W</span></a>
+<a class="sourceLine" id="cb15-8" data-line-number="8">  (<span class="dt">W</span> f) <span class="fu">&lt;*&gt;</span> (<span class="dt">W</span> x) <span class="fu">=</span> <span class="dt">W</span> (f x)</a>
+<a class="sourceLine" id="cb15-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-10" data-line-number="10">  return <span class="fu">=</span> <span class="dt">W</span></a>
+<a class="sourceLine" id="cb15-11" data-line-number="11">  (<span class="dt">W</span> x) <span class="fu">&gt;&gt;=</span> f <span class="fu">=</span> f x</a>
+<a class="sourceLine" id="cb15-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">MonadIdentity</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-13" data-line-number="13">  unwrap <span class="fu">=</span> unW</a>
+<a class="sourceLine" id="cb15-14" data-line-number="14"><span class="kw">instance</span> (<span class="dt">Semigroup</span> x) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">W</span> x) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-15" data-line-number="15">  (<span class="dt">W</span> a) <span class="fu">&lt;&gt;</span> (<span class="dt">W</span> b) <span class="fu">=</span> <span class="dt">W</span> (a <span class="fu">&lt;&gt;</span> b)</a>
+<a class="sourceLine" id="cb15-16" data-line-number="16"><span class="kw">instance</span> (<span class="dt">Monoid</span> x) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">W</span> x) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-17" data-line-number="17">  mempty <span class="fu">=</span> <span class="dt">W</span> mempty</a>
+<a class="sourceLine" id="cb15-18" data-line-number="18">  mappend <span class="fu">=</span> (<span class="fu">&lt;&gt;</span>)</a></code></pre></div>
+<p>Next a helper for running <code>Bar</code>s. <code>Sing</code> is a helper type for building the evaluation context for <code>OverTT</code>.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">runBar</a>
+<a class="sourceLine" id="cb16-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb16-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Bar</span> <span class="dt">IdentityT</span> m a</a>
+<a class="sourceLine" id="cb16-4" data-line-number="4">  <span class="ot">-&gt;</span> m (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) a)</a>
+<a class="sourceLine" id="cb16-5" data-line-number="5">runBar <span class="fu">=</span></a>
+<a class="sourceLine" id="cb16-6" data-line-number="6">  fmap (unIdentity <span class="fu">.</span> unCompose)</a>
+<a class="sourceLine" id="cb16-7" data-line-number="7">    <span class="fu">.</span> unIdentityT <span class="fu">.</span> runTT (<span class="dt">Sing</span> <span class="dt">Unit</span> (<span class="dt">W</span> ())) <span class="fu">.</span> unBar</a></code></pre></div>
+<p>Now <code>Bar</code> comes with the additional technology of the <code>MonadWriteOnly</code> class, namely special functions <code>draft</code> and <code>tell</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb17-1" data-line-number="1"><span class="ot">test2 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Bar</span> t m ()</a>
+<a class="sourceLine" id="cb17-2" data-line-number="2">test2 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb17-3" data-line-number="3">  tell <span class="fu">$</span> <span class="dt">W</span> [<span class="dt">True</span>]</a>
+<a class="sourceLine" id="cb17-4" data-line-number="4">  tell <span class="fu">$</span> <span class="dt">W</span> [<span class="dt">False</span>]</a>
+<a class="sourceLine" id="cb17-5" data-line-number="5">  return ()</a></code></pre></div>
+<p>And we can run <code>Bar</code>s in several different effect monads.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb18-1" data-line-number="1"><span class="fu">$&gt;</span> runBar<span class="ot"> test2 ::</span> <span class="dt">IO</span> (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) ())</a>
+<a class="sourceLine" id="cb18-2" data-line-number="2"><span class="dt">Pair</span> {slot1 <span class="fu">=</span> <span class="dt">W</span> {unW <span class="fu">=</span> [<span class="dt">True</span>,<span class="dt">False</span>]}, slot2 <span class="fu">=</span> ()}</a>
+<a class="sourceLine" id="cb18-3" data-line-number="3"></a>
+<a class="sourceLine" id="cb18-4" data-line-number="4"><span class="fu">$&gt;</span> runBar<span class="ot"> test2 ::</span> <span class="dt">Identity</span> (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) ())</a>
+<a class="sourceLine" id="cb18-5" data-line-number="5"><span class="dt">Identity</span> {unIdentity <span class="fu">=</span></a>
+<a class="sourceLine" id="cb18-6" data-line-number="6">  <span class="dt">Pair</span> {slot1 <span class="fu">=</span> <span class="dt">W</span> {unW <span class="fu">=</span> [<span class="dt">True</span>,<span class="dt">False</span>]}, slot2 <span class="fu">=</span> ()}}</a>
+<a class="sourceLine" id="cb18-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb18-8" data-line-number="8"><span class="fu">$&gt;</span> runBar<span class="ot"> test2 ::</span> <span class="dt">Maybe</span> (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) ())</a>
+<a class="sourceLine" id="cb18-9" data-line-number="9"><span class="dt">Just</span> (<span class="dt">Pair</span> {slot1 <span class="fu">=</span> <span class="dt">W</span> {unW <span class="fu">=</span> [<span class="dt">True</span>,<span class="dt">False</span>]}, slot2 <span class="fu">=</span> ()})</a></code></pre></div>
+<p>Let’s see a similar example, this time with two write only layers.</p>
+<div class="sourceCode" id="cb19"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb19-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Baz</span> t m a <span class="fu">=</span> <span class="dt">Baz</span></a>
+<a class="sourceLine" id="cb19-2" data-line-number="2">  {<span class="ot"> unBaz ::</span></a>
+<a class="sourceLine" id="cb19-3" data-line-number="3">      <span class="dt">OverTT</span></a>
+<a class="sourceLine" id="cb19-4" data-line-number="4">        <span class="dt">IdentityTT</span></a>
+<a class="sourceLine" id="cb19-5" data-line-number="5">        (<span class="dt">ComposeT</span></a>
+<a class="sourceLine" id="cb19-6" data-line-number="6">          (<span class="dt">WriteOnlyT</span> <span class="dt">V</span> [<span class="dt">Bool</span>])</a>
+<a class="sourceLine" id="cb19-7" data-line-number="7">          (<span class="dt">WriteOnlyT</span> <span class="dt">W</span> [<span class="dt">Bool</span>]))</a>
+<a class="sourceLine" id="cb19-8" data-line-number="8">        t m a</a>
+<a class="sourceLine" id="cb19-9" data-line-number="9">  } <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb19-10" data-line-number="10">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb19-11" data-line-number="11">    , <span class="dt">MonadWriteOnly</span> <span class="dt">W</span> [<span class="dt">Bool</span>]</a>
+<a class="sourceLine" id="cb19-12" data-line-number="12">    , <span class="dt">MonadWriteOnly</span> <span class="dt">V</span> [<span class="dt">Bool</span>] )</a></code></pre></div>
+<p>We also need the boilerplate for <code>V</code>.</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="kw">data</span> <span class="dt">V</span> a <span class="fu">=</span> <span class="dt">V</span></a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">  {<span class="ot"> unV ::</span> a</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">  fmap f (<span class="dt">V</span> x) <span class="fu">=</span> <span class="dt">V</span> (f x)</a>
+<a class="sourceLine" id="cb20-6" data-line-number="6"><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-7" data-line-number="7">  pure <span class="fu">=</span> <span class="dt">V</span></a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">  (<span class="dt">V</span> f) <span class="fu">&lt;*&gt;</span> (<span class="dt">V</span> x) <span class="fu">=</span> <span class="dt">V</span> (f x)</a>
+<a class="sourceLine" id="cb20-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-10" data-line-number="10">  return <span class="fu">=</span> <span class="dt">V</span></a>
+<a class="sourceLine" id="cb20-11" data-line-number="11">  (<span class="dt">V</span> x) <span class="fu">&gt;&gt;=</span> f <span class="fu">=</span> f x</a>
+<a class="sourceLine" id="cb20-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">MonadIdentity</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-13" data-line-number="13">  unwrap <span class="fu">=</span> unV</a>
+<a class="sourceLine" id="cb20-14" data-line-number="14"><span class="kw">instance</span> (<span class="dt">Semigroup</span> x) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">V</span> x) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-15" data-line-number="15">  (<span class="dt">V</span> a) <span class="fu">&lt;&gt;</span> (<span class="dt">V</span> b) <span class="fu">=</span> <span class="dt">V</span> (a <span class="fu">&lt;&gt;</span> b)</a>
+<a class="sourceLine" id="cb20-16" data-line-number="16"><span class="kw">instance</span> (<span class="dt">Monoid</span> x) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">V</span> x) <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-17" data-line-number="17">  mempty <span class="fu">=</span> <span class="dt">V</span> mempty</a>
+<a class="sourceLine" id="cb20-18" data-line-number="18">  mappend <span class="fu">=</span> (<span class="fu">&lt;&gt;</span>)</a></code></pre></div>
+<p>And a runner:</p>
+<div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">runBaz</a>
+<a class="sourceLine" id="cb21-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb21-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Baz</span> <span class="dt">IdentityT</span> m a</a>
+<a class="sourceLine" id="cb21-4" data-line-number="4">  <span class="ot">-&gt;</span> m (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) (<span class="dt">Pair</span> (<span class="dt">V</span> [<span class="dt">Bool</span>]) a))</a>
+<a class="sourceLine" id="cb21-5" data-line-number="5">runBaz <span class="fu">=</span></a>
+<a class="sourceLine" id="cb21-6" data-line-number="6">  fmap (unCompose <span class="fu">.</span> unIdentity <span class="fu">.</span> unCompose)</a>
+<a class="sourceLine" id="cb21-7" data-line-number="7">    <span class="fu">.</span> unIdentityT <span class="fu">.</span> runTT (<span class="dt">Sing</span> <span class="dt">Unit</span> (<span class="dt">V</span> (), <span class="dt">W</span> ())) <span class="fu">.</span> unBaz</a></code></pre></div>
+<p>Now in <code>Baz</code> we have access to two different write-only states, one called <code>W</code> and one called <code>V</code>.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb22-1" data-line-number="1"><span class="ot">test3 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Baz</span> t m ()</a>
+<a class="sourceLine" id="cb22-2" data-line-number="2">test3 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb22-3" data-line-number="3">  tell <span class="fu">$</span> <span class="dt">W</span> [<span class="dt">True</span>]</a>
+<a class="sourceLine" id="cb22-4" data-line-number="4">  tell <span class="fu">$</span> <span class="dt">V</span> [<span class="dt">False</span>]</a>
+<a class="sourceLine" id="cb22-5" data-line-number="5">  return ()</a></code></pre></div>
+<p>…and as before we can run <code>Baz</code>s in different effect monads.</p>
+<div class="sourceCode" id="cb23"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb23-1" data-line-number="1"><span class="fu">$&gt;</span> runBaz<span class="ot"> test3 ::</span> <span class="dt">IO</span> (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) (<span class="dt">Pair</span> (<span class="dt">V</span> [<span class="dt">Bool</span>]) ()))</a>
+<a class="sourceLine" id="cb23-2" data-line-number="2"><span class="dt">Pair</span></a>
+<a class="sourceLine" id="cb23-3" data-line-number="3">  { slot1 <span class="fu">=</span> <span class="dt">W</span> {unW <span class="fu">=</span> [<span class="dt">True</span>]}</a>
+<a class="sourceLine" id="cb23-4" data-line-number="4">  , slot2 <span class="fu">=</span> <span class="dt">Pair</span></a>
+<a class="sourceLine" id="cb23-5" data-line-number="5">    { slot1 <span class="fu">=</span> <span class="dt">V</span> {unV <span class="fu">=</span> [<span class="dt">False</span>]}</a>
+<a class="sourceLine" id="cb23-6" data-line-number="6">    , slot2 <span class="fu">=</span> ()}}</a>
+<a class="sourceLine" id="cb23-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb23-8" data-line-number="8"><span class="fu">$&gt;</span> runBaz<span class="ot"> test3 ::</span> <span class="dt">Identity</span> (<span class="dt">Pair</span> (<span class="dt">W</span> [<span class="dt">Bool</span>]) (<span class="dt">Pair</span> (<span class="dt">V</span> [<span class="dt">Bool</span>]) ()))</a>
+<a class="sourceLine" id="cb23-9" data-line-number="9"><span class="dt">Identity</span> {unIdentity <span class="fu">=</span> <span class="dt">Pair</span></a>
+<a class="sourceLine" id="cb23-10" data-line-number="10">  { slot1 <span class="fu">=</span> <span class="dt">W</span> {unW <span class="fu">=</span> [<span class="dt">True</span>]}</a>
+<a class="sourceLine" id="cb23-11" data-line-number="11">  , slot2 <span class="fu">=</span> <span class="dt">Pair</span></a>
+<a class="sourceLine" id="cb23-12" data-line-number="12">    { slot1 <span class="fu">=</span> <span class="dt">V</span> {unV <span class="fu">=</span> [<span class="dt">False</span>]}</a>
+<a class="sourceLine" id="cb23-13" data-line-number="13">    , slot2 <span class="fu">=</span> ()}}}</a></code></pre></div>
+<p>One more example, this time with mutable state and exceptions.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb24-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Qux</span> t m a <span class="fu">=</span> <span class="dt">Qux</span></a>
+<a class="sourceLine" id="cb24-2" data-line-number="2">  {<span class="ot"> unQux ::</span></a>
+<a class="sourceLine" id="cb24-3" data-line-number="3">      <span class="dt">OverTT</span></a>
+<a class="sourceLine" id="cb24-4" data-line-number="4">        <span class="dt">IdentityTT</span></a>
+<a class="sourceLine" id="cb24-5" data-line-number="5">        (<span class="dt">ComposeT</span></a>
+<a class="sourceLine" id="cb24-6" data-line-number="6">          (<span class="dt">StateT</span> <span class="dt">V</span> <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb24-7" data-line-number="7">          (<span class="dt">ExceptT</span> <span class="dt">W</span> <span class="dt">Bool</span>))</a>
+<a class="sourceLine" id="cb24-8" data-line-number="8">        t m a</a>
+<a class="sourceLine" id="cb24-9" data-line-number="9">  } <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb24-10" data-line-number="10">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb24-11" data-line-number="11">    , <span class="dt">MonadExcept</span> <span class="dt">W</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb24-12" data-line-number="12">    , <span class="dt">MonadState</span> <span class="dt">V</span> <span class="dt">Int</span> )</a></code></pre></div>
+<p>Run:</p>
+<div class="sourceCode" id="cb25"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb25-1" data-line-number="1">runQux</a>
+<a class="sourceLine" id="cb25-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
+<a class="sourceLine" id="cb25-3" data-line-number="3">  <span class="ot">=&gt;</span> <span class="dt">Qux</span> <span class="dt">IdentityT</span> m a</a>
+<a class="sourceLine" id="cb25-4" data-line-number="4">  <span class="ot">-&gt;</span> m (<span class="dt">Except</span> <span class="dt">W</span> <span class="dt">Bool</span> (<span class="dt">Pair</span> (<span class="dt">V</span> <span class="dt">Int</span>) a))</a>
+<a class="sourceLine" id="cb25-5" data-line-number="5">runQux <span class="fu">=</span></a>
+<a class="sourceLine" id="cb25-6" data-line-number="6">  fmap (unCompose <span class="fu">.</span> unIdentity <span class="fu">.</span> unCompose)</a>
+<a class="sourceLine" id="cb25-7" data-line-number="7">    <span class="fu">.</span> unIdentityT <span class="fu">.</span> runTT (<span class="dt">Sing</span> <span class="dt">Unit</span> (<span class="dt">V</span> <span class="dv">0</span>, <span class="dt">W</span> ())) <span class="fu">.</span> unQux</a></code></pre></div>
+<p>And some examples:</p>
+<div class="sourceCode" id="cb26"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb26-1" data-line-number="1"><span class="ot">test4 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Qux</span> t m <span class="dt">Int</span></a>
+<a class="sourceLine" id="cb26-2" data-line-number="2">test4 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb26-3" data-line-number="3">  put <span class="fu">$</span> <span class="dt">V</span> (<span class="dv">27</span><span class="ot"> ::</span> <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb26-4" data-line-number="4">  <span class="dt">V</span> k <span class="ot">&lt;-</span> get</a>
+<a class="sourceLine" id="cb26-5" data-line-number="5">  return (<span class="dv">10</span> <span class="fu">*</span> k)</a></code></pre></div>
+<div class="sourceCode" id="cb27"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb27-1" data-line-number="1"><span class="fu">$&gt;</span> runQux<span class="ot"> test4 ::</span> <span class="dt">IO</span> (<span class="dt">Except</span> <span class="dt">W</span> <span class="dt">Bool</span> (<span class="dt">Pair</span> (<span class="dt">V</span> <span class="dt">Int</span>) <span class="dt">Int</span>))</a>
+<a class="sourceLine" id="cb27-2" data-line-number="2"><span class="dt">Accept</span> (<span class="dt">Pair</span> {slot1 <span class="fu">=</span> <span class="dt">V</span> {unV <span class="fu">=</span> <span class="dv">27</span>}, slot2 <span class="fu">=</span> <span class="dv">270</span>})</a></code></pre></div>
+<div class="sourceCode" id="cb28"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb28-1" data-line-number="1"><span class="ot">test5 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Qux</span> t m ()</a>
+<a class="sourceLine" id="cb28-2" data-line-number="2">test5 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb28-3" data-line-number="3">  put <span class="fu">$</span> <span class="dt">V</span> (<span class="dv">5</span><span class="ot"> ::</span> <span class="dt">Int</span>)</a>
+<a class="sourceLine" id="cb28-4" data-line-number="4">  throw <span class="fu">$</span> <span class="dt">W</span> <span class="dt">False</span></a></code></pre></div>
+<div class="sourceCode" id="cb29"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb29-1" data-line-number="1"><span class="fu">$&gt;</span> runQux<span class="ot"> test5 ::</span> <span class="dt">IO</span> (<span class="dt">Except</span> <span class="dt">W</span> <span class="dt">Bool</span> (<span class="dt">Pair</span> (<span class="dt">V</span> <span class="dt">Int</span>) ()))</a>
+<a class="sourceLine" id="cb29-2" data-line-number="2"><span class="dt">Except</span> <span class="dt">False</span></a></code></pre></div>
 </body>
 </html>

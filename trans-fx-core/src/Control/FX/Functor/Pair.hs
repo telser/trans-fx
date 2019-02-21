@@ -53,6 +53,22 @@ instance
     fmap f (Pair c a) = Pair c (f a)
 
 instance
+  ( Monoid a
+  ) => Applicative (Pair a)
+  where
+    pure
+      :: b
+      -> Pair a b
+    pure = Pair mempty
+
+    (<*>)
+      :: Pair a (b -> c)
+      -> Pair a b
+      -> Pair a c
+    (Pair a1 f) <*> (Pair a2 x) =
+      Pair (mappend a1 a2) (f x)
+
+instance
   Commutant (Pair c)
   where
     commute

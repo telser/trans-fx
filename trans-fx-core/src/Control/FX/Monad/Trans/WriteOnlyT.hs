@@ -168,6 +168,19 @@ instance
 
 instance
   ( Monoid w, MonadIdentity mark
+  , forall x. (Monoid x) => Monoid (mark x)
+  ) => LiftDraft (mark ()) (WriteOnlyT mark w) (Pair (mark w))
+  where
+    liftDraft
+      :: ( Monad m )
+      => Draft w2 m (Pair (mark w) a)
+      -> Draft w2 (WriteOnlyT mark w m) a
+    liftDraft draft =
+      WriteOnlyT . fmap (WriteOnly . bimap1 unwrap) . fmap commute
+        . draft . fmap (bimap1 pure . unWriteOnly) . unWriteOnlyT
+
+instance
+  ( Monoid w, MonadIdentity mark
   ) => LiftLocal (mark ()) (WriteOnlyT mark w) (Pair (mark w))
   where
     liftLocal
