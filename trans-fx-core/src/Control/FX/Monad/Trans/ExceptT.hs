@@ -175,6 +175,17 @@ instance
 
 instance
   ( MonadIdentity mark
+  ) => LiftCatch (mark ()) (ExceptT mark e) (Except mark e)
+  where
+    liftCatch
+      :: ( Monad m )
+      => Catch e2 m (Except mark e a)
+      -> Catch e2 (ExceptT mark e m) a
+    liftCatch catch x h = ExceptT $
+      catch (unExceptT x) (unExceptT . h)
+
+instance
+  ( MonadIdentity mark
   ) => LiftDraft (mark ()) (ExceptT mark e) (Except mark e)
   where
     liftDraft

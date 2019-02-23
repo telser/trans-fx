@@ -78,6 +78,23 @@ instance
     commute (Pair c x) = fmap (Pair c) x
 
 instance
+  ( Monoid a
+  ) => Monad (Pair a)
+  where
+    return
+      :: b
+      -> Pair a b
+    return = Pair mempty
+
+    (>>=)
+      :: Pair a b
+      -> (b -> Pair a c)
+      -> Pair a c
+    (Pair a b) >>= f =
+      let Pair a2 c = f b
+      in Pair (a <> a2) c
+
+instance
   Bifunctor Pair
   where
     bimap1

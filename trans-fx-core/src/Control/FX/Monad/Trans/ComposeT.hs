@@ -11,6 +11,7 @@
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -27,6 +28,7 @@ import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
+import Control.FX.Monad.Trans.ApplyT
 import Control.FX.Monad.Trans.ExceptT
 import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.StateT
@@ -105,6 +107,33 @@ instance
       ComposeT (x >>= (unComposeT . f))
 
 instance
+  ( MonadIdentity m, MonadTrans t1, MonadTrans t2, Semigroup a
+  , MonadIdentity (t2 m) , MonadIdentity (t1 (t2 m))
+  ) => Semigroup (ComposeT t1 t2 m a)
+  where
+    (<>)
+      :: ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+    (ComposeT a) <> (ComposeT b) =
+      ComposeT (a <> b)
+
+instance
+  ( MonadIdentity m, MonadTrans t1, MonadTrans t2, Monoid a
+  , MonadIdentity (t2 m) , MonadIdentity (t1 (t2 m))
+  ) => Monoid (ComposeT t1 t2 m a)
+  where
+    mempty
+      :: ComposeT t1 t2 m a
+    mempty = ComposeT mempty
+
+    mappend
+      :: ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+    mappend = (<>)
+
+instance
   ( MonadTrans t1, MonadTrans t2
   ) => MonadTrans (ComposeT t1 t2)
   where
@@ -138,12 +167,65 @@ instance
 
 
 
+
+
+{- Specialized Lifts -}
+
+instance
+  ( LiftCatch z1 t1 f1, LiftCatch z2 t2 f2
+  ) => LiftCatch (z1,z2) (ComposeT t1 t2) (Compose f2 f1)
+  where
+    liftCatch
+      :: forall e a m
+       . ( Monad m )
+      => Catch e m (Compose f2 f1 a)
+      -> Catch e (ComposeT t1 t2 m) a
+    liftCatch catch x h = do
+      let
+        catch' :: Catch e m (f2 (f1 a))
+        catch' x' h' = fmap unCompose $ catch (fmap Compose x') (fmap Compose . h')
+      ComposeT $ liftCatch (liftCatch catch') (unComposeT x) (unComposeT . h)
+
+instance
+  ( LiftDraft z1 t1 f1, LiftDraft z2 t2 f2
+  ) => LiftDraft (z1,z2) (ComposeT t1 t2) (Compose f2 f1)
+  where
+    liftDraft
+      :: forall w m a
+       . ( Monad m, Monoid w )
+      => Draft w m (Compose f2 f1 a)
+      -> Draft w (ComposeT t1 t2 m) a
+    liftDraft draft x = do
+      let
+        draft' :: Draft w m (f2 (f1 a))
+        draft' y = fmap (fmap unCompose) $ draft (fmap Compose y)
+      ComposeT $ liftDraft (liftDraft draft') (unComposeT x)
+
+instance
+  ( LiftLocal z1 t1 f1, LiftLocal z2 t2 f2
+  ) => LiftLocal (z1,z2) (ComposeT t1 t2) (Compose f2 f1)
+  where
+    liftLocal
+      :: forall r m a
+       . ( Monad m )
+      => Local r m (Compose f2 f1 a)
+      -> Local r (ComposeT t1 t2 m) a
+    liftLocal local f x = do
+      let
+        local' :: Local r m (f2 (f1 a))
+        local' g y = fmap unCompose $ local g (fmap Compose y)
+      ComposeT $ liftLocal (liftLocal local') f $ unComposeT x
+
+
+
+
+
 {- Effect Classes -}
 
 instance
-  ( Monad m, MonadTrans t1, MonadTrans t2
-  , forall x. (Monad x) => MonadIdentity (t1 x)
-  , forall x. (Monad x) => MonadIdentity (t2 x)
+  ( MonadIdentity m, MonadTrans t1, MonadTrans t2
+  , forall x. (MonadIdentity x) => MonadIdentity (t1 x)
+  , forall x. (MonadIdentity x) => MonadIdentity (t2 x)
   ) => MonadIdentity (ComposeT t1 t2 m)
   where
     unwrap
@@ -168,6 +250,25 @@ instance  {-# OVERLAPS #-}
       -> ComposeT (ExceptT mark e) t2 m a
     catch x h = ComposeT $ catch (unComposeT x) (unComposeT . h)
 
+instance  {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
+  , forall x. (Monad x) => MonadExcept mark e (t1 x)
+  ) => MonadExcept mark e (ComposeT (ApplyT t1) t2 m)
+  where
+    throw
+      :: mark e
+      -> ComposeT (ApplyT t1) t2 m a
+    throw = ComposeT . ApplyT . throw
+
+    catch
+      :: ComposeT (ApplyT t1) t2 m a
+      -> (mark e -> ComposeT (ApplyT t1) t2 m a)
+      -> ComposeT (ApplyT t1) t2 m a
+    catch x h = ComposeT $ ApplyT $
+      catch
+        (unApplyT $ unComposeT x)
+        (unApplyT . unComposeT . h)
+
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2
   , MonadIdentity mark, LiftCatch z1 t1 f1
@@ -183,7 +284,8 @@ instance {-# OVERLAPPABLE #-}
       :: ComposeT t1 t2 m a
       -> (mark e -> ComposeT t1 t2 m a)
       -> ComposeT t1 t2 m a
-    catch x h = ComposeT $ liftCatch catch (unComposeT x) (unComposeT . h)
+    catch x h = ComposeT $
+      liftCatch catch (unComposeT x) (unComposeT . h)
 
 
 
@@ -200,6 +302,21 @@ instance {-# OVERLAPS #-}
       :: mark w
       -> ComposeT (WriteOnlyT mark w) t2 m ()
     tell = ComposeT . tell
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, Monoid w, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnly mark w (t1 x)
+  ) => MonadWriteOnly mark w (ComposeT (ApplyT t1) t2 m)
+  where
+    draft
+      :: ComposeT (ApplyT t1) t2 m a
+      -> ComposeT (ApplyT t1) t2 m (Pair (mark w) a)
+    draft = ComposeT . ApplyT . draft . unApplyT . unComposeT
+
+    tell
+      :: mark w
+      -> ComposeT (ApplyT t1) t2 m ()
+    tell = ComposeT . ApplyT . tell
 
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2, Monoid w
@@ -231,6 +348,19 @@ instance {-# OVERLAPS #-}
       :: mark s -> ComposeT (StateT mark s) t2 m ()
     put = ComposeT . put
 
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
+  , forall x. (Monad x) => MonadState mark s (t1 x)
+  ) => MonadState mark s (ComposeT (ApplyT t1) t2 m)
+  where
+    get
+      :: ComposeT (ApplyT t1) t2 m (mark s)
+    get = ComposeT $ ApplyT get
+
+    put
+      :: mark s -> ComposeT (ApplyT t1) t2 m ()
+    put = ComposeT . ApplyT . put
+
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
   , forall x. (Monad x) => MonadState mark s (t2 x)
@@ -260,6 +390,21 @@ instance  {-# OVERLAPS #-}
       -> ComposeT (ReadOnlyT mark r) t2 m a
     local f = ComposeT . local f . unComposeT
 
+instance  {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
+  , forall x. (Monad x) => MonadReadOnly mark r (t1 x)
+  ) => MonadReadOnly mark r (ComposeT (ApplyT t1) t2 m)
+  where
+    ask
+      :: ComposeT (ApplyT t1) t2 m (mark r)
+    ask = ComposeT $ ApplyT ask
+
+    local
+      :: (mark r -> mark r)
+      -> ComposeT (ApplyT t1) t2 m a
+      -> ComposeT (ApplyT t1) t2 m a
+    local f = ComposeT . ApplyT . local f . unApplyT . unComposeT
+
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2
   , LiftLocal z1 t1 f1, MonadIdentity mark
@@ -284,6 +429,15 @@ instance  {-# OVERLAPS #-}
   where
     bail
       :: ComposeT MaybeT t2 m r
+    bail = ComposeT bail
+
+instance  {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2
+  , forall x. (Monad x) => MonadMaybe (t1 x)
+  ) => MonadMaybe (ComposeT (ApplyT t1) t2 m)
+  where
+    bail
+      :: ComposeT (ApplyT t1) t2 m r
     bail = ComposeT bail
 
 instance {-# OVERLAPPABLE #-}

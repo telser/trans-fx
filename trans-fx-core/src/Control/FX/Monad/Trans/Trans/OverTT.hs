@@ -11,6 +11,7 @@
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -18,6 +19,7 @@
 module Control.FX.Monad.Trans.Trans.OverTT (
     OverTT(..)
   , Sing(..)
+  , runOverTT
 ) where
 
 
@@ -29,6 +31,7 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans.Class
+import Control.FX.Monad.Trans.Trans.ApplyTT
 
 
 
@@ -90,6 +93,31 @@ instance
       OverTT (x >>= (unOverTT . f))
 
 instance
+  ( Semigroup (v (u t m) a), MonadFunctor v
+  ) => Semigroup (OverTT u v t m a)
+  where
+    (<>)
+      :: OverTT u v t m a
+      -> OverTT u v t m a
+      -> OverTT u v t m a
+    (OverTT x) <> (OverTT y) =
+      OverTT (x <> y)
+
+instance
+  ( Monoid (v (u t m) a), MonadFunctor v
+  ) => Monoid (OverTT u v t m a)
+  where
+    mempty
+      :: OverTT u v t m a
+    mempty = OverTT mempty
+
+    mappend
+      :: OverTT u v t m a
+      -> OverTT u v t m a
+      -> OverTT u v t m a
+    mappend = (<>)
+
+instance
   ( MonadTrans t, MonadFunctor v, MonadTransTrans u
   ) => MonadTrans (OverTT u v t)
   where
@@ -132,6 +160,15 @@ instance
     runTT (Sing z1 z2) =
       fmap Compose . runTT z1 . runT z2 . unOverTT
 
+runOverTT
+  :: ( RunMonadTransTrans z1 u f1, RunMonadTrans z2 v f2
+     , Monad m, MonadTrans t, MonadFunctor v )
+  => z1 m
+  -> z2
+  -> OverTT u v t m a
+  -> t m (Compose f1 f2 a)
+runOverTT z1 z2 = runTT (Sing z1 z2)
+
 -- | Helper type for running @OverTT@
 data Sing
   (z :: (* -> *) -> *)
@@ -165,9 +202,41 @@ instance
 
 
 
+
+
 {- Effect Instances -}
 
 instance
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity (v (u t m))
+  ) => MonadIdentity (OverTT u v t m)
+  where
+    unwrap
+      :: OverTT u v t m a
+      -> a
+    unwrap = unwrap . unOverTT
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity mark, LiftCatch z v f
+  , forall x y. (Monad x, MonadTrans y) => MonadExcept mark e (u y x)
+  ) => MonadExcept mark e (OverTT (ApplyTT u) v t m)
+  where
+    throw
+      :: mark e
+      -> OverTT (ApplyTT u) v t m a
+    throw = OverTT . hoist ApplyTT . lift . throw
+
+    catch
+      :: OverTT (ApplyTT u) v t m a
+      -> (mark e -> OverTT (ApplyTT u) v t m a)
+      -> OverTT (ApplyTT u) v t m a
+    catch x h = OverTT $ hoist ApplyTT $
+      liftCatch catch
+        (hoist unApplyTT $ unOverTT x)
+        (hoist unApplyTT . unOverTT . h)
+
+instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadFunctor v
   , MonadTransTrans u, MonadIdentity mark
   , forall x. (Monad x) => MonadExcept mark e (v x)
@@ -184,7 +253,26 @@ instance
       -> OverTT u v t m a
     catch x h = OverTT $ catch (unOverTT x) (unOverTT . h)
 
-instance
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
+  , MonadTransTrans u, MonadIdentity mark, LiftDraft z v f
+  , forall x y. (Monad x, MonadTrans y) => MonadWriteOnly mark w (u y x)
+  ) => MonadWriteOnly mark w (OverTT (ApplyTT u) v t m)
+  where
+    tell
+      :: mark w
+      -> OverTT (ApplyTT u) v t m ()
+    tell = OverTT . lift . ApplyTT . tell
+
+    draft
+      :: OverTT (ApplyTT u) v t m a
+      -> OverTT (ApplyTT u) v t m (Pair (mark w) a)
+    draft x = OverTT $ hoist ApplyTT $
+      liftDraft draft (hoist unApplyTT $ unOverTT x)
+
+instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
   , MonadTransTrans u, MonadIdentity mark
   , forall x. (Monad x) => MonadWriteOnly mark w (v x)
@@ -200,9 +288,19 @@ instance
       -> OverTT u v t m (Pair (mark w) a)
     draft = OverTT . draft . unOverTT
 
-instance
-  ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
+  , forall x y. (Monad x, MonadTrans y) => MonadMaybe (u y x)
+  ) => MonadMaybe (OverTT (ApplyTT u) v t m)
+  where
+    bail
+      :: OverTT (ApplyTT u) v t m a
+    bail = OverTT $ hoist ApplyTT $ lift bail
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
   , forall x. (Monad x) => MonadMaybe (v x)
   ) => MonadMaybe (OverTT u v t m)
   where
@@ -210,7 +308,26 @@ instance
       :: OverTT u v t m a
     bail = OverTT bail
 
-instance
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity mark, LiftLocal z v f
+  , forall x y. (Monad x, MonadTrans y) => MonadReadOnly mark r (u y x)
+  ) => MonadReadOnly mark r (OverTT (ApplyTT u) v t m)
+  where
+    ask
+      :: OverTT (ApplyTT u) v t m (mark r)
+    ask = OverTT $ hoist ApplyTT $ lift ask
+
+    local
+      :: (mark r -> mark r)
+      -> OverTT (ApplyTT u) v t m a
+      -> OverTT (ApplyTT u) v t m a
+    local f =
+      OverTT . hoist ApplyTT . liftLocal local f . hoist unApplyTT . unOverTT
+
+instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadFunctor v
   , MonadTransTrans u, MonadIdentity mark
   , forall x. (Monad x) => MonadReadOnly mark r (v x)
@@ -226,7 +343,24 @@ instance
       -> OverTT u v t m a
     local f = OverTT . local f . unOverTT
 
-instance
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity mark
+  , forall x y. (Monad x, MonadTrans y) => MonadState mark s (u y x)
+  ) => MonadState mark s (OverTT (ApplyTT u) v t m)
+  where
+    get
+      :: OverTT (ApplyTT u) v t m (mark s)
+    get = OverTT $ hoist ApplyTT $ lift get
+
+    put
+      :: mark s
+      -> OverTT (ApplyTT u) v t m ()
+    put = OverTT . lift . ApplyTT . put
+
+instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadFunctor v
   , MonadTransTrans u, MonadIdentity mark
   , forall x. (Monad x) => MonadState mark s (v x)
@@ -240,6 +374,8 @@ instance
       :: mark s
       -> OverTT u v t m ()
     put = OverTT . put
+
+
 
 instance
   ( Monad m, MonadTrans t, MonadFunctor v

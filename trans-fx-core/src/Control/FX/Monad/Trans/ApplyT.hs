@@ -102,6 +102,31 @@ instance
   ) => Central (ApplyT t c)
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity (t m), Semigroup a
+  ) => Semigroup (ApplyT t m a)
+  where
+    (<>)
+      :: ApplyT t m a
+      -> ApplyT t m a
+      -> ApplyT t m a
+    (ApplyT a) <> (ApplyT b) =
+      ApplyT (a <> b)
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity (t m), Monoid a
+  ) => Monoid (ApplyT t m a)
+  where
+    mempty
+      :: ApplyT t m a
+    mempty = ApplyT mempty
+
+    mappend
+      :: ApplyT t m a
+      -> ApplyT t m a
+      -> ApplyT t m a
+    mappend = (<>)
+
+instance
   ( MonadTrans t
   ) => MonadTrans (ApplyT t)
   where

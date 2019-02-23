@@ -93,6 +93,32 @@ instance
 instance Central Identity
 
 instance
+  ( Semigroup a
+  ) => Semigroup (Identity a)
+  where
+    (<>)
+      :: Identity a
+      -> Identity a
+      -> Identity a
+    (Identity a) <> (Identity b) =
+      Identity (a <> b)
+
+instance
+  ( Monoid a
+  ) => Monoid (Identity a)
+    where
+      mempty
+        :: Identity a
+      mempty = Identity mempty
+
+      mappend
+        :: Identity a
+        -> Identity a
+        -> Identity a
+      mappend = (<>)
+
+
+instance
   RunMonad () Identity Identity
   where
     run

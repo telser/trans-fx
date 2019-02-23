@@ -6,9 +6,11 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE Rank2Types            #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Class (
@@ -46,6 +48,10 @@ class
 instance Central Maybe
 instance Central (Either e)
 
+instance
+  ( Monoid a
+  ) => Central (Pair a)
+
 
 
 -- | Class representing monads that can be "run" inside some context
@@ -74,6 +80,8 @@ instance RunMonad () Maybe Maybe where
 -- > (3) x >>= f === f (unwrap x)
 class
   ( Monad m
+  , forall x. (Semigroup x) => Semigroup (m x)
+  , forall x. (Monoid x) => Monoid (m x)
   ) => MonadIdentity m
   where
     -- | Extract a pure value

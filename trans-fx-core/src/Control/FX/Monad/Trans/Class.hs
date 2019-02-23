@@ -120,7 +120,7 @@ class
   ) => LiftDraft z t f
   where
     liftDraft
-      :: ( Monad m )
+      :: ( Monad m, Monoid w )
       => Draft w m (f a)
       -> Draft w (t m) a
 

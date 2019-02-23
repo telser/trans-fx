@@ -496,8 +496,8 @@ test_all_MonadTrans_LiftCatch = testGroup "MonadTrans (LiftCatch)"
   [ testLiftCatchLaws (Proxy :: Proxy IdentityT)              (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
   , testLiftCatchLaws (Proxy :: Proxy MaybeT)                 (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
 
-  , testLiftCatchLaws (Proxy :: Proxy (WriterT Identity Int)) (Proxy :: Proxy (Identity (), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
-  , testLiftCatchLaws (Proxy :: Proxy (ReaderT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  , testLiftCatchLaws (Proxy :: Proxy (WriteOnlyT Identity Int)) (Proxy :: Proxy (Identity (), Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
+  , testLiftCatchLaws (Proxy :: Proxy (ReadOnlyT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
   , testLiftCatchLaws (Proxy :: Proxy (StateT Identity Int))  (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (Except Identity Int)) pI pId pI eqIn
   ]
 
@@ -509,7 +509,7 @@ test_all_MonadTrans_LiftDraft = testGroup "MonadTrans (LiftDraft)"
   , testLiftDraftLaws (Proxy :: Proxy MaybeT)                 (Proxy :: Proxy ((), Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
 
   , testLiftDraftLaws (Proxy :: Proxy (ExceptT Identity Int)) (Proxy :: Proxy (Identity (), Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
-  , testLiftDraftLaws (Proxy :: Proxy (ReaderT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
+  , testLiftDraftLaws (Proxy :: Proxy (ReadOnlyT Identity Int)) (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
   , testLiftDraftLaws (Proxy :: Proxy (StateT Identity Int))  (Proxy :: Proxy (Identity Int, Identity ())) (Proxy :: Proxy (WriteOnly Identity Int)) pI pId pI eqIn
   ]
 

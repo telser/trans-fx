@@ -183,3 +183,16 @@ instance
       -> Draft w (ReadOnlyT mark r m) a
     liftDraft draft =
       ReadOnlyT . fmap (fmap (fmap unwrap) . draft . fmap pure) . unReadOnlyT
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftLocal (mark r) (ReadOnlyT mark r) mark
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r2 m (mark a)
+      -> Local r2 (ReadOnlyT mark r m) a
+    liftLocal local f x =
+      ReadOnlyT $ ReadOnly $ \r ->
+        fmap unwrap $
+          local f (fmap pure $ (unReadOnly $ unReadOnlyT x) r)

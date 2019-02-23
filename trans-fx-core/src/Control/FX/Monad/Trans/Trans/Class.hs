@@ -17,6 +17,11 @@ module Control.FX.Monad.Trans.Trans.Class (
     MonadTransTrans(..)
   , MonadTransFunctor(..)
   , RunMonadTransTrans(..)
+
+  -- * Specialized Lifts
+  , LiftCatchT(..)
+  , LiftDraftT(..)
+  , LiftLocalT(..)
 ) where
 
 
@@ -77,3 +82,46 @@ class
     runTT
       :: (Monad m, MonadTrans t)
       => z m -> u t m a -> t m (f a)
+
+
+
+
+
+{- Specialized Lifts -}
+
+-- | Class representing monad transformer transformers through
+-- which @catch@ from @MonadExcept@ can be lifted.
+class
+  ( MonadTransTrans u, RunMonadTransTrans z u f
+  ) => LiftCatchT z u f
+  where
+    liftCatchT
+      :: ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (f x))
+      -> (forall x. Catch e (u t m) x)
+
+
+
+-- | Class representing monad transformer transformers through
+-- which @draft@ from @MonadWriteOnly@ can be lifted.
+class
+  ( MonadTransTrans u, RunMonadTransTrans z u f
+  ) => LiftDraftT z u f
+  where
+    liftDraftT
+      :: ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (f x))
+      -> (forall x. Draft w (u t m) x)
+
+
+
+-- | Class representing monad transformer transformers through
+-- which @local@ from @MonadReadOnly@ can be lifted.
+class
+  ( MonadTransTrans u, RunMonadTransTrans z u f
+  ) => LiftLocalT z u f
+  where
+    liftLocalT
+      :: ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (f x))
+      -> (forall x. Local r (u t m) x)

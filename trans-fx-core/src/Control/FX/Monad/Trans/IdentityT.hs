@@ -112,6 +112,31 @@ instance
   ) => Central (IdentityT c)
 
 instance
+  ( MonadIdentity m, Semigroup a
+  ) => Semigroup (IdentityT m a)
+  where
+    (<>)
+      :: IdentityT m a
+      -> IdentityT m a
+      -> IdentityT m a
+    (IdentityT a) <> (IdentityT b) =
+      IdentityT (a <> b)
+
+instance
+  ( MonadIdentity m, Monoid a
+  ) => Monoid (IdentityT m a)
+  where
+    mempty
+      :: IdentityT m a
+    mempty = IdentityT mempty
+
+    mappend
+      :: IdentityT m a
+      -> IdentityT m a
+      -> IdentityT m a
+    mappend = (<>)
+
+instance
   MonadTrans IdentityT
   where
     lift
