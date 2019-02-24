@@ -2,12 +2,6 @@
 title: Getting Started
 ---
 
-Hi! This is a technical introduction to `trans-fx`, an effect framework library for Haskell. To say anything interesting I'll have to make a few assumptions about you, dear reader, and I think it's best to be up front about these. This document will make the most sense to you if:
-
-1. You have some experience writing in a functional programming language, and a language with Hindley-Milner style type inference, and found these ideas to be to your liking.
-2. You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.
-3. You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.
-
 To use `trans-fx` we'll need a pretty recent version of GHC; the library code depends on some newer (GHC >= 8.6) language extensions. Client code will also benefit considerably from the following extensions -- these are not strictly necessary, but will help cut out a _ton_ of trivial boilerplate.
 
 > {-# LANGUAGE DerivingVia                #-}
@@ -79,7 +73,7 @@ class
 
 Similar to our `MonadTrans`, `MonadTransTrans` has quantified constraints that ensure it can't have undisciplined instances. Intuitively, where a monad transformer takes monads to monads, a monad transformer transformer takes monad transformers to monad transformers.
 
-What is the purpose of doing that? Isn't just one kind of transformer enough to build composable effects? In principle, yes. But splitting the _base monad_ of the transformer paradigm into a _base monad and transformer_ will let us write more modular and more easily testable code, as we will see. In a nutshell, in the transformer paradigm we can defer the choice of `m` to client code, but with transformer transformers we defer the choice of `t` to the client and then choose `m` at _run time_. `m` is the effect monad. In production it will be `IO` or similar, but for testing we can swap out `IO` for a test environment. Then `t` is the client's escape hatch for adding functionality to a stack of prepackaged transformer transformers.
+What is the purpose of doing that? Isn't just one kind of transformer enough to build composable effects? In principle, yes. But splitting the _base monad_ of the transformer paradigm into a _base monad and transformer_ will let us write more modular and more easily testable code, as we will see. In a nutshell, in the transformer paradigm we can defer the choice of `m` to client code, but with transformer transformers we defer the choice of `t` to the client and then choose `m` at _run time_. `m` is the effect monad. In production it will be `IO` or similar, but for testing we can swap out `IO` for a test environment. Then `t` is the client's escape hatch for adding functionality to a stack of prepackaged transformer transformers without affecting the test setup.
 
 Hopefully this will make more sense with some concrete examples.
 

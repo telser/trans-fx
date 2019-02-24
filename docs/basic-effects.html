@@ -85,12 +85,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <header>
 <h1 class="title">Getting Started</h1>
 </header>
-<p>Hi! This is a technical introduction to <code>trans-fx</code>, an effect framework library for Haskell. To say anything interesting I’ll have to make a few assumptions about you, dear reader, and I think it’s best to be up front about these. This document will make the most sense to you if:</p>
-<ol type="1">
-<li>You have some experience writing in a functional programming language, and a language with Hindley-Milner style type inference, and found these ideas to be to your liking.</li>
-<li>You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.</li>
-<li>You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.</li>
-</ol>
 <p>To use <code>trans-fx</code> we’ll need a pretty recent version of GHC; the library code depends on some newer (GHC &gt;= 8.6) language extensions. Client code will also benefit considerably from the following extensions – these are not strictly necessary, but will help cut out a <em>ton</em> of trivial boilerplate.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE DerivingVia                #-}</span></a>
 <a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
@@ -132,7 +126,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb5-8" data-line-number="8"><span class="ot">      ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t)</a>
 <a class="sourceLine" id="cb5-9" data-line-number="9">      <span class="ot">=&gt;</span> t m a <span class="ot">-&gt;</span> u t m a</a></code></pre></div>
 <p>Similar to our <code>MonadTrans</code>, <code>MonadTransTrans</code> has quantified constraints that ensure it can’t have undisciplined instances. Intuitively, where a monad transformer takes monads to monads, a monad transformer transformer takes monad transformers to monad transformers.</p>
-<p>What is the purpose of doing that? Isn’t just one kind of transformer enough to build composable effects? In principle, yes. But splitting the <em>base monad</em> of the transformer paradigm into a <em>base monad and transformer</em> will let us write more modular and more easily testable code, as we will see. In a nutshell, in the transformer paradigm we can defer the choice of <code>m</code> to client code, but with transformer transformers we defer the choice of <code>t</code> to the client and then choose <code>m</code> at <em>run time</em>. <code>m</code> is the effect monad. In production it will be <code>IO</code> or similar, but for testing we can swap out <code>IO</code> for a test environment. Then <code>t</code> is the client’s escape hatch for adding functionality to a stack of prepackaged transformer transformers.</p>
+<p>What is the purpose of doing that? Isn’t just one kind of transformer enough to build composable effects? In principle, yes. But splitting the <em>base monad</em> of the transformer paradigm into a <em>base monad and transformer</em> will let us write more modular and more easily testable code, as we will see. In a nutshell, in the transformer paradigm we can defer the choice of <code>m</code> to client code, but with transformer transformers we defer the choice of <code>t</code> to the client and then choose <code>m</code> at <em>run time</em>. <code>m</code> is the effect monad. In production it will be <code>IO</code> or similar, but for testing we can swap out <code>IO</code> for a test environment. Then <code>t</code> is the client’s escape hatch for adding functionality to a stack of prepackaged transformer transformers without affecting the test setup.</p>
 <p>Hopefully this will make more sense with some concrete examples.</p>
 <p>Anyway, monad transformer transformers act like a <em>monad construction kit</em>, much like transformers do. The basic algebraic effect monads have transformer-transformer analogues:</p>
 <ul>
