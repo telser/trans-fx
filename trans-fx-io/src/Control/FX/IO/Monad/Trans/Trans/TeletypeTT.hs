@@ -24,6 +24,7 @@ module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
   , evalTeletypeIO
   , MonadTeletype(..)
   , TeletypeError(..)
+  , IOException
   , runTeletypeTT
 ) where
 
@@ -48,17 +49,17 @@ newtype TeletypeTT
     = TeletypeTT
         { unTeletypeTT
             :: OverTT
-                ( PromptTT mark TeletypeAction )
-                ( ExceptT TeletypeError IOException )
+                ( PromptTT mark (TeletypeAction mark) )
+                ( ExceptT TeletypeError (mark IOException) )
                 t m a
         } deriving
           ( Typeable, Functor, Applicative
           , Monad, MonadTrans, MonadTransTrans
-          , MonadPrompt mark TeletypeAction )
+          , MonadPrompt mark (TeletypeAction mark) )
 
 deriving instance {-# OVERLAPPING #-}
   ( Monad m, MonadTrans t, MonadIdentity mark
-  ) => MonadExcept TeletypeError IOException (TeletypeTT mark t m)
+  ) => MonadExcept TeletypeError (mark IOException) (TeletypeTT mark t m)
 
 
 
@@ -99,12 +100,6 @@ instance
       :: TeletypeError a
     mempty = TeletypeError mempty
 
-    mappend
-      :: TeletypeError a
-      -> TeletypeError a
-      -> TeletypeError a
-    mappend = (<>)
-
 instance MonadIdentity TeletypeError where
   unwrap = unTeletypeError
 
@@ -113,23 +108,23 @@ instance MonadIdentity TeletypeError where
 instance
   ( MonadIdentity mark, Commutant mark
   ) => RunMonadTransTrans
-    (Eval TeletypeAction)
+    (Eval (TeletypeAction mark))
     (TeletypeTT mark)
-    (Except TeletypeError IOException)
+    (Except TeletypeError (mark IOException))
   where
     runTT
       :: ( Monad m, MonadTrans t )
-      => Eval TeletypeAction m
+      => Eval (TeletypeAction mark) m
       -> TeletypeTT mark t m a
-      -> t m (Except TeletypeError IOException a)
+      -> t m (Except TeletypeError (mark IOException) a)
     runTT eval (TeletypeTT x) =
       fmap (unwrap . unCompose) $ runTT (Sing eval (pure ())) x
 
 runTeletypeTT
   :: ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark )
-  => Eval TeletypeAction m
+  => Eval (TeletypeAction mark) m
   -> TeletypeTT mark t m a
-  -> t m (Except TeletypeError IOException a)
+  -> t m (Except TeletypeError (mark IOException) a)
 runTeletypeTT = runTT
 
 
@@ -139,30 +134,31 @@ runTeletypeTT = runTT
 {- Actions -}
 
 -- | Type representing atomic teletype actions
-data TeletypeAction a where
+data TeletypeAction mark a where
   ReadLine
-    :: TeletypeAction
-        (Except TeletypeError IOException String)
+    :: TeletypeAction mark
+        (Except TeletypeError (mark IOException) String)
 
   PrintLine
     :: String
-    -> TeletypeAction
-        (Except TeletypeError IOException ())
+    -> TeletypeAction mark
+        (Except TeletypeError (mark IOException) ())
 
 -- | Default @IO@ evaluator
 evalTeletypeIO
-  :: TeletypeAction a -> IO a
+  :: ( MonadIdentity mark )
+  => TeletypeAction mark a -> IO a
 evalTeletypeIO x = case x of
   ReadLine -> do
     x <- try getLine
     return $ case x of
-      Left e -> Except e
+      Left e -> Except (pure e)
       Right a -> Accept a
 
   PrintLine msg -> do
     x <- try $ putStrLn msg
     return $ case x of
-      Left e -> Except e
+      Left e -> Except (pure e)
       Right () -> Accept ()
 
 
@@ -178,7 +174,7 @@ instance {-# OVERLAPS #-}
     readLine
       :: TeletypeTT mark t m (mark String)
     readLine = TeletypeTT $ OverTT $ do
-      x :: mark (Except TeletypeError IOException String)
+      x :: mark (Except TeletypeError (mark IOException) String)
         <- lift $ prompt $ return ReadLine
       case unwrap x of
         Except e -> throw $ TeletypeError e
@@ -188,7 +184,7 @@ instance {-# OVERLAPS #-}
       :: mark String
       -> TeletypeTT mark t m ()
     printLine msg = TeletypeTT $ OverTT $ do
-      x :: mark (Except TeletypeError IOException ())
+      x :: mark (Except TeletypeError (mark IOException) ())
         <- lift $ prompt $ return $ PrintLine $ unwrap msg
       case unwrap x of
         Except e -> throw $ TeletypeError e

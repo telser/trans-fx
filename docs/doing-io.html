@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Composing Transformers</title>
+  <title>Doing IO</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -83,76 +83,81 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </head>
 <body>
 <header>
-<h1 class="title">Composing Transformers</h1>
+<h1 class="title">Doing IO</h1>
 </header>
+<p>Now let’s add some IO effects.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE DerivingVia                #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE ScopedTypeVariables        #-}</span></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE FlexibleInstances          #-}</span></a>
-<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE FlexibleInstances          #-}</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE ScopedTypeVariables        #-}</span></a>
 <a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE MultiParamTypeClasses      #-}</span></a>
 <a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
 <a class="sourceLine" id="cb1-7" data-line-number="7"></a>
 <a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">module</span> <span class="dt">Control.FX.Demo.DoingIO</span> <span class="kw">where</span></a></code></pre></div>
-<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.Exception</span></a>
-<a class="sourceLine" id="cb2-2" data-line-number="2">  ( <span class="dt">IOException</span> )</a></code></pre></div>
-<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a>
-<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Control.FX.IO</span></a></code></pre></div>
-<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Mung</span> t m a <span class="fu">=</span> <span class="dt">Mung</span></a>
-<a class="sourceLine" id="cb4-2" data-line-number="2">  {<span class="ot"> unMung ::</span></a>
-<a class="sourceLine" id="cb4-3" data-line-number="3">      <span class="dt">TeletypeTT</span> <span class="dt">S</span></a>
-<a class="sourceLine" id="cb4-4" data-line-number="4">      (<span class="dt">StateTT</span> <span class="dt">T</span> <span class="dt">String</span></a>
-<a class="sourceLine" id="cb4-5" data-line-number="5">      (<span class="dt">StateTT</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb4-6" data-line-number="6">      t)) m a</a>
-<a class="sourceLine" id="cb4-7" data-line-number="7">  } <span class="kw">deriving</span></a>
-<a class="sourceLine" id="cb4-8" data-line-number="8">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadTrans</span></a>
-<a class="sourceLine" id="cb4-9" data-line-number="9">    , <span class="dt">MonadState</span> <span class="dt">T</span> <span class="dt">String</span></a>
-<a class="sourceLine" id="cb4-10" data-line-number="10">    , <span class="dt">MonadState</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb4-11" data-line-number="11">    , <span class="dt">MonadTeletype</span> <span class="dt">S</span></a>
-<a class="sourceLine" id="cb4-12" data-line-number="12">    , <span class="dt">MonadExcept</span> <span class="dt">TeletypeError</span> <span class="dt">IOException</span></a>
-<a class="sourceLine" id="cb4-13" data-line-number="13">    )</a></code></pre></div>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">test6 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Mung</span> t m ()</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2">test6 <span class="fu">=</span> <span class="kw">do</span></a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">  printLine <span class="fu">$</span> <span class="dt">S</span> <span class="st">&quot;foo&quot;</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4">  <span class="dt">S</span> (<span class="ot">p ::</span> <span class="dt">Bool</span>) <span class="ot">&lt;-</span> get</a>
-<a class="sourceLine" id="cb5-5" data-line-number="5">  printLine <span class="fu">$</span> <span class="dt">S</span> (show p)</a>
-<a class="sourceLine" id="cb5-6" data-line-number="6">  put <span class="fu">$</span> <span class="dt">T</span> <span class="st">&quot;Foo&quot;</span></a>
-<a class="sourceLine" id="cb5-7" data-line-number="7">  return ()</a></code></pre></div>
-<blockquote>
-<p>runMung :: Mung IdentityT IO a -&gt; IO (Pair (T [Char]) (Except TeletypeError IOException a))</p>
-</blockquote>
-<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">runMung <span class="fu">=</span></a>
-<a class="sourceLine" id="cb6-2" data-line-number="2">  unIdentityT</a>
-<a class="sourceLine" id="cb6-3" data-line-number="3">    <span class="fu">.</span> runStateTT (<span class="dt">S</span> <span class="dt">False</span>)</a>
-<a class="sourceLine" id="cb6-4" data-line-number="4">    <span class="fu">.</span> runStateTT (<span class="dt">T</span> <span class="st">&quot;&quot;</span>)</a>
-<a class="sourceLine" id="cb6-5" data-line-number="5">    <span class="fu">.</span> runTeletypeTT (<span class="dt">Eval</span> evalTeletypeIO)</a>
-<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="fu">.</span> unMung</a></code></pre></div>
-<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> {<span class="ot"> unS ::</span> a }</a>
-<a class="sourceLine" id="cb7-2" data-line-number="2">  <span class="kw">deriving</span> stock</a>
-<a class="sourceLine" id="cb7-3" data-line-number="3">    ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
-<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="kw">deriving</span></a>
-<a class="sourceLine" id="cb7-5" data-line-number="5">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadIdentity</span> )</a>
-<a class="sourceLine" id="cb7-6" data-line-number="6">    via (<span class="dt">Wrap</span> <span class="dt">S</span>)</a>
-<a class="sourceLine" id="cb7-7" data-line-number="7">  <span class="kw">deriving</span></a>
-<a class="sourceLine" id="cb7-8" data-line-number="8">    ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> )</a>
-<a class="sourceLine" id="cb7-9" data-line-number="9">    via (<span class="dt">Wrap</span> <span class="dt">S</span> a)</a>
-<a class="sourceLine" id="cb7-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb7-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">S</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb7-12" data-line-number="12">  namingMap <span class="fu">=</span> <span class="dt">S</span></a>
-<a class="sourceLine" id="cb7-13" data-line-number="13">  namingInv <span class="fu">=</span> unS</a>
-<a class="sourceLine" id="cb7-14" data-line-number="14"></a>
-<a class="sourceLine" id="cb7-15" data-line-number="15"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">S</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb7-16" data-line-number="16">  commute <span class="fu">=</span> fmap <span class="dt">S</span> <span class="fu">.</span> unS</a></code></pre></div>
-<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">data</span> <span class="dt">T</span> a <span class="fu">=</span> <span class="dt">T</span> {<span class="ot"> unT ::</span> a }</a>
-<a class="sourceLine" id="cb8-2" data-line-number="2">  <span class="kw">deriving</span> stock ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
-<a class="sourceLine" id="cb8-3" data-line-number="3">  <span class="kw">deriving</span> ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
-<a class="sourceLine" id="cb8-4" data-line-number="4">           , <span class="dt">MonadIdentity</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span>)</a>
-<a class="sourceLine" id="cb8-5" data-line-number="5">  <span class="kw">deriving</span> ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span> a)</a>
-<a class="sourceLine" id="cb8-6" data-line-number="6"></a>
-<a class="sourceLine" id="cb8-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">T</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-8" data-line-number="8">  namingMap <span class="fu">=</span> <span class="dt">T</span></a>
-<a class="sourceLine" id="cb8-9" data-line-number="9">  namingInv <span class="fu">=</span> unT</a>
-<a class="sourceLine" id="cb8-10" data-line-number="10"></a>
-<a class="sourceLine" id="cb8-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">T</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb8-12" data-line-number="12">  commute <span class="fu">=</span> fmap <span class="dt">T</span> <span class="fu">.</span> unT</a></code></pre></div>
+<p>Some simple IO-lite monads are in the <code>trans-fx-io</code> package, which we can import all at once with <code>Control.FX.IO</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Control.FX.IO</span></a></code></pre></div>
+<p>The simplest way to make a monad transformer transformer that does IO-like actions is using <code>PromptTT</code>, taken shamelessly from the <code>MonadPrompt</code> library. The Prompt pattern lets us define some monadic actions to be carried out later using an <em>interpreter</em> that we control. The <code>PromptTT</code> type is provided by <code>trans-fx-core</code> but typically we won’t use it raw. Instead we’ll specialize it to some particular IO effects we care about.</p>
+<p>The simplest of these is probably <code>TeletypeTT</code>: a monad transformer transformer that adds the ability to read and write strings of text on a teletype-like interface.</p>
+<p>Here’s a simple type using <code>TeletypeTT</code>. (<code>S</code> and <code>T</code> are again boilerplate <code>MonadIdentity</code> types for disambiguation.)</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Bar</span> t m a <span class="fu">=</span> <span class="dt">Bar</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2">  {<span class="ot"> unBar ::</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">      <span class="dt">TeletypeTT</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">      (<span class="dt">StateTT</span> <span class="dt">T</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">      (<span class="dt">ExceptTT</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb3-6" data-line-number="6">      t)) m a</a>
+<a class="sourceLine" id="cb3-7" data-line-number="7">  } <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb3-8" data-line-number="8">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadTrans</span></a>
+<a class="sourceLine" id="cb3-9" data-line-number="9">    , <span class="dt">MonadState</span> <span class="dt">T</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb3-10" data-line-number="10">    , <span class="dt">MonadExcept</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb3-11" data-line-number="11">    , <span class="dt">MonadTeletype</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb3-12" data-line-number="12">    , <span class="dt">MonadExcept</span> <span class="dt">TeletypeError</span> (<span class="dt">S</span> <span class="dt">IOException</span>)</a>
+<a class="sourceLine" id="cb3-13" data-line-number="13">    )</a></code></pre></div>
+<p>Couple things to note: with <code>TeletypeTT</code> added to our transformer transformer stack, we can derive two new interfaces: <code>MonadTeletype</code> comes with the functions for interacting with the teletype, and we can also derive a handler for IO exceptions originating in the teletype.</p>
+<p>Now the <code>run</code> function for <code>TeletypeTT</code> takes an <em>interpreter</em> that runs the teletype effects in some specific base monad. There’s a default IO implementation, but we could swap that out for one that runs in a test environment. Notably, because the teletype interface is named we could have more than one teletype layer in the stack and interpret them differently.</p>
+<p>Anyway, here is an example.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="ot">test3 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Bar</span> t m ()</a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">test3 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">  printLine <span class="fu">$</span> <span class="dt">S</span> <span class="st">&quot;foo&quot;</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">  put <span class="fu">$</span> <span class="dt">T</span> <span class="st">&quot;Foo&quot;</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">  return ()</a></code></pre></div>
+<p>And here is a runner. <code>evalTeletypeIO</code> is the default teletype interpreter. Again, it’s much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">runBar</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Bar</span> <span class="dt">IdentityT</span> <span class="dt">IO</span> a</a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">Except</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">       (<span class="dt">Pair</span> (<span class="dt">T</span> <span class="dt">String</span>)</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">       (<span class="dt">Except</span> <span class="dt">TeletypeError</span> (<span class="dt">S</span> <span class="dt">IOException</span>) a)))</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">runBar <span class="fu">=</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">  unIdentityT</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">    <span class="fu">.</span> runExceptTT (<span class="dt">S</span> ())</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">    <span class="fu">.</span> runStateTT (<span class="dt">T</span> <span class="st">&quot;&quot;</span>)</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">    <span class="fu">.</span> runTeletypeTT (<span class="dt">Eval</span> evalTeletypeIO)</a>
+<a class="sourceLine" id="cb5-11" data-line-number="11">    <span class="fu">.</span> unBar</a></code></pre></div>
+<p>(Boilerplate)</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> {<span class="ot"> unS ::</span> a }</a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">  <span class="kw">deriving</span> stock ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">  <span class="kw">deriving</span> ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">           , <span class="dt">MonadIdentity</span> ) via (<span class="dt">Wrap</span> <span class="dt">S</span>)</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">  <span class="kw">deriving</span> ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> ) via (<span class="dt">Wrap</span> <span class="dt">S</span> a)</a>
+<a class="sourceLine" id="cb6-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb6-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">S</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-8" data-line-number="8">  namingMap <span class="fu">=</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb6-9" data-line-number="9">  namingInv <span class="fu">=</span> unS</a>
+<a class="sourceLine" id="cb6-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb6-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">S</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-12" data-line-number="12">  commute <span class="fu">=</span> fmap <span class="dt">S</span> <span class="fu">.</span> unS</a>
+<a class="sourceLine" id="cb6-13" data-line-number="13"></a>
+<a class="sourceLine" id="cb6-14" data-line-number="14"><span class="kw">data</span> <span class="dt">T</span> a <span class="fu">=</span> <span class="dt">T</span> {<span class="ot"> unT ::</span> a }</a>
+<a class="sourceLine" id="cb6-15" data-line-number="15">  <span class="kw">deriving</span> stock ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb6-16" data-line-number="16">  <span class="kw">deriving</span> ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb6-17" data-line-number="17">           , <span class="dt">MonadIdentity</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span>)</a>
+<a class="sourceLine" id="cb6-18" data-line-number="18">  <span class="kw">deriving</span> ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span> a)</a>
+<a class="sourceLine" id="cb6-19" data-line-number="19"></a>
+<a class="sourceLine" id="cb6-20" data-line-number="20"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">T</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-21" data-line-number="21">  namingMap <span class="fu">=</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb6-22" data-line-number="22">  namingInv <span class="fu">=</span> unT</a>
+<a class="sourceLine" id="cb6-23" data-line-number="23"></a>
+<a class="sourceLine" id="cb6-24" data-line-number="24"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">T</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb6-25" data-line-number="25">  commute <span class="fu">=</span> fmap <span class="dt">T</span> <span class="fu">.</span> unT</a></code></pre></div>
 </body>
 </html>

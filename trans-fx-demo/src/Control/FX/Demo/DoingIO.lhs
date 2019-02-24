@@ -1,65 +1,76 @@
 ---
-title: Composing Transformers
+title: Doing IO
 ---
 
+Now let's add some IO effects.
+
 > {-# LANGUAGE DerivingVia                #-}
-> {-# LANGUAGE ScopedTypeVariables        #-}
 > {-# LANGUAGE FlexibleInstances          #-}
 > {-# LANGUAGE DerivingStrategies         #-}
+> {-# LANGUAGE ScopedTypeVariables        #-}
 > {-# LANGUAGE MultiParamTypeClasses      #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
 > module Control.FX.Demo.DoingIO where
 
-> import Control.Exception
->   ( IOException )
+Some simple IO-lite monads are in the `trans-fx-io` package, which we can import all at once with `Control.FX.IO`.
 
 > import Control.FX
 > import Control.FX.IO
 
-> newtype Mung t m a = Mung
->   { unMung ::
+The simplest way to make a monad transformer transformer that does IO-like actions is using `PromptTT`, taken shamelessly from the `MonadPrompt` library. The Prompt pattern lets us define some monadic actions to be carried out later using an _interpreter_ that we control. The `PromptTT` type is provided by `trans-fx-core` but typically we won't use it raw. Instead we'll specialize it to some particular IO effects we care about.
+
+The simplest of these is probably `TeletypeTT`: a monad transformer transformer that adds the ability to read and write strings of text on a teletype-like interface.
+
+Here's a simple type using `TeletypeTT`. (`S` and `T` are again boilerplate `MonadIdentity` types for disambiguation.)
+
+> newtype Bar t m a = Bar
+>   { unBar ::
 >       TeletypeTT S
 >       (StateTT T String
->       (StateTT S Bool
+>       (ExceptTT S Bool
 >       t)) m a
 >   } deriving
 >     ( Functor, Applicative, Monad, MonadTrans
 >     , MonadState T String
->     , MonadState S Bool
+>     , MonadExcept S Bool
 >     , MonadTeletype S
->     , MonadExcept TeletypeError IOException
+>     , MonadExcept TeletypeError (S IOException)
 >     )
 
-> test6 :: (Monad m, MonadTrans t) => Mung t m ()
-> test6 = do
+Couple things to note: with `TeletypeTT` added to our transformer transformer stack, we can derive two new interfaces: `MonadTeletype` comes with the functions for interacting with the teletype, and we can also derive a handler for IO exceptions originating in the teletype.
+
+Now the `run` function for `TeletypeTT` takes an _interpreter_ that runs the teletype effects in some specific base monad. There's a default IO implementation, but we could swap that out for one that runs in a test environment. Notably, because the teletype interface is named we could have more than one teletype layer in the stack and interpret them differently.
+
+Anyway, here is an example.
+
+> test3 :: (Monad m, MonadTrans t) => Bar t m ()
+> test3 = do
 >   printLine $ S "foo"
->   S (p :: Bool) <- get
->   printLine $ S (show p)
 >   put $ T "Foo"
 >   return ()
 
- > runMung
- >   :: Mung IdentityT IO a
- >   -> IO (Pair (T [Char]) (Except TeletypeError IOException a))
+And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Again, it's much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.
 
-> runMung =
+> runBar
+>   :: Bar IdentityT IO a
+>   -> IO (Except S Bool
+>        (Pair (T String)
+>        (Except TeletypeError (S IOException) a)))
+> runBar =
 >   unIdentityT
->     . runStateTT (S False)
+>     . runExceptTT (S ())
 >     . runStateTT (T "")
 >     . runTeletypeTT (Eval evalTeletypeIO)
->     . unMung
+>     . unBar
 
+(Boilerplate)
 
 > data S a = S { unS :: a }
->   deriving stock
->     ( Eq, Show )
->   deriving
->     ( Functor, Applicative, Monad, MonadIdentity )
->     via (Wrap S)
->   deriving
->     ( Semigroup, Monoid )
->     via (Wrap S a)
+>   deriving stock ( Eq, Show )
+>   deriving ( Functor, Applicative, Monad
+>            , MonadIdentity ) via (Wrap S)
+>   deriving ( Semigroup, Monoid ) via (Wrap S a)
 > 
 > instance Renaming S where
 >   namingMap = S
@@ -67,8 +78,7 @@ title: Composing Transformers
 > 
 > instance Commutant S where
 >   commute = fmap S . unS
-
-
+>
 > data T a = T { unT :: a }
 >   deriving stock ( Eq, Show )
 >   deriving ( Functor, Applicative, Monad
