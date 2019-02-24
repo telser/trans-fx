@@ -138,26 +138,6 @@ instance
 
 
 
-{- Effect Class -}
-
-instance
-  ( Monad m, MonadIdentity mark
-  ) => MonadReadOnly mark r (ReadOnlyT mark r m)
-  where
-    ask
-      :: ReadOnlyT mark r m (mark r)
-    ask = ReadOnlyT $ ReadOnly $ \r ->
-      return (pure r)
-
-    local
-      :: (mark r -> mark r)
-      -> ReadOnlyT mark r m a
-      -> ReadOnlyT mark r m a
-    local f (ReadOnlyT (ReadOnly x)) =
-      ReadOnlyT $ ReadOnly $ x . unwrap . f . pure
-
-
-
 {- Specialized Lifts -}
 
 instance
@@ -196,3 +176,53 @@ instance
       ReadOnlyT $ ReadOnly $ \r ->
         fmap unwrap $
           local f (fmap pure $ (unReadOnly $ unReadOnlyT x) r)
+
+
+
+{- Effect Class -}
+
+instance {-# OVERLAPPING #-}
+  ( Monad m, MonadIdentity mark
+  ) => MonadReadOnly mark r (ReadOnlyT mark r m)
+  where
+    ask
+      :: ReadOnlyT mark r m (mark r)
+    ask = ReadOnlyT $ ReadOnly $ \r ->
+      return (pure r)
+
+    local
+      :: (mark r -> mark r)
+      -> ReadOnlyT mark r m a
+      -> ReadOnlyT mark r m a
+    local f (ReadOnlyT (ReadOnly x)) =
+      ReadOnlyT $ ReadOnly $ x . unwrap . f . pure
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadReadOnly mark r m, Commutant mark1
+  ) => MonadReadOnly mark r (ReadOnlyT mark1 r1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadExcept mark e m, Commutant mark1
+  ) => MonadExcept mark e (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadWriteOnly mark w m, Commutant mark1, Monoid w
+  ) => MonadWriteOnly mark w (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadState mark s m, Commutant mark1
+  ) => MonadState mark s (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadPrompt mark p m, Commutant mark1
+  ) => MonadPrompt mark p (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark1, Commutant mark1
+  , MonadMaybe m
+  ) => MonadMaybe (ReadOnlyT mark1 r m)

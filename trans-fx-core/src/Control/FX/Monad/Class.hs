@@ -6,16 +6,30 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE Rank2Types            #-}
-{-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE GADTs                  #-}
+{-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE InstanceSigs           #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE DefaultSignatures      #-}
+{-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE QuantifiedConstraints  #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Control.FX.Monad.Class (
     Central(..)
   , RunMonad(..)
+
+  , MonadTrans(..)
+  , RunMonadTrans(..)
+
+  -- * Specialized Lifts
+  , Catch
+  , LiftCatch(..)
+  , Draft
+  , LiftDraft(..)
+  , Local
+  , LiftLocal(..)
 
   -- * Basic Effects
   , MonadIdentity(..)
@@ -68,7 +82,85 @@ instance RunMonad () Maybe Maybe where
 
 
 
+{- MonadTrans -}
 
+-- | Class representing monad transformers
+class
+  ( forall m. (Monad m) => Monad (t m)
+  ) => MonadTrans
+    (t :: (* -> *) -> * -> *)
+  where
+    -- | Lift a computation from the inner monad to the transformed monad
+    lift
+      :: ( Monad m )
+      => m a
+      -> t m a
+
+-- | Class representing monad transformers which can be run in a context @z@, producting a value in a context @f@
+class
+  ( MonadTrans t, Commutant f
+  ) => RunMonadTrans z t f | t -> z f
+  where
+    runT
+      :: ( Monad m )
+      => z
+      -> t m a
+      -> m (f a)
+
+
+
+{- Specialized Lifts -}
+
+-- | The signature of @catch@ from @MonadExcept@
+type Catch e m a = m a -> (e -> m a) -> m a
+
+-- | Class representing monad transformers through which
+-- @catch@ from @MonadExcept@ can be lifted. Instances
+-- should satisfy the following law:
+--
+-- > (1) lift (catch x h) === liftCatch catch (lift x) (lift . h)
+class
+  ( MonadTrans t, RunMonadTrans z t f
+  ) => LiftCatch z t f
+  where
+    liftCatch
+      :: ( Monad m )
+      => Catch e m (f a)
+      -> Catch e (t m) a
+
+-- | The signature of @draft@ from @MonadWriteOnly@
+type Draft w m a = m a -> m (Pair w a)
+
+-- | Class representing monad transformers through which
+-- @draft@ from @MonadWriteOnly@ can be lifted. Instances
+-- should satisfy the following law:
+--
+-- > (1) liftDraft draft (lift x) === lift (draft x)
+class
+  ( MonadTrans t, RunMonadTrans z t f
+  ) => LiftDraft z t f
+  where
+    liftDraft
+      :: ( Monad m, Monoid w )
+      => Draft w m (f a)
+      -> Draft w (t m) a
+
+-- | The signature of @local@ from @MonadReadOnly@
+type Local r m a = (r -> r) -> m a -> m a
+
+-- | Class representing monad transformers through which @local@ from @MonadReadOnly@ can be lifted
+class
+  ( MonadTrans t, RunMonadTrans z t f
+  ) => LiftLocal z t f
+  where
+    liftLocal
+      :: ( Monad m )
+      => Local r m (f a)
+      -> Local r (t m) a
+
+
+
+{- Effect Classes -}
 
 -- | Class representing monads from which we can extract a pure value.
 -- Instances should satisfy the following laws:
@@ -100,6 +192,13 @@ class
     -- | Fail catastrophically, returning nothing.
     bail :: m a
 
+    default bail
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadMaybe m1 )
+      => m a
+    bail = lift bail
+
+
 
 
 -- | Class representing monads which can raise and handle marked exceptions
@@ -116,8 +215,24 @@ class
   where
     -- | Raise an exception
     throw :: mark e -> m a
+
+    default throw
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadExcept mark e m1 )
+      => mark e
+      -> m a
+    throw = lift . throw
+
     -- | Run a computation, applying a handler to any raised exceptions
     catch :: m a -> (mark e -> m a) -> m a
+
+    default catch
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , LiftCatch z t1 f, MonadExcept mark e m1 )
+      => m a
+      -> (mark e -> m a)
+      -> m a
+    catch = liftCatch catch
 
 
 
@@ -137,8 +252,22 @@ class
   where
     -- | Retrieve the current state
     get :: m (mark s)
+
+    default get
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadState mark s m1 )
+      => m (mark s)
+    get = lift get
+
     -- | Replace the current state
     put :: (mark s) -> m ()
+
+    default put
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadState mark s m1 )
+      => mark s
+      -> m ()
+    put = lift . put
 
 
 
@@ -162,9 +291,24 @@ class
   where
     -- | Combine a value with the current write-only state
     tell :: mark w -> m ()
+
+    default tell
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadWriteOnly mark w m1)
+      => mark w
+      -> m ()
+    tell = lift . tell
+
     -- | Run a computation, returning the write-only state
     -- with the result rather than writing it
     draft :: m a -> m (Pair (mark w) a)
+
+    default draft
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , LiftDraft z t1 f, MonadWriteOnly mark w m1 )
+      => m a
+      -> m (Pair (mark w) a)
+    draft = liftDraft draft
 
 
 
@@ -186,9 +330,24 @@ class
   where
     -- | Retrieve the read-only state
     ask :: m (mark r)
+
+    default ask
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadReadOnly mark r m1 )
+      => m (mark r)
+    ask = lift ask
+
     -- | Run a computation with a locally modified
     --   read-only state
     local :: (mark r -> mark r) -> m a -> m a
+
+    default local
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , LiftLocal z t1 f, MonadReadOnly mark r m1 )
+      => (mark r -> mark r)
+      -> m a
+      -> m a
+    local = liftLocal local
 
 
 
@@ -199,3 +358,10 @@ class
   where
     -- | Prompt an oracle of type @mark (p a)@, receiving a monadic result
     prompt :: mark (p a) -> m (mark a)
+
+    default prompt
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadPrompt mark p m1 )
+      => mark (p a)
+      -> m (mark a)
+    prompt = lift . prompt

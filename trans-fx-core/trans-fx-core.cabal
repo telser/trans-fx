@@ -51,7 +51,6 @@ library
     , Control.FX.Monad.Trans.Trans
     , Control.FX.Monad.Trans.Trans.Class
     , Control.FX.Monad.Trans.Trans.IdentityTT
-    , Control.FX.Monad.Trans.Trans.ComposeTT
     , Control.FX.Monad.Trans.Trans.PromptTT
     , Control.FX.Monad.Trans.Trans.ApplyTT
     , Control.FX.Monad.Trans.Trans.OverTT

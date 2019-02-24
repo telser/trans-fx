@@ -149,21 +149,6 @@ instance
 
 
 
-{- Effect Class -}
-
-instance
-  ( Monad m, MonadIdentity mark
-  ) => MonadState mark s (StateT mark s m)
-  where
-    get
-      :: StateT mark s m (mark s)
-    get = StateT $ \s -> return (Pair s (pure s))
-
-    put
-      :: mark s
-      -> StateT mark s m ()
-    put s = StateT $ \_ -> return (Pair (unwrap s) ())
-
 
 
 {- Specialized Lifts -}
@@ -206,3 +191,52 @@ instance
       StateT $ \s -> do
         Pair s1 a <- local f $ fmap (bimap1 pure) $ unStateT x s
         return $ Pair (unwrap s1) a
+
+
+
+
+
+{- Effect Class -}
+
+instance {-# OVERLAPPING #-}
+  ( Monad m, MonadIdentity mark
+  ) => MonadState mark s (StateT mark s m)
+  where
+    get
+      :: StateT mark s m (mark s)
+    get = StateT $ \s -> return (Pair s (pure s))
+
+    put
+      :: mark s
+      -> StateT mark s m ()
+    put s = StateT $ \_ -> return (Pair (unwrap s) ())
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadState mark s m
+  ) => MonadState mark s (StateT mark1 s1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadReadOnly mark r m
+  ) => MonadReadOnly mark r (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadWriteOnly mark w m, Monoid w
+  ) => MonadWriteOnly mark w (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadExcept mark e m
+  ) => MonadExcept mark e (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadPrompt mark p m
+  ) => MonadPrompt mark p (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark1
+  , MonadMaybe m
+  ) => MonadMaybe (StateT mark1 s m)

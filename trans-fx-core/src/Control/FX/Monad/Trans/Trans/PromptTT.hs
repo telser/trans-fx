@@ -164,6 +164,47 @@ instance
 
 
 
+{- Specialized Lifts -}
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftCatchT (Eval p) (PromptTT mark p) mark
+  where
+    liftCatchT
+      :: ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (mark x))
+      -> (forall x. Catch e (PromptTT mark p t m) x)
+
+    liftCatchT catch x h = PromptTT $ \end cont ->
+      fmap unwrap $ catch
+        (fmap pure $ unPromptTT x end cont)
+        (\e -> fmap pure $ unPromptTT (h e) end cont)
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftDraftT (Eval p) (PromptTT mark p) mark
+  where
+    liftDraftT
+      :: ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (mark x))
+      -> (forall x. Draft w (PromptTT mark p t m) x)
+    liftDraftT draft x = PromptTT $ \end cont ->
+      fmap (unwrap . slot2) $
+        draft (fmap pure $ unPromptTT x (end . pure) cont)
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftLocalT (Eval p) (PromptTT mark p) mark
+  where
+    liftLocalT
+      :: ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (mark x))
+      -> (forall x. Local r (PromptTT mark p t m) x)
+    liftLocalT local f x = PromptTT $ \end cont ->
+      fmap unwrap $ local f $ fmap pure $ unPromptTT x end cont
+
+
+
 {- Effect Class -}
 
 instance {-# OVERLAPS #-}
@@ -250,44 +291,3 @@ instance
       -> (mark e -> PromptTT mark1 p t m a)
       -> PromptTT mark1 p t m a
     catch = liftCatchT catch
-
-
-
-{- Specialized Lifts -}
-
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftCatchT (Eval p) (PromptTT mark p) mark
-  where
-    liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (mark x))
-      -> (forall x. Catch e (PromptTT mark p t m) x)
-
-    liftCatchT catch x h = PromptTT $ \end cont ->
-      fmap unwrap $ catch
-        (fmap pure $ unPromptTT x end cont)
-        (\e -> fmap pure $ unPromptTT (h e) end cont)
-
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftDraftT (Eval p) (PromptTT mark p) mark
-  where
-    liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (mark x))
-      -> (forall x. Draft w (PromptTT mark p t m) x)
-    liftDraftT draft x = PromptTT $ \end cont ->
-      fmap (unwrap . slot2) $
-        draft (fmap pure $ unPromptTT x (end . pure) cont)
-
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftLocalT (Eval p) (PromptTT mark p) mark
-  where
-    liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (mark x))
-      -> (forall x. Local r (PromptTT mark p t m) x)
-    liftLocalT local f x = PromptTT $ \end cont ->
-      fmap unwrap $ local f $ fmap pure $ unPromptTT x end cont

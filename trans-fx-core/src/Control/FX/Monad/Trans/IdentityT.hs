@@ -167,17 +167,6 @@ instance
 
 
 
-{- Effect Class -}
-
-instance
-  ( MonadIdentity m
-  ) => MonadIdentity (IdentityT m)
-  where
-    unwrap
-      :: IdentityT m a
-      -> a
-    unwrap = unwrap . unIdentityT
-
 
 
 {- Specialized Lifts -}
@@ -212,3 +201,42 @@ instance
       -> Local r (IdentityT m) a
     liftLocal local f =
       IdentityT . fmap unIdentity . local f . fmap Identity . unIdentityT
+
+
+
+
+
+{- Effect Classes -}
+
+instance
+  ( MonadIdentity m, Central m
+  ) => MonadIdentity (IdentityT m)
+  where
+    unwrap
+      :: IdentityT m a
+      -> a
+    unwrap = unwrap . unIdentityT
+
+instance
+  ( MonadMaybe m
+  ) => MonadMaybe (IdentityT m)
+
+instance
+  ( MonadReadOnly mark r m
+  ) => MonadReadOnly mark r (IdentityT m)
+
+instance
+  ( MonadWriteOnly mark w m, Monoid w
+  ) => MonadWriteOnly mark w (IdentityT m)
+
+instance
+  ( MonadState mark s m
+  ) => MonadState mark s (IdentityT m)
+
+instance
+  ( MonadPrompt mark p m
+  ) => MonadPrompt mark p (IdentityT m)
+
+instance
+  ( MonadExcept mark e m
+  ) => MonadExcept mark e (IdentityT m)

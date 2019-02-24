@@ -153,16 +153,6 @@ instance
 
 
 
-{- Effect Class -}
-
-instance
-  ( Monad m
-  ) => MonadMaybe (MaybeT m)
-  where
-    bail
-      :: MaybeT m a
-    bail = MaybeT $ return Nothing
-
 
 
 {- Specialized Lifts -}
@@ -196,3 +186,46 @@ instance
       -> Local r (MaybeT m) a
     liftLocal local f =
       MaybeT . local f . unMaybeT
+
+
+
+
+
+{- Effect Class -}
+
+instance {-# OVERLAPPING #-}
+  ( Monad m
+  ) => MonadMaybe (MaybeT m)
+  where
+    bail
+      :: MaybeT m a
+    bail = MaybeT $ return Nothing
+
+--instance {-# OVERLAPPABLE #-}
+--  ( MonadMaybe m
+--  ) => MonadMaybe (MaybeT m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadReadOnly mark r m
+  ) => MonadReadOnly mark r (MaybeT m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadWriteOnly mark w m, Monoid w
+  ) => MonadWriteOnly mark w (MaybeT m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadState mark s m
+  ) => MonadState mark s (MaybeT m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadExcept mark e m
+  ) => MonadExcept mark e (MaybeT m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadPrompt mark p m
+  ) => MonadPrompt mark p (MaybeT m)

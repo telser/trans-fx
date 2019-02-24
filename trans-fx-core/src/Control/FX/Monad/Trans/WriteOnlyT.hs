@@ -193,9 +193,9 @@ instance
 
 
 
-{- Effect Class -}
+{- Effect Classes -}
 
-instance
+instance {-# OVERLAPPING #-}
   ( Monoid w, Monad m, MonadIdentity mark
   ) => MonadWriteOnly mark w (WriteOnlyT mark w m)
   where
@@ -208,3 +208,32 @@ instance
       :: mark w
       -> WriteOnlyT mark w m ()
     tell = WriteOnlyT . return . tell
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadWriteOnly mark w m, Monoid w, Monoid w1
+  ) => MonadWriteOnly mark w (WriteOnlyT mark1 w1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadReadOnly mark r m, Monoid w
+  ) => MonadReadOnly mark r (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadState mark s m, Monoid w
+  ) => MonadState mark s (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark1, Monoid w, MonadMaybe m
+  ) => MonadMaybe (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w
+  , MonadExcept mark e m
+  ) => MonadExcept mark e (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w
+  , MonadPrompt mark p m
+  ) => MonadPrompt mark p (WriteOnlyT mark1 w m)

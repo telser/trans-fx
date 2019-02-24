@@ -143,6 +143,10 @@ instance
       -> Except mark e a
     run _ = id
 
+
+
+{- Effect Classes -}
+
 instance
   ( MonadIdentity mark
   ) => MonadExcept mark e (Except mark e)

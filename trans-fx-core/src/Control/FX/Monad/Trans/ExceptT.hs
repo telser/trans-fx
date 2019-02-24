@@ -148,29 +148,6 @@ instance
 
 
 
-{- Effect Instance -}
-
-instance
-  ( Monad m, MonadIdentity mark
-  ) => MonadExcept mark e (ExceptT mark e m)
-  where
-    throw
-      :: mark e
-      -> ExceptT mark e m a
-    throw = ExceptT . return . Except . unwrap
-
-    catch
-      :: ExceptT mark e m a
-      -> (mark e -> ExceptT mark e m a)
-      -> ExceptT mark e m a
-    catch (ExceptT x) h = ExceptT $ do
-      a <- x
-      case a of
-        Except e -> unExceptT $ h (pure e)
-        Accept z -> return (Accept z)
-
-
-
 {- Specialized Lifts -}
 
 instance
@@ -205,3 +182,55 @@ instance
       -> Local r (ExceptT mark e m) a
     liftLocal local f =
       ExceptT . local f . unExceptT
+
+
+
+{- Effect Classes -}
+
+instance {-# OVERLAPPING #-}
+  ( Monad m, MonadIdentity mark
+  ) => MonadExcept mark e (ExceptT mark e m)
+  where
+    throw
+      :: mark e
+      -> ExceptT mark e m a
+    throw = ExceptT . return . Except . unwrap
+
+    catch
+      :: ExceptT mark e m a
+      -> (mark e -> ExceptT mark e m a)
+      -> ExceptT mark e m a
+    catch (ExceptT x) h = ExceptT $ do
+      a <- x
+      case a of
+        Except e -> unExceptT $ h (pure e)
+        Accept z -> return (Accept z)
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadExcept mark e m
+  ) => MonadExcept mark e (ExceptT mark1 e1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w
+  , MonadWriteOnly mark w m
+  ) => MonadWriteOnly mark w (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadState mark s m
+  ) => MonadState mark s (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadReadOnly mark r m
+  ) => MonadReadOnly mark r (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadMaybe m, MonadIdentity mark1
+  ) => MonadMaybe (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadPrompt mark p m
+  ) => MonadPrompt mark p (ExceptT mark1 e m)

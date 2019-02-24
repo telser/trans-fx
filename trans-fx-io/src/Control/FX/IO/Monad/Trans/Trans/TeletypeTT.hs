@@ -35,6 +35,7 @@ import Control.Exception
   ( IOException, try )
 
 import Control.FX
+import Control.FX.IO.Monad.Trans.Trans.Class
 
 
 
@@ -170,17 +171,6 @@ evalTeletypeIO x = case x of
 
 {- Effect Instances -}
 
--- | Class representing monads which can interact with a teletype-style interface
-class
-  ( Monad m, MonadIdentity mark
-  ) => MonadTeletype mark m
-  where
-    -- | Read a line of input
-    readLine :: m (mark String)
-
-    -- | Print a line of output
-    printLine :: mark String -> m ()
-
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadIdentity mark
   ) => MonadTeletype mark (TeletypeTT mark t m)
@@ -218,48 +208,6 @@ instance {-# OVERLAPPABLE #-}
       -> TeletypeTT mark1 t m ()
     printLine = liftT . printLine
 
-instance
-  ( Monad m, MonadTrans t, MonadFunctor w
-  , MonadTransTrans u, MonadTeletype mark (u t m)
-  ) => MonadTeletype mark (OverTT u w t m)
-  where
-    readLine
-      :: OverTT u w t m (mark String)
-    readLine = OverTT $ lift readLine
-
-    printLine
-      :: mark String
-      -> OverTT u w t m ()
-    printLine = OverTT . lift . printLine
-
-instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadTransTrans u2, MonadIdentity mark
-  ) => MonadTeletype mark (ComposeTT (TeletypeTT mark) u2 t m)
-  where
-    readLine
-      :: ComposeTT (TeletypeTT mark) u2 t m (mark String)
-    readLine = ComposeTT readLine
-
-    printLine
-      :: mark String
-      -> ComposeTT (TeletypeTT mark) u2 t m ()
-    printLine = ComposeTT . printLine
-
-instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadTransTrans u1
-  , MonadTransTrans u2, MonadIdentity mark
-  , forall m1 t1. (Monad m1, MonadTrans t1) => MonadTeletype mark (u2 t1 m1)
-  ) => MonadTeletype mark (ComposeTT u1 u2 t m)
-  where
-    readLine
-      :: ComposeTT u1 u2 t m (mark String)
-    readLine = ComposeTT $ liftT readLine
-
-    printLine
-      :: mark String
-      -> ComposeTT u1 u2 t m ()
-    printLine = ComposeTT . liftT . printLine
-
 
 
 instance
@@ -275,6 +223,8 @@ instance
       :: mark s
       -> TeletypeTT mark1 t m ()
     put = TeletypeTT . OverTT . lift . liftT . put
+
+
 
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadIdentity mark
@@ -295,3 +245,65 @@ instance {-# OVERLAPPABLE #-}
       liftCatch (liftCatchT catch)
         (unOverTT $ unTeletypeTT x)
         (unOverTT . unTeletypeTT . h)
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1
+  , forall x. (Monad x) => MonadReadOnly mark r (t x)
+  ) => MonadReadOnly mark r (TeletypeTT mark1 t m)
+  where
+    ask
+      :: TeletypeTT mark1 t m (mark r)
+    ask = TeletypeTT $ OverTT $ lift $ liftT ask
+
+    local
+      :: (mark r -> mark r)
+      -> TeletypeTT mark1 t m a
+      -> TeletypeTT mark1 t m a
+    local f x = TeletypeTT $ OverTT $
+      liftLocal (liftLocalT local) f
+        (unOverTT $ unTeletypeTT x)
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1, Monoid w
+  , forall x. (Monad x) => MonadWriteOnly mark w (t x)
+  ) => MonadWriteOnly mark w (TeletypeTT mark1 t m)
+  where
+    tell
+      :: mark w
+      -> TeletypeTT mark1 t m ()
+    tell = TeletypeTT . OverTT . lift . liftT . tell
+
+    draft
+      :: TeletypeTT mark1 t m a
+      -> TeletypeTT mark1 t m (Pair (mark w) a)
+    draft = TeletypeTT . OverTT . draft . unOverTT . unTeletypeTT
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1
+  , forall x. (Monad x) => MonadPrompt mark p (t x)
+  ) => MonadPrompt mark p (TeletypeTT mark1 t m)
+  where
+    prompt
+      :: mark (p a)
+      -> TeletypeTT mark1 t m (mark a)
+    prompt = TeletypeTT . OverTT . lift . liftT . prompt
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark1
+  , forall x. (Monad x) => MonadMaybe (t x)
+  ) => MonadMaybe (TeletypeTT mark1 t m)
+  where
+    bail
+      :: TeletypeTT mark1 t m a
+    bail = TeletypeTT $ OverTT $ lift $ liftT $ bail
