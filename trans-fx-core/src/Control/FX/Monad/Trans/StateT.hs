@@ -237,6 +237,6 @@ instance
   ) => MonadPrompt mark p (StateT mark1 s m)
 
 instance
-  ( Monad m, MonadIdentity mark1
-  , MonadMaybe m
-  ) => MonadMaybe (StateT mark1 s m)
+  ( Monad m, MonadIdentity mark1, MonadIdentity mark
+  , MonadHalt mark m
+  ) => MonadHalt mark (StateT mark1 s m)

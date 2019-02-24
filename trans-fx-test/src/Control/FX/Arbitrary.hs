@@ -119,14 +119,14 @@ instance
           return $ ExceptT $ fmap (const (Except e)) x
 
 instance
-  ( Arbitrary (m a), Functor m
-  ) => Arbitrary (MaybeT m a)
+  ( Arbitrary (m a), Functor m, MonadIdentity mark
+  ) => Arbitrary (HaltT mark m a)
   where
     arbitrary = do
       x <- arbitrary
       p <- arbitrary
-      return $ MaybeT $
-        fmap (if p then Just else const Nothing) x
+      return $ HaltT $
+        fmap (if p then Step else const Halt) x
 
 instance
   ( Arbitrary (t1 (t2 m) a)

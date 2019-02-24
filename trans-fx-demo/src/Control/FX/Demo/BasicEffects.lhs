@@ -14,7 +14,7 @@ To use `trans-fx` we'll need a pretty recent version of GHC; the library code de
 > {-# LANGUAGE DerivingStrategies         #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
-> module Control.FX.Demo.Intro where
+> module Control.FX.Demo.BasicEffects where
 
 In this intro we'll focus on pure examples. For this we can import just one module:
 

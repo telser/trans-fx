@@ -3,12 +3,13 @@ title: Composing Transformers
 ---
 
 > {-# LANGUAGE DerivingVia                #-}
+> {-# LANGUAGE ScopedTypeVariables        #-}
 > {-# LANGUAGE FlexibleInstances          #-}
 > {-# LANGUAGE DerivingStrategies         #-}
 > {-# LANGUAGE MultiParamTypeClasses      #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
-> module Control.FX.Demo.Compose where
+> module Control.FX.Demo.DoingIO where
 
 > import Control.Exception
 >   ( IOException )
@@ -19,35 +20,33 @@ title: Composing Transformers
 > newtype Mung t m a = Mung
 >   { unMung ::
 >       TeletypeTT S
->       (OverTT
->         (TeletypeTT T)
->         (ComposeT (StateT S String) (ExceptT T Bool))
->       t) m a
+>       (StateTT T String
+>       (StateTT S Bool
+>       t)) m a
 >   } deriving
 >     ( Functor, Applicative, Monad, MonadTrans
->     , MonadState S String
+>     , MonadState T String
+>     , MonadState S Bool
 >     , MonadTeletype S
->     , MonadTeletype T
 >     , MonadExcept TeletypeError IOException
->     , MonadExcept T Bool )
+>     )
 
 > test6 :: (Monad m, MonadTrans t) => Mung t m ()
 > test6 = do
 >   printLine $ S "foo"
->   printLine $ T "foo"
->   put $ S "Foo"
->   throw $ T False
+>   S (p :: Bool) <- get
+>   printLine $ S (show p)
+>   put $ T "Foo"
 >   return ()
 
-> runMung
->   :: Mung IdentityT IO a
->   -> IO (Compose
->             (Except TeletypeError IOException)
->             (Compose (Except T Bool) (Pair (S [Char])))
->             (Except TeletypeError IOException a))
+ > runMung
+ >   :: Mung IdentityT IO a
+ >   -> IO (Pair (T [Char]) (Except TeletypeError IOException a))
+
 > runMung =
 >   unIdentityT
->     . runOverTT (Eval evalTeletypeIO) (S "", T ())
+>     . runStateTT (S False)
+>     . runStateTT (T "")
 >     . runTeletypeTT (Eval evalTeletypeIO)
 >     . unMung
 

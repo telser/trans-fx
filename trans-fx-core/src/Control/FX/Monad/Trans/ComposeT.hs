@@ -33,7 +33,7 @@ import Control.FX.Monad.Trans.ExceptT
 import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.StateT
 import Control.FX.Monad.Trans.ReadOnlyT
-import Control.FX.Monad.Trans.MaybeT
+import Control.FX.Monad.Trans.HaltT
 
 
 
@@ -105,6 +105,18 @@ instance
       -> ComposeT t1 t2 m b
     (ComposeT x) >>= f =
       ComposeT (x >>= (unComposeT . f))
+
+instance
+  ( MonadIdentity m, MonadTrans t1, MonadTrans t2, Eq a
+  , MonadIdentity (t2 m), MonadIdentity (t1 (t2 m))
+  ) => Eq (ComposeT t1 t2 m a)
+  where
+    (==)
+      :: ComposeT t1 t2 m a
+      -> ComposeT t1 t2 m a
+      -> Bool
+    (ComposeT x) == (ComposeT y) =
+      (unwrap x) == (unwrap y)
 
 instance
   ( MonadIdentity m, MonadTrans t1, MonadTrans t2, Semigroup a
@@ -424,28 +436,31 @@ instance {-# OVERLAPPABLE #-}
 
 
 instance  {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t2
-  ) => MonadMaybe (ComposeT MaybeT t2 m)
+  ( Monad m, MonadTrans t2, MonadIdentity mark
+  ) => MonadHalt mark (ComposeT (HaltT mark) t2 m)
   where
-    bail
-      :: ComposeT MaybeT t2 m r
-    bail = ComposeT bail
+    halt
+      :: mark ()
+      -> ComposeT (HaltT mark) t2 m r
+    halt = ComposeT . halt
 
 instance  {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t1, MonadTrans t2
-  , forall x. (Monad x) => MonadMaybe (t1 x)
-  ) => MonadMaybe (ComposeT (ApplyT t1) t2 m)
+  ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
+  , forall x. (Monad x) => MonadHalt mark (t1 x)
+  ) => MonadHalt mark (ComposeT (ApplyT t1) t2 m)
   where
-    bail
-      :: ComposeT (ApplyT t1) t2 m r
-    bail = ComposeT bail
+    halt
+      :: mark ()
+      -> ComposeT (ApplyT t1) t2 m r
+    halt = ComposeT . halt
 
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t1, MonadTrans t2
-  , LiftLocal z1 t1 f1
-  , forall x. (Monad x) => MonadMaybe (t2 x)
-  ) => MonadMaybe (ComposeT t1 t2 m)
+  , LiftLocal z1 t1 f1, MonadIdentity mark
+  , forall x. (Monad x) => MonadHalt mark (t2 x)
+  ) => MonadHalt mark (ComposeT t1 t2 m)
   where
-    bail
-      :: ComposeT t1 t2 m r
-    bail = ComposeT $ lift bail
+    halt
+      :: mark ()
+      -> ComposeT t1 t2 m r
+    halt = ComposeT . lift . halt

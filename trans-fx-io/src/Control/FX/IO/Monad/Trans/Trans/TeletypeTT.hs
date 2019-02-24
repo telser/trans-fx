@@ -300,10 +300,11 @@ instance
 
 
 instance
-  ( Monad m, MonadTrans t, MonadIdentity mark1
-  , forall x. (Monad x) => MonadMaybe (t x)
-  ) => MonadMaybe (TeletypeTT mark1 t m)
+  ( Monad m, MonadTrans t, MonadIdentity mark1, MonadIdentity mark
+  , forall x. (Monad x) => MonadHalt mark (t x)
+  ) => MonadHalt mark (TeletypeTT mark1 t m)
   where
-    bail
-      :: TeletypeTT mark1 t m a
-    bail = TeletypeTT $ OverTT $ lift $ liftT $ bail
+    halt
+      :: mark ()
+      -> TeletypeTT mark1 t m a
+    halt = TeletypeTT . OverTT . lift . liftT . halt

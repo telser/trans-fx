@@ -225,8 +225,9 @@ instance
   ) => MonadState mark s (WriteOnlyT mark1 w m)
 
 instance
-  ( Monad m, MonadIdentity mark1, Monoid w, MonadMaybe m
-  ) => MonadMaybe (WriteOnlyT mark1 w m)
+  ( Monad m, MonadIdentity mark1, Monoid w, MonadIdentity mark
+  , MonadHalt mark m
+  ) => MonadHalt mark (WriteOnlyT mark1 w m)
 
 instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w

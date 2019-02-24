@@ -289,13 +289,14 @@ instance
       (unIdentityTT x) (unIdentityTT . h)
 
 instance
-  ( Monad m, MonadTrans t
-  , MonadMaybe (t m)
-  ) => MonadMaybe (IdentityTT t m)
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadHalt mark (t m)
+  ) => MonadHalt mark (IdentityTT t m)
   where
-    bail
-      :: IdentityTT t m a
-    bail = IdentityTT bail
+    halt
+      :: mark ()
+      -> IdentityTT t m a
+    halt = IdentityTT . halt
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark

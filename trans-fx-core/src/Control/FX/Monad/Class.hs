@@ -33,7 +33,7 @@ module Control.FX.Monad.Class (
 
   -- * Basic Effects
   , MonadIdentity(..)
-  , MonadMaybe(..)
+  , MonadHalt(..)
   , MonadExcept(..)
   , MonadState(..)
   , MonadWriteOnly(..)
@@ -172,6 +172,7 @@ class
 -- > (3) x >>= f === f (unwrap x)
 class
   ( Monad m
+  , forall x. (Eq x) => Eq (m x)
   , forall x. (Semigroup x) => Semigroup (m x)
   , forall x. (Monoid x) => Monoid (m x)
   ) => MonadIdentity m
@@ -190,19 +191,20 @@ instance
 -- | Class representing monads which can fail catastrophically, returning
 -- nothing. Instances should satisfy the following laws:
 --
--- > (1) bail >> x === bail
+-- > (1) halt a >> x === halt a
 class
-  ( Monad m
-  ) => MonadMaybe m
+  ( Monad m, MonadIdentity mark
+  ) => MonadHalt mark m
   where
     -- | Fail catastrophically, returning nothing.
-    bail :: m a
+    halt :: mark () -> m a
 
-    default bail
+    default halt
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , MonadMaybe m1 )
-      => m a
-    bail = lift bail
+         , MonadHalt mark m1 )
+      => mark ()
+      -> m a
+    halt = lift . halt
 
 
 

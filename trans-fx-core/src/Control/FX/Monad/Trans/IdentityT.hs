@@ -112,6 +112,17 @@ instance
   ) => Central (IdentityT c)
 
 instance
+  ( MonadIdentity m, Eq a
+  ) => Eq (IdentityT m a)
+  where
+    (==)
+      :: IdentityT m a
+      -> IdentityT m a
+      -> Bool
+    (IdentityT x) == (IdentityT y) =
+      (unwrap x) == (unwrap y)
+
+instance
   ( MonadIdentity m, Semigroup a
   ) => Semigroup (IdentityT m a)
   where
@@ -218,8 +229,8 @@ instance
     unwrap = unwrap . unIdentityT
 
 instance
-  ( MonadMaybe m
-  ) => MonadMaybe (IdentityT m)
+  ( MonadHalt mark m
+  ) => MonadHalt mark (IdentityT m)
 
 instance
   ( MonadReadOnly mark r m

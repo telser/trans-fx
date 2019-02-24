@@ -22,6 +22,8 @@ module Control.FX.Monad.Trans.Trans.Class (
   , LiftCatchT(..)
   , LiftDraftT(..)
   , LiftLocalT(..)
+
+  , Val(..)
 ) where
 
 
@@ -125,3 +127,10 @@ class
       :: ( Monad m, MonadTrans t )
       => (forall x. Local r (t m) (f x))
       -> (forall x. Local r (u t m) x)
+
+
+
+newtype Val
+  (a :: *)
+  (m :: * -> *)
+    = Val { unVal :: a }

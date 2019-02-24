@@ -227,8 +227,9 @@ instance
   ) => MonadReadOnly mark r (ExceptT mark1 e m)
 
 instance
-  ( Monad m, MonadMaybe m, MonadIdentity mark1
-  ) => MonadMaybe (ExceptT mark1 e m)
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadHalt mark m
+  ) => MonadHalt mark (ExceptT mark1 e m)
 
 instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1

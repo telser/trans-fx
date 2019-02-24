@@ -102,6 +102,17 @@ instance
   ) => Central (ApplyT t c)
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity (t m), Eq a
+  ) => Eq (ApplyT t m a)
+  where
+    (==)
+      :: ApplyT t m a
+      -> ApplyT t m a
+      -> Bool
+    (ApplyT x) == (ApplyT y) =
+      (unwrap x) == (unwrap y)
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity (t m), Semigroup a
   ) => Semigroup (ApplyT t m a)
   where
@@ -235,10 +246,11 @@ instance
     local f = ApplyT . local f . unApplyT
 
 instance
-  ( Monad m, MonadTrans t
-  , forall x. (Monad x) => MonadMaybe (t x)
-  ) => MonadMaybe (ApplyT t m)
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , forall x. (Monad x) => MonadHalt mark (t x)
+  ) => MonadHalt mark (ApplyT t m)
   where
-    bail
-      :: ApplyT t m a
-    bail = ApplyT bail
+    halt
+      :: mark ()
+      -> ApplyT t m a
+    halt = ApplyT . halt

@@ -62,9 +62,9 @@ instance
   ) => MonadTeletype mark (StateT mark1 s m)
 
 instance
-  ( Monad m, MonadIdentity mark
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadTeletype mark m
-  ) => MonadTeletype mark (MaybeT m)
+  ) => MonadTeletype mark (HaltT mark1 m)
 
 instance
   ( Monad m, MonadIdentity mark
@@ -114,3 +114,73 @@ instance
       :: mark String
       -> OverTT u w t m ()
     printLine = OverTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m)
+  ) => MonadTeletype mark (StateTT mark1 s t m)
+  where
+    readLine
+      :: StateTT mark1 s t m (mark String)
+    readLine = StateTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> StateTT mark1 s t m ()
+    printLine = StateTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m)
+  ) => MonadTeletype mark (ReadOnlyTT mark1 r t m)
+  where
+    readLine
+      :: ReadOnlyTT mark1 r t m (mark String)
+    readLine = ReadOnlyTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> ReadOnlyTT mark1 r t m ()
+    printLine = ReadOnlyTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m), Monoid w
+  ) => MonadTeletype mark (WriteOnlyTT mark1 w t m)
+  where
+    readLine
+      :: WriteOnlyTT mark1 w t m (mark String)
+    readLine = WriteOnlyTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> WriteOnlyTT mark1 w t m ()
+    printLine = WriteOnlyTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m)
+  ) => MonadTeletype mark (ExceptTT mark1 e t m)
+  where
+    readLine
+      :: ExceptTT mark1 e t m (mark String)
+    readLine = ExceptTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> ExceptTT mark1 e t m ()
+    printLine = ExceptTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m)
+  ) => MonadTeletype mark (HaltTT mark1 t m)
+  where
+    readLine
+      :: HaltTT mark1 t m (mark String)
+    readLine = HaltTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> HaltTT mark1 t m ()
+    printLine = HaltTT . lift . printLine

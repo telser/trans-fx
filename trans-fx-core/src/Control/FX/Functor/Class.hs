@@ -159,6 +159,13 @@ instance
       f (namingInv $ unWrap x)
 
 instance
+  ( Renaming f, Eq a
+  ) => Eq (Wrap f a)
+  where
+    x == y =
+      (namingInv $ unWrap x) == (namingInv $ unWrap y)
+
+instance
   ( Renaming f, Semigroup a
   ) => Semigroup (Wrap f a)
   where

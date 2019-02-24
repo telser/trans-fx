@@ -3,12 +3,12 @@ title: Effects with monad transformer transformers
 ---
 
 > module Control.FX.Demo (
->     module Control.FX.Demo.Intro
->   , module Control.FX.Demo.Compose
+>     module Control.FX.Demo.BasicEffects
+>   , module Control.FX.Demo.DoingIO
 > ) where
 > 
-> import Control.FX.Demo.Intro
-> import Control.FX.Demo.Compose
+> import Control.FX.Demo.BasicEffects
+> import Control.FX.Demo.DoingIO
 
-* [Getting Started](/intro.html)
-* [Next Steps](/compose.html)
+* [Basic Effects](/trans-fx/basic-effects.html)
+* [Doing IO](/trans-fx/doing-io.html)

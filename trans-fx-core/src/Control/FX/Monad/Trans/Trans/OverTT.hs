@@ -93,7 +93,18 @@ instance
       OverTT (x >>= (unOverTT . f))
 
 instance
-  ( Semigroup (v (u t m) a), MonadFunctor v
+  ( MonadIdentity (v (u t m)), Eq a
+  ) => Eq (OverTT u v t m a)
+  where
+    (==)
+      :: OverTT u v t m a
+      -> OverTT u v t m a
+      -> Bool
+    (OverTT x) == (OverTT y) =
+      (unwrap x) == (unwrap y)
+
+instance
+  ( MonadIdentity (v (u t m)), Semigroup a
   ) => Semigroup (OverTT u v t m a)
   where
     (<>)
@@ -101,21 +112,15 @@ instance
       -> OverTT u v t m a
       -> OverTT u v t m a
     (OverTT x) <> (OverTT y) =
-      OverTT (x <> y)
+      OverTT $ pure $ (unwrap x) <> (unwrap y)
 
 instance
-  ( Monoid (v (u t m) a), MonadFunctor v
+  ( MonadIdentity (v (u t m)), Monoid a
   ) => Monoid (OverTT u v t m a)
   where
     mempty
       :: OverTT u v t m a
-    mempty = OverTT mempty
-
-    mappend
-      :: OverTT u v t m a
-      -> OverTT u v t m a
-      -> OverTT u v t m a
-    mappend = (<>)
+    mempty = OverTT $ pure mempty
 
 instance
   ( MonadTrans t, MonadFunctor v, MonadTransTrans u
@@ -291,22 +296,24 @@ instance {-# OVERLAPPABLE #-}
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  , forall x y. (Monad x, MonadTrans y) => MonadMaybe (u y x)
-  ) => MonadMaybe (OverTT (ApplyTT u) v t m)
+  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u, MonadIdentity mark
+  , forall x y. (Monad x, MonadTrans y) => MonadHalt mark (u y x)
+  ) => MonadHalt mark (OverTT (ApplyTT u) v t m)
   where
-    bail
-      :: OverTT (ApplyTT u) v t m a
-    bail = OverTT $ hoist ApplyTT $ lift bail
+    halt
+      :: mark ()
+      -> OverTT (ApplyTT u) v t m a
+    halt = OverTT . hoist ApplyTT . lift . halt
 
 instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  , forall x. (Monad x) => MonadMaybe (v x)
-  ) => MonadMaybe (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u, MonadIdentity mark
+  , forall x. (Monad x) => MonadHalt mark (v x)
+  ) => MonadHalt mark (OverTT u v t m)
   where
-    bail
-      :: OverTT u v t m a
-    bail = OverTT bail
+    halt
+      :: mark ()
+      -> OverTT u v t m a
+    halt = OverTT . halt
 
 
 
