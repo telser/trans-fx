@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Composing Transformers</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+  <style type="text/css">
+a.sourceLine { display: inline-block; line-height: 1.25; }
+a.sourceLine { pointer-events: none; color: inherit; text-decoration: inherit; }
+a.sourceLine:empty { height: 1.2em; position: absolute; }
+.sourceCode { overflow: visible; }
+code.sourceCode { white-space: pre; position: relative; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+code.sourceCode { white-space: pre-wrap; }
+a.sourceLine { text-indent: -1em; padding-left: 1em; }
+}
+pre.numberSource a.sourceLine
+  { position: relative; }
+pre.numberSource a.sourceLine:empty
+  { position: absolute; }
+pre.numberSource a.sourceLine::before
+  { content: attr(data-line-number);
+    position: absolute; left: -5em; text-align: right; vertical-align: baseline;
+    border: none; pointer-events: all;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {  }
+@media screen {
+a.sourceLine::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+  </style>
+  <link rel="stylesheet" href="style.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<header>
+<h1 class="title">Composing Transformers</h1>
+</header>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE DerivingVia                #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE ScopedTypeVariables        #-}</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE FlexibleInstances          #-}</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE MultiParamTypeClasses      #-}</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">module</span> <span class="dt">Control.FX.Demo.DoingIO</span> <span class="kw">where</span></a></code></pre></div>
+<div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.Exception</span></a>
+<a class="sourceLine" id="cb2-2" data-line-number="2">  ( <span class="dt">IOException</span> )</a></code></pre></div>
+<div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a>
+<a class="sourceLine" id="cb3-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Control.FX.IO</span></a></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb4-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Mung</span> t m a <span class="fu">=</span> <span class="dt">Mung</span></a>
+<a class="sourceLine" id="cb4-2" data-line-number="2">  {<span class="ot"> unMung ::</span></a>
+<a class="sourceLine" id="cb4-3" data-line-number="3">      <span class="dt">TeletypeTT</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb4-4" data-line-number="4">      (<span class="dt">StateTT</span> <span class="dt">T</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb4-5" data-line-number="5">      (<span class="dt">StateTT</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb4-6" data-line-number="6">      t)) m a</a>
+<a class="sourceLine" id="cb4-7" data-line-number="7">  } <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb4-8" data-line-number="8">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadTrans</span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9">    , <span class="dt">MonadState</span> <span class="dt">T</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb4-10" data-line-number="10">    , <span class="dt">MonadState</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb4-11" data-line-number="11">    , <span class="dt">MonadTeletype</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb4-12" data-line-number="12">    , <span class="dt">MonadExcept</span> <span class="dt">TeletypeError</span> <span class="dt">IOException</span></a>
+<a class="sourceLine" id="cb4-13" data-line-number="13">    )</a></code></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="ot">test6 ::</span> (<span class="dt">Monad</span> m, <span class="dt">MonadTrans</span> t) <span class="ot">=&gt;</span> <span class="dt">Mung</span> t m ()</a>
+<a class="sourceLine" id="cb5-2" data-line-number="2">test6 <span class="fu">=</span> <span class="kw">do</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3">  printLine <span class="fu">$</span> <span class="dt">S</span> <span class="st">&quot;foo&quot;</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4">  <span class="dt">S</span> (<span class="ot">p ::</span> <span class="dt">Bool</span>) <span class="ot">&lt;-</span> get</a>
+<a class="sourceLine" id="cb5-5" data-line-number="5">  printLine <span class="fu">$</span> <span class="dt">S</span> (show p)</a>
+<a class="sourceLine" id="cb5-6" data-line-number="6">  put <span class="fu">$</span> <span class="dt">T</span> <span class="st">&quot;Foo&quot;</span></a>
+<a class="sourceLine" id="cb5-7" data-line-number="7">  return ()</a></code></pre></div>
+<blockquote>
+<p>runMung :: Mung IdentityT IO a -&gt; IO (Pair (T [Char]) (Except TeletypeError IOException a))</p>
+</blockquote>
+<div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1">runMung <span class="fu">=</span></a>
+<a class="sourceLine" id="cb6-2" data-line-number="2">  unIdentityT</a>
+<a class="sourceLine" id="cb6-3" data-line-number="3">    <span class="fu">.</span> runStateTT (<span class="dt">S</span> <span class="dt">False</span>)</a>
+<a class="sourceLine" id="cb6-4" data-line-number="4">    <span class="fu">.</span> runStateTT (<span class="dt">T</span> <span class="st">&quot;&quot;</span>)</a>
+<a class="sourceLine" id="cb6-5" data-line-number="5">    <span class="fu">.</span> runTeletypeTT (<span class="dt">Eval</span> evalTeletypeIO)</a>
+<a class="sourceLine" id="cb6-6" data-line-number="6">    <span class="fu">.</span> unMung</a></code></pre></div>
+<div class="sourceCode" id="cb7"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb7-1" data-line-number="1"><span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> {<span class="ot"> unS ::</span> a }</a>
+<a class="sourceLine" id="cb7-2" data-line-number="2">  <span class="kw">deriving</span> stock</a>
+<a class="sourceLine" id="cb7-3" data-line-number="3">    ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb7-4" data-line-number="4">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb7-5" data-line-number="5">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadIdentity</span> )</a>
+<a class="sourceLine" id="cb7-6" data-line-number="6">    via (<span class="dt">Wrap</span> <span class="dt">S</span>)</a>
+<a class="sourceLine" id="cb7-7" data-line-number="7">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb7-8" data-line-number="8">    ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> )</a>
+<a class="sourceLine" id="cb7-9" data-line-number="9">    via (<span class="dt">Wrap</span> <span class="dt">S</span> a)</a>
+<a class="sourceLine" id="cb7-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb7-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">S</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-12" data-line-number="12">  namingMap <span class="fu">=</span> <span class="dt">S</span></a>
+<a class="sourceLine" id="cb7-13" data-line-number="13">  namingInv <span class="fu">=</span> unS</a>
+<a class="sourceLine" id="cb7-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb7-15" data-line-number="15"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">S</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb7-16" data-line-number="16">  commute <span class="fu">=</span> fmap <span class="dt">S</span> <span class="fu">.</span> unS</a></code></pre></div>
+<div class="sourceCode" id="cb8"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb8-1" data-line-number="1"><span class="kw">data</span> <span class="dt">T</span> a <span class="fu">=</span> <span class="dt">T</span> {<span class="ot"> unT ::</span> a }</a>
+<a class="sourceLine" id="cb8-2" data-line-number="2">  <span class="kw">deriving</span> stock ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb8-3" data-line-number="3">  <span class="kw">deriving</span> ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
+<a class="sourceLine" id="cb8-4" data-line-number="4">           , <span class="dt">MonadIdentity</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span>)</a>
+<a class="sourceLine" id="cb8-5" data-line-number="5">  <span class="kw">deriving</span> ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> ) via (<span class="dt">Wrap</span> <span class="dt">T</span> a)</a>
+<a class="sourceLine" id="cb8-6" data-line-number="6"></a>
+<a class="sourceLine" id="cb8-7" data-line-number="7"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">T</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-8" data-line-number="8">  namingMap <span class="fu">=</span> <span class="dt">T</span></a>
+<a class="sourceLine" id="cb8-9" data-line-number="9">  namingInv <span class="fu">=</span> unT</a>
+<a class="sourceLine" id="cb8-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb8-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">T</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb8-12" data-line-number="12">  commute <span class="fu">=</span> fmap <span class="dt">T</span> <span class="fu">.</span> unT</a></code></pre></div>
+</body>
+</html>
