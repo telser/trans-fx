@@ -2,16 +2,17 @@
 title: Getting Started
 ---
 
-Hi! This is a technical introduction to `trans-fx`, an effect framework for Haskell. To say anything interesting I'll have to make a few assumptions about you, dear reader, and I think it's best to be up front about these. This document will make the most sense to you if:
+Hi! This is a technical introduction to `trans-fx`, an effect framework library for Haskell. To say anything interesting I'll have to make a few assumptions about you, dear reader, and I think it's best to be up front about these. This document will make the most sense to you if:
 
 1. You have some experience writing in a functional programming language, and a language with Hindley-Milner style type inference, and found these ideas to be to your liking.
 2. You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.
 3. You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.
 
-To use `trans-fx` we'll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit considerably from the following extensions -- these are not strictly necessary, but will cut out a _ton_ of trivial boilerplate.
+To use `trans-fx` we'll need a pretty recent version of GHC; the library code depends on some newer (GHC >= 8.6) language extensions. Client code will also benefit considerably from the following extensions -- these are not strictly necessary, but will help cut out a _ton_ of trivial boilerplate.
 
 > {-# LANGUAGE DerivingVia                #-}
 > {-# LANGUAGE DerivingStrategies         #-}
+> {-# LANGUAGE ScopedTypeVariables        #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
 > module Control.FX.Demo.BasicEffects where
@@ -53,7 +54,9 @@ class
     put :: (mark s) -> m ()
 ```
 
-`mark` is the extra parameter, and it is required to be isomorphic to `Identity`. What is the point of that? We could get rid of `mark` without changing the meanings of the effect functions `get` and `put`. But including `mark`  in the class definition allows for a single monad to have multiple `MonadState` instances, even with the same state type, and the typechecker can disambiguate them using `mark`. In the library this requires the use of `UndecidableInstances` (yuk!) but in a disciplined way. Another feature is that if the name of `mark` is chosen thoughtfully it acts like machine checked documentation of where effect values come from.
+`mark` is the extra parameter, and it is required to be isomorphic to `Identity` -- i.e. _trivial_. What is the point of that? We could get rid of `mark` without changing the meanings of the effect functions `get` and `put`. But including `mark` in the class definition allows for a single monad to have multiple `MonadState` instances, even with the same state type, and the typechecker can disambiguate them using `mark`. This is important because we want to allow compound transformers from different authors to use the same effect machinery out of the box.
+
+Another handy feature of `mark` is that it acts like machine checked documentation of where effect values come from.
 
 
 
@@ -80,290 +83,150 @@ What is the purpose of doing that? Isn't just one kind of transformer enough to 
 
 Hopefully this will make more sense with some concrete examples.
 
-Anyway, monad transformer transformers act like a _monad construction kit_, much like transformers do. The two most basic tools in our kit are `IdentityTT` and `OverTT`.
+Anyway, monad transformer transformers act like a _monad construction kit_, much like transformers do. The basic algebraic effect monads have transformer-transformer analogues:
+
+* `StateTT mark s` for mutable state `s`
+* `ReadOnlyTT mark r` for read-only state `r` (a.k.a. Reader)
+* `WriteOnlyTT mark w` for write-only state `w` (a.k.a. Writer)
+* `ExceptTT mark e` for exceptions `e` (a.k.a. Either)
+* `HaltTT mark` for stopping the computation (a.k.a. Maybe)
+* `IdentityTT` for doing nothing new :)
+
+And each basic effect monad also comes in class form, where the class methods are effect primitives.
+
+* `MonadState mark s`, with `get` and `put`
+* `MonadReadOnly mark r`, with `ask` and `local`
+* `MonadWriteOnly mark w`, with `tell` and `draft`
+* `MonadExcept mark e`, with `throw` and `catch`
+* `MonadHalt mark`, with `halt`
+
+If you're familiar with monad transformers (which I assume you are!) this is all familiar stuff.
 
 
 
-IdentityTT
+An Example
 ----------
 
-`IdentityTT` is the "trivial" transformer transformer adding no new features. This sounds boring, but like the `mark` parameter on our monadic effect classes, `IdentityTT` has a very important role to play.
+Let's look at an example transformer transformer stack to see what we can do.
 
-```haskell
-data IdentityTT t m a
-  = IdentityTT { unIdentityTT :: t m a }
-```
+For starters, we will need some `mark` types we can use to disambiguate effect classes. To keep it simple I'll make two, called `A` and `B`. This part is boilerplate, but we can reduce it a little with some deriving extensions.
 
-Here's an example using `IdentityTT`.
+> data A a = A { unA :: a }
+>   deriving stock
+>     ( Eq, Show )
+>   deriving
+>     ( Functor, Applicative, Monad, MonadIdentity )
+>     via (Wrap A)
+>   deriving
+>     ( Semigroup, Monoid )
+>     via (Wrap A a)
+> 
+> instance Renaming A where
+>   namingMap = A
+>   namingInv = unA
+> 
+> instance Commutant A where
+>   commute = fmap A . unA
+> 
+> data B a = B { unB :: a }
+>   deriving stock
+>     ( Eq, Show )
+>   deriving
+>     ( Functor, Applicative, Monad, MonadIdentity )
+>     via (Wrap B)
+>   deriving
+>     ( Semigroup, Monoid )
+>     via (Wrap B a)
+> 
+> instance Renaming B where
+>   namingMap = B
+>   namingInv = unB
+> 
+> instance Commutant B where
+>   commute = fmap B . unB
+
+With that out of the way, let's make a monad! Here's a stack of state, read-only, and except transformer transformers.
 
 > newtype Foo t m a = Foo
->   { unFoo :: IdentityTT t m a
->   } deriving (Functor, Applicative, Monad, MonadTrans, MonadTransTrans)
+>   { unFoo ::
+>       (StateTT A String
+>       (ReadOnlyTT A Int
+>       (ExceptTT B Bool
+>       (StateTT B String
+>         t)))) m a
+>   } deriving
+>     ( Functor, Applicative, Monad, MonadTrans
+>     , MonadState A String
+>     , MonadReadOnly A Int
+>     , MonadState B String
+>     , MonadExcept B Bool
+>     )
+>
+> instance MonadTransTrans Foo where
+>   liftT = Foo . liftT . liftT . liftT . liftT
 
-The definition of `Foo` is typical for code using `trans-fx`: it is a newtype wrapper around a transformer transformer built from prefabricated parts. Note also how we're using `GeneralizedNewtypeDeriving` here; this lets us avoid a bunch of tedious boilerplate.
+The definition of `Foo` is typical for code using `trans-fx`: it is a newtype wrapper around a transformer transformer built from prefabricated parts. Note the last four deriving clauses. These give us the state, read-only, and exception primitives for free thanks to the magic of `GeneralizedNewtypeDeriving`. Note also that we've got two different `MonadState` instances.
 
-Right away we can start writing monadic code with `Foo`, although we can't do much! All we know about `IdentityTT t m a` is that it's a monad.
+Here's a super basic computation in the `Foo t m` monad.
 
-> test1 :: (Monad m, MonadTrans t) => Foo t m Bool
-> test1 = return True
+> test1 :: (Monad m) => Foo IdentityT m ()
+> test1 = do
+>   A (k :: Int) <- ask
+>   put $ A "Hello"
+>   put $ B "World"
+>   throw $ B True
+>   return ()
 
-The most useful thing we can do with a monadic computation, after defining it, is _run_ it. All of the built in monads have a corresponding `run` function. But unlike the run functions from `transformers`, the run function in `trans-fx` is generic; there is a `RunMonad` class with `run`, a `RunMonadTrans` class with `runT`, and a `RunMonadTransTrans` class with `runTT`. In each case `run*` takes an _evaluation context_ and a monadic computation and produces a value inside an _output context_.
+To actually execute a monadic action, we can execute each layer one at a time -- each built in transformer transformer comes with a `run` function for this purpose.
 
-For transformer transformers that looks like this:
+(A hint for writing runners: it's much easier to write `runFoo` than it is to see what the type of `runFoo` will be in advance. I wrote the body of `runFoo` and let GHC infer the signature for me.)
 
-```haskell
-class
-  ( MonadTransTrans u, Commutant f
-  ) => RunMonadTransTrans z u f | u -> z f
-  where
-    runTT
-      :: (Monad m, MonadTrans t)
-      => z m -> u t m a -> t m (f a)
-```
+> runFoo
+>   :: (Monad m)
+>   => Foo IdentityT m a
+>   -> m (Pair (B String) (Except B Bool (A (Pair (A String) a))))
+> runFoo =
+>   unIdentityT
+>   . runStateTT (B "bar")
+>   . runExceptTT (B ())
+>   . runReadOnlyTT (A 3)
+>   . runStateTT (A "foo")
+>   . unFoo
 
-where `Commutant` is a class of functors which 'commute' with every applicative functor. (Handling `run*` generically like this makes it simple to run composites.)
+I really like this. :) The `run` function looks a lot like the definition of `Foo` in reverse, which makes it simple to write and edit. One of the design goals for `trans-fx` is to make _prototyping_ complex effect monads easy, and this is one example of how we aim to do that. We can rearrange the layers in the transformer transformer stack and in the run function, and no futzing with `lift` or defining aliases for the effect primitives is necessary.
 
-The run instance for `IdentityTT` looks like this:
+(Of course we _can_ futz with lift, or rather `liftT` for transformer transformers. Here is `test1` again, this time with explicit `liftT`s.)
 
-```haskell
-instance
-  RunMonadTransTrans Unit IdentityTT Identity
-  where
-    runTT
-      :: (Monad m, MonadTrans t)
-      => Unit m
-      -> IdentityTT t m a
-      -> t m (Identity a)
-    runTT Unit (IdentityTT x) = fmap Identity x
-
-data Unit (a :: * -> *) = Unit
-```
-
-Typical client code will settle on one inner transformer `t` and maybe a handful of effect monads `m`. We can specialize `runTT` to our particular monad for convenience.
-
-> runFoo :: (Monad m) => Foo IdentityT m a -> m a
-> runFoo = fmap unIdentity . unIdentityT . runTT Unit . unFoo
+> test2 :: (Monad m) => Foo IdentityT m ()
+> test2 = do
+>   A (k :: Int) <- Foo $ liftT ask
+>   Foo $ put $ A "Hello"
+>   Foo $ liftT $ liftT $ liftT $ put $ B "World"
+>   Foo $ liftT $ liftT $ throw $ B True
+>   return ()
 
 Now we can run `Foo` computations in different effect monads.
 
 ```haskell
-$> runFoo test1 :: IO Bool
-True
-
-$> runFoo test1 :: Identity Bool
-Identity {unIdentity :: True}
-
-$> runFoo test1 :: Maybe Bool
-Just True
-```
-
-Neat! This example is typical of how we can use `trans-fx` in three steps:
-
-1. Decide which side effects we want in a monad,
-2. Define a `newtype` transformer transformer that provides those effects, and
-3. Define a specialized `run` function to evaluate monadic computations.
-
-Next we'll add some more effects with `OverTT`.
-
-
-
-OverTT
-------
-
-`OverTT` is barely a step up from `IdentityTT`. `OverTT u v` takes a transformer transformer `u` and a transformer `v`, and applies `v` "over the top" of `u`. Specifically:
-
-```haskell
-data OverTT u v t m a
-  = OverTT { unOverTT :: v (u t m) a }
-```
-
-The way I remember this is that `u` goes (u)nder and `v` goes o(v)er. The library comes with the usual monad transformers built-in:
-
-* `IdentityT`: the identity transformer
-* `StateT mark s`: mutable state
-* `ReadOnlyT mark r`: read-only state
-* `WriteOnlyT mark w`: write-only state
-* `ExceptT mark e`: exceptions
-* `CompositeT`: composite transformers
-
-(Actually `v` needs to be something a little stronger -- a `MonadFunctor` -- but the built in transformers all satisfy this.)
-
-Here's an example type. `Bar` gives us access to an additional write-only state, a list of booleans tagged with `W`.
-
-> newtype Bar t m a = Bar
->   { unBar ::
->       OverTT
->         IdentityTT
->         (WriteOnlyT W [Bool]) t m a
->   } deriving
->     ( Functor, Applicative, Monad
->     , MonadWriteOnly W [Bool] )
-
-Note the `MonadWriteOnly` instance with a `W` parameter -- remember this has to be isomorphic to `Identity`, so its implementation is trivial, so we can derive most of it. We can name `W` anything we want and in practice it should have a unique and descriptive name.
-
-> data W a = W { unW :: a }
->   deriving stock
->     ( Eq, Show )
->   deriving
->     ( Functor, Applicative, Monad, MonadIdentity )
->     via (Wrap W)
->   deriving
->     ( Semigroup, Monoid )
->     via (Wrap W a)
-> 
-> instance Renaming W where
->   namingMap = W
->   namingInv = unW
-> 
-> instance Commutant W where
->   commute = fmap W . unW
-
-Next a helper for running `Bar`s. `Sing` is a helper type for building the evaluation context for `OverTT`.
-
-> runBar
->   :: ( Monad m )
->   => Bar IdentityT m a
->   -> m (Pair (W [Bool]) a)
-> runBar =
->   fmap (unIdentity . unCompose)
->     . unIdentityT . runTT (Sing Unit (W ())) . unBar
-
-Now `Bar` comes with the additional technology of the `MonadWriteOnly` class, namely special functions `draft` and `tell`.
-
-> test2 :: (Monad m, MonadTrans t) => Bar t m ()
-> test2 = do
->   tell $ W [True]
->   tell $ W [False]
->   return ()
-
-And we can run `Bar`s in several different effect monads.
-
-```haskell
-$> runBar test2 :: IO (Pair (W [Bool]) ())
-Pair {slot1 = W {unW = [True,False]}, slot2 = ()}
-
-$> runBar test2 :: Identity (Pair (W [Bool]) ())
-Identity {unIdentity =
-  Pair {slot1 = W {unW = [True,False]}, slot2 = ()}}
-
-$> runBar test2 :: Maybe (Pair (W [Bool]) ())
-Just (Pair {slot1 = W {unW = [True,False]}, slot2 = ()})
-```
-
-Let's see a similar example, this time with two write only layers.
-
-> newtype Baz t m a = Baz
->   { unBaz ::
->       OverTT
->         IdentityTT
->         (ComposeT
->           (WriteOnlyT V [Bool])
->           (WriteOnlyT W [Bool]))
->         t m a
->   } deriving
->     ( Functor, Applicative, Monad
->     , MonadWriteOnly W [Bool]
->     , MonadWriteOnly V [Bool] )
-
-We also need the boilerplate for `V`.
-
-> data V a = V { unV :: a }
->   deriving stock
->     ( Eq, Show )
->   deriving
->     ( Functor, Applicative, Monad, MonadIdentity )
->     via (Wrap V)
->   deriving
->     ( Semigroup, Monoid )
->     via (Wrap V a)
-> 
-> instance Renaming V where
->   namingMap = V
->   namingInv = unV
-> 
-> instance Commutant V where
->   commute = fmap V . unV
-
-And a runner:
-
-> runBaz
->   :: ( Monad m )
->   => Baz IdentityT m a
->   -> m (Pair (W [Bool]) (Pair (V [Bool]) a))
-> runBaz =
->   fmap (unCompose . unIdentity . unCompose)
->     . unIdentityT . runTT (Sing Unit (V (), W ())) . unBaz
-
-Now in `Baz` we have access to two different write-only states, one called `W` and one called `V`.
-
-> test3 :: (Monad m, MonadTrans t) => Baz t m ()
-> test3 = do
->   tell $ W [True]
->   tell $ V [False]
->   return ()
-
-...and as before we can run `Baz`s in different effect monads.
-
-```haskell
-$> runBaz test3 :: IO (Pair (W [Bool]) (Pair (V [Bool]) ()))
+$> runFoo (test1 :: Foo IdentityT IO ())
 Pair
-  { slot1 = W {unW = [True]}
-  , slot2 = Pair
-    { slot1 = V {unV = [False]}
-    , slot2 = ()}}
+  { slot1 = B {unB = "World"}
+  , slot2 = Except True }
 
-$> runBaz test3 :: Identity (Pair (W [Bool]) (Pair (V [Bool]) ()))
-Identity {unIdentity = Pair
-  { slot1 = W {unW = [True]}
-  , slot2 = Pair
-    { slot1 = V {unV = [False]}
-    , slot2 = ()}}}
+$> runFoo (test1 :: Foo IdentityT Identity ())
+Identity
+  { unIdentity = Pair
+    { slot1 = B {unB = "World"}
+    , slot2 = Except True} }
+
+$> runFoo (test1 :: Foo IdentityT Maybe ())
+Just (Pair
+  { slot1 = B {unB = "World"}
+  , slot2 = Except True })
 ```
 
-One more example, this time with mutable state and exceptions.
+Neat! This example is typical of how we can use `trans-fx` to build an effectful monad in three steps:
 
-> newtype Qux t m a = Qux
->   { unQux ::
->       OverTT
->         IdentityTT
->         (ComposeT
->           (StateT V Int)
->           (ExceptT W Bool))
->         t m a
->   } deriving
->     ( Functor, Applicative, Monad
->     , MonadExcept W Bool
->     , MonadState V Int )
-
-Run:
-
-> runQux
->   :: ( Monad m )
->   => Qux IdentityT m a
->   -> m (Except W Bool (Pair (V Int) a))
-> runQux =
->   fmap (unCompose . unIdentity . unCompose)
->     . unIdentityT . runTT (Sing Unit (V 0, W ())) . unQux
-
-And some examples:
-
-> test4 :: (Monad m, MonadTrans t) => Qux t m Int
-> test4 = do
->   put $ V (27 :: Int)
->   V k <- get
->   return (10 * k)
-
-```haskell
-$> runQux test4 :: IO (Except W Bool (Pair (V Int) Int))
-Accept (Pair {slot1 = V {unV = 27}, slot2 = 270})
-```
-
-> test5 :: (Monad m, MonadTrans t) => Qux t m ()
-> test5 = do
->   put $ V (5 :: Int)
->   throw $ W False
-
-```haskell
-$> runQux test5 :: IO (Except W Bool (Pair (V Int) ()))
-Except False
-```
+1. Decide which side effects we want in a monad, and in what order
+2. Define a `newtype` transformer transformer that provides those effects
+3. Define a specialized `run` function to evaluate monadic computations
