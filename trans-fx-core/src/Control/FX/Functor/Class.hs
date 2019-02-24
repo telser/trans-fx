@@ -12,6 +12,9 @@
 module Control.FX.Functor.Class (
     Commutant(..)
   , Bifunctor(..)
+
+  , Wrap(..)
+  , Renaming(..)
 ) where
 
 
@@ -116,3 +119,54 @@ instance
       -> (a,b)
       -> (a,c)
     bimap2 f (a,b) = (a, f b)
+
+
+
+
+
+newtype Wrap f a = Wrap
+  { unWrap :: f a }
+
+class Renaming f where
+  namingMap :: a -> f a
+  namingInv :: f a -> a
+
+instance
+  ( Renaming f
+  ) => Functor (Wrap f)
+  where
+    fmap f =
+      Wrap . namingMap . f . namingInv . unWrap
+
+instance
+  ( Renaming f
+  ) => Applicative (Wrap f)
+  where
+    pure = Wrap . namingMap
+
+    f <*> x =
+      Wrap $ namingMap $
+        (namingInv $ unWrap f)
+        (namingInv $ unWrap x)
+
+instance
+  ( Renaming f
+  ) => Monad (Wrap f)
+  where
+    return = Wrap . namingMap
+
+    x >>= f =
+      f (namingInv $ unWrap x)
+
+instance
+  ( Renaming f, Semigroup a
+  ) => Semigroup (Wrap f a)
+  where
+    x <> y = Wrap . namingMap $
+      (namingInv $ unWrap x) <> (namingInv $ unWrap y)
+
+instance
+  ( Renaming f, Monoid a
+  ) => Monoid (Wrap f a)
+  where
+    mempty = Wrap $ namingMap mempty

@@ -1,5 +1,5 @@
 ---
-title: Effects with monad transformer transformers
+title: Getting Started
 ---
 
 Hi! This is a technical introduction to `trans-fx`, an effect framework for Haskell. To say anything interesting I'll have to make a few assumptions about you, dear reader, and I think it's best to be up front about these. This document will make the most sense to you if:
@@ -8,8 +8,10 @@ Hi! This is a technical introduction to `trans-fx`, an effect framework for Hask
 2. You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.
 3. You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.
 
-To use `trans-fx` we'll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit from the following extensions:
+To use `trans-fx` we'll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit considerably from the following extensions -- these are not strictly necessary, but will cut out a _ton_ of trivial boilerplate.
 
+> {-# LANGUAGE DerivingVia                #-}
+> {-# LANGUAGE DerivingStrategies         #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
 > module Control.FX.Demo.Intro where
@@ -25,7 +27,7 @@ Examples that use `IO` are not much more complicated, but we'll save them for la
 What is different?
 ==================
 
-This library is heavily influenced by but incompatible with `transformers` and `mtl`. The two most significant differences are as follows.
+This library is heavily influenced by but incompatible with `transformers`, `mtl`, and `mmorph`. The two most significant differences are as follows.
 
 First, our `MonadTrans` class has an extra quantified constraint.
 
@@ -197,26 +199,24 @@ Here's an example type. `Bar` gives us access to an additional write-only state,
 >     ( Functor, Applicative, Monad
 >     , MonadWriteOnly W [Bool] )
 
-Note the `MonadWriteOnly` instance with a `W` parameter -- remember this has to be isomorphic to `Identity`, so its implementation is trivial. (I haven't found a good way to avoid writing this code, but it's not terrible.) We can name `W` anything we want and in practice it should have a unique and descriptive name.
+Note the `MonadWriteOnly` instance with a `W` parameter -- remember this has to be isomorphic to `Identity`, so its implementation is trivial, so we can derive most of it. We can name `W` anything we want and in practice it should have a unique and descriptive name.
 
-> data W a = W
->   { unW :: a
->   } deriving (Eq, Show)
-> instance Functor W where
->   fmap f (W x) = W (f x)
-> instance Applicative W where
->   pure = W
->   (W f) <*> (W x) = W (f x)
-> instance Monad W where
->   return = W
->   (W x) >>= f = f x
-> instance MonadIdentity W where
->   unwrap = unW
-> instance (Semigroup x) => Semigroup (W x) where
->   (W a) <> (W b) = W (a <> b)
-> instance (Monoid x) => Monoid (W x) where
->   mempty = W mempty
->   mappend = (<>)
+> data W a = W { unW :: a }
+>   deriving stock
+>     ( Eq, Show )
+>   deriving
+>     ( Functor, Applicative, Monad, MonadIdentity )
+>     via (Wrap W)
+>   deriving
+>     ( Semigroup, Monoid )
+>     via (Wrap W a)
+> 
+> instance Renaming W where
+>   namingMap = W
+>   namingInv = unW
+> 
+> instance Commutant W where
+>   commute = fmap W . unW
 
 Next a helper for running `Bar`s. `Sing` is a helper type for building the evaluation context for `OverTT`.
 
@@ -267,24 +267,22 @@ Let's see a similar example, this time with two write only layers.
 
 We also need the boilerplate for `V`.
 
-> data V a = V
->   { unV :: a
->   } deriving (Eq, Show)
-> instance Functor V where
->   fmap f (V x) = V (f x)
-> instance Applicative V where
->   pure = V
->   (V f) <*> (V x) = V (f x)
-> instance Monad V where
->   return = V
->   (V x) >>= f = f x
-> instance MonadIdentity V where
->   unwrap = unV
-> instance (Semigroup x) => Semigroup (V x) where
->   (V a) <> (V b) = V (a <> b)
-> instance (Monoid x) => Monoid (V x) where
->   mempty = V mempty
->   mappend = (<>)
+> data V a = V { unV :: a }
+>   deriving stock
+>     ( Eq, Show )
+>   deriving
+>     ( Functor, Applicative, Monad, MonadIdentity )
+>     via (Wrap V)
+>   deriving
+>     ( Semigroup, Monoid )
+>     via (Wrap V a)
+> 
+> instance Renaming V where
+>   namingMap = V
+>   namingInv = unV
+> 
+> instance Commutant V where
+>   commute = fmap V . unV
 
 And a runner:
 

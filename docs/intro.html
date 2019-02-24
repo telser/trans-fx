@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>Effects with monad transformer transformers</title>
+  <title>Getting Started</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -83,7 +83,7 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 </head>
 <body>
 <header>
-<h1 class="title">Effects with monad transformer transformers</h1>
+<h1 class="title">Getting Started</h1>
 </header>
 <p>Hi! This is a technical introduction to <code>trans-fx</code>, an effect framework for Haskell. To say anything interesting I’ll have to make a few assumptions about you, dear reader, and I think it’s best to be up front about these. This document will make the most sense to you if:</p>
 <ol type="1">
@@ -91,15 +91,17 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <li>You appreciate the use of monads to control side-effects and the use of monad transformers as a strategy for building complex monads from simpler ones.</li>
 <li>You are invested in testing as a tool for building software that is responsive to changing requirements and resistant to decay.</li>
 </ol>
-<p>To use <code>trans-fx</code> we’ll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit from the following extensions:</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
-<a class="sourceLine" id="cb1-2" data-line-number="2"></a>
-<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="kw">module</span> <span class="dt">Control.FX.Demo.Intro</span> <span class="kw">where</span></a></code></pre></div>
+<p>To use <code>trans-fx</code> we’ll need a pretty recent version of GHC; the library code depends on some newer language extensions. Client code will also benefit considerably from the following extensions – these are not strictly necessary, but will cut out a <em>ton</em> of trivial boilerplate.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb1-1" data-line-number="1"><span class="ot">{-# LANGUAGE DerivingVia                #-}</span></a>
+<a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
+<a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
+<a class="sourceLine" id="cb1-4" data-line-number="4"></a>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="kw">module</span> <span class="dt">Control.FX.Demo.Intro</span> <span class="kw">where</span></a></code></pre></div>
 <p>In this intro we’ll focus on pure examples. For this we can import just one module:</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a></code></pre></div>
 <p>Examples that use <code>IO</code> are not much more complicated, but we’ll save them for later.</p>
 <h1 id="what-is-different">What is different?</h1>
-<p>This library is heavily influenced by but incompatible with <code>transformers</code> and <code>mtl</code>. The two most significant differences are as follows.</p>
+<p>This library is heavily influenced by but incompatible with <code>transformers</code>, <code>mtl</code>, and <code>mmorph</code>. The two most significant differences are as follows.</p>
 <p>First, our <code>MonadTrans</code> class has an extra quantified constraint.</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">class</span></a>
 <a class="sourceLine" id="cb3-2" data-line-number="2">  ( forall m<span class="fu">.</span> (<span class="dt">Monad</span> m) <span class="ot">=&gt;</span> <span class="dt">Monad</span> (t m)</a>
@@ -207,25 +209,23 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb14-6" data-line-number="6">  } <span class="kw">deriving</span></a>
 <a class="sourceLine" id="cb14-7" data-line-number="7">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span></a>
 <a class="sourceLine" id="cb14-8" data-line-number="8">    , <span class="dt">MonadWriteOnly</span> <span class="dt">W</span> [<span class="dt">Bool</span>] )</a></code></pre></div>
-<p>Note the <code>MonadWriteOnly</code> instance with a <code>W</code> parameter – remember this has to be isomorphic to <code>Identity</code>, so its implementation is trivial. (I haven’t found a good way to avoid writing this code, but it’s not terrible.) We can name <code>W</code> anything we want and in practice it should have a unique and descriptive name.</p>
-<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">data</span> <span class="dt">W</span> a <span class="fu">=</span> <span class="dt">W</span></a>
-<a class="sourceLine" id="cb15-2" data-line-number="2">  {<span class="ot"> unW ::</span> a</a>
-<a class="sourceLine" id="cb15-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
-<a class="sourceLine" id="cb15-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">W</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-5" data-line-number="5">  fmap f (<span class="dt">W</span> x) <span class="fu">=</span> <span class="dt">W</span> (f x)</a>
-<a class="sourceLine" id="cb15-6" data-line-number="6"><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">W</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-7" data-line-number="7">  pure <span class="fu">=</span> <span class="dt">W</span></a>
-<a class="sourceLine" id="cb15-8" data-line-number="8">  (<span class="dt">W</span> f) <span class="fu">&lt;*&gt;</span> (<span class="dt">W</span> x) <span class="fu">=</span> <span class="dt">W</span> (f x)</a>
-<a class="sourceLine" id="cb15-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">W</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-10" data-line-number="10">  return <span class="fu">=</span> <span class="dt">W</span></a>
-<a class="sourceLine" id="cb15-11" data-line-number="11">  (<span class="dt">W</span> x) <span class="fu">&gt;&gt;=</span> f <span class="fu">=</span> f x</a>
-<a class="sourceLine" id="cb15-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">MonadIdentity</span> <span class="dt">W</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-13" data-line-number="13">  unwrap <span class="fu">=</span> unW</a>
-<a class="sourceLine" id="cb15-14" data-line-number="14"><span class="kw">instance</span> (<span class="dt">Semigroup</span> x) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">W</span> x) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-15" data-line-number="15">  (<span class="dt">W</span> a) <span class="fu">&lt;&gt;</span> (<span class="dt">W</span> b) <span class="fu">=</span> <span class="dt">W</span> (a <span class="fu">&lt;&gt;</span> b)</a>
-<a class="sourceLine" id="cb15-16" data-line-number="16"><span class="kw">instance</span> (<span class="dt">Monoid</span> x) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">W</span> x) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb15-17" data-line-number="17">  mempty <span class="fu">=</span> <span class="dt">W</span> mempty</a>
-<a class="sourceLine" id="cb15-18" data-line-number="18">  mappend <span class="fu">=</span> (<span class="fu">&lt;&gt;</span>)</a></code></pre></div>
+<p>Note the <code>MonadWriteOnly</code> instance with a <code>W</code> parameter – remember this has to be isomorphic to <code>Identity</code>, so its implementation is trivial, so we can derive most of it. We can name <code>W</code> anything we want and in practice it should have a unique and descriptive name.</p>
+<div class="sourceCode" id="cb15"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb15-1" data-line-number="1"><span class="kw">data</span> <span class="dt">W</span> a <span class="fu">=</span> <span class="dt">W</span> {<span class="ot"> unW ::</span> a }</a>
+<a class="sourceLine" id="cb15-2" data-line-number="2">  <span class="kw">deriving</span> stock</a>
+<a class="sourceLine" id="cb15-3" data-line-number="3">    ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb15-4" data-line-number="4">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb15-5" data-line-number="5">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadIdentity</span> )</a>
+<a class="sourceLine" id="cb15-6" data-line-number="6">    via (<span class="dt">Wrap</span> <span class="dt">W</span>)</a>
+<a class="sourceLine" id="cb15-7" data-line-number="7">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb15-8" data-line-number="8">    ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> )</a>
+<a class="sourceLine" id="cb15-9" data-line-number="9">    via (<span class="dt">Wrap</span> <span class="dt">W</span> a)</a>
+<a class="sourceLine" id="cb15-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb15-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-12" data-line-number="12">  namingMap <span class="fu">=</span> <span class="dt">W</span></a>
+<a class="sourceLine" id="cb15-13" data-line-number="13">  namingInv <span class="fu">=</span> unW</a>
+<a class="sourceLine" id="cb15-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb15-15" data-line-number="15"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">W</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb15-16" data-line-number="16">  commute <span class="fu">=</span> fmap <span class="dt">W</span> <span class="fu">.</span> unW</a></code></pre></div>
 <p>Next a helper for running <code>Bar</code>s. <code>Sing</code> is a helper type for building the evaluation context for <code>OverTT</code>.</p>
 <div class="sourceCode" id="cb16"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb16-1" data-line-number="1">runBar</a>
 <a class="sourceLine" id="cb16-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>
@@ -264,24 +264,22 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb19-11" data-line-number="11">    , <span class="dt">MonadWriteOnly</span> <span class="dt">W</span> [<span class="dt">Bool</span>]</a>
 <a class="sourceLine" id="cb19-12" data-line-number="12">    , <span class="dt">MonadWriteOnly</span> <span class="dt">V</span> [<span class="dt">Bool</span>] )</a></code></pre></div>
 <p>We also need the boilerplate for <code>V</code>.</p>
-<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="kw">data</span> <span class="dt">V</span> a <span class="fu">=</span> <span class="dt">V</span></a>
-<a class="sourceLine" id="cb20-2" data-line-number="2">  {<span class="ot"> unV ::</span> a</a>
-<a class="sourceLine" id="cb20-3" data-line-number="3">  } <span class="kw">deriving</span> (<span class="dt">Eq</span>, <span class="dt">Show</span>)</a>
-<a class="sourceLine" id="cb20-4" data-line-number="4"><span class="kw">instance</span> <span class="dt">Functor</span> <span class="dt">V</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-5" data-line-number="5">  fmap f (<span class="dt">V</span> x) <span class="fu">=</span> <span class="dt">V</span> (f x)</a>
-<a class="sourceLine" id="cb20-6" data-line-number="6"><span class="kw">instance</span> <span class="dt">Applicative</span> <span class="dt">V</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-7" data-line-number="7">  pure <span class="fu">=</span> <span class="dt">V</span></a>
-<a class="sourceLine" id="cb20-8" data-line-number="8">  (<span class="dt">V</span> f) <span class="fu">&lt;*&gt;</span> (<span class="dt">V</span> x) <span class="fu">=</span> <span class="dt">V</span> (f x)</a>
-<a class="sourceLine" id="cb20-9" data-line-number="9"><span class="kw">instance</span> <span class="dt">Monad</span> <span class="dt">V</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-10" data-line-number="10">  return <span class="fu">=</span> <span class="dt">V</span></a>
-<a class="sourceLine" id="cb20-11" data-line-number="11">  (<span class="dt">V</span> x) <span class="fu">&gt;&gt;=</span> f <span class="fu">=</span> f x</a>
-<a class="sourceLine" id="cb20-12" data-line-number="12"><span class="kw">instance</span> <span class="dt">MonadIdentity</span> <span class="dt">V</span> <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-13" data-line-number="13">  unwrap <span class="fu">=</span> unV</a>
-<a class="sourceLine" id="cb20-14" data-line-number="14"><span class="kw">instance</span> (<span class="dt">Semigroup</span> x) <span class="ot">=&gt;</span> <span class="dt">Semigroup</span> (<span class="dt">V</span> x) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-15" data-line-number="15">  (<span class="dt">V</span> a) <span class="fu">&lt;&gt;</span> (<span class="dt">V</span> b) <span class="fu">=</span> <span class="dt">V</span> (a <span class="fu">&lt;&gt;</span> b)</a>
-<a class="sourceLine" id="cb20-16" data-line-number="16"><span class="kw">instance</span> (<span class="dt">Monoid</span> x) <span class="ot">=&gt;</span> <span class="dt">Monoid</span> (<span class="dt">V</span> x) <span class="kw">where</span></a>
-<a class="sourceLine" id="cb20-17" data-line-number="17">  mempty <span class="fu">=</span> <span class="dt">V</span> mempty</a>
-<a class="sourceLine" id="cb20-18" data-line-number="18">  mappend <span class="fu">=</span> (<span class="fu">&lt;&gt;</span>)</a></code></pre></div>
+<div class="sourceCode" id="cb20"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb20-1" data-line-number="1"><span class="kw">data</span> <span class="dt">V</span> a <span class="fu">=</span> <span class="dt">V</span> {<span class="ot"> unV ::</span> a }</a>
+<a class="sourceLine" id="cb20-2" data-line-number="2">  <span class="kw">deriving</span> stock</a>
+<a class="sourceLine" id="cb20-3" data-line-number="3">    ( <span class="dt">Eq</span>, <span class="dt">Show</span> )</a>
+<a class="sourceLine" id="cb20-4" data-line-number="4">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb20-5" data-line-number="5">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadIdentity</span> )</a>
+<a class="sourceLine" id="cb20-6" data-line-number="6">    via (<span class="dt">Wrap</span> <span class="dt">V</span>)</a>
+<a class="sourceLine" id="cb20-7" data-line-number="7">  <span class="kw">deriving</span></a>
+<a class="sourceLine" id="cb20-8" data-line-number="8">    ( <span class="dt">Semigroup</span>, <span class="dt">Monoid</span> )</a>
+<a class="sourceLine" id="cb20-9" data-line-number="9">    via (<span class="dt">Wrap</span> <span class="dt">V</span> a)</a>
+<a class="sourceLine" id="cb20-10" data-line-number="10"></a>
+<a class="sourceLine" id="cb20-11" data-line-number="11"><span class="kw">instance</span> <span class="dt">Renaming</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-12" data-line-number="12">  namingMap <span class="fu">=</span> <span class="dt">V</span></a>
+<a class="sourceLine" id="cb20-13" data-line-number="13">  namingInv <span class="fu">=</span> unV</a>
+<a class="sourceLine" id="cb20-14" data-line-number="14"></a>
+<a class="sourceLine" id="cb20-15" data-line-number="15"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">V</span> <span class="kw">where</span></a>
+<a class="sourceLine" id="cb20-16" data-line-number="16">  commute <span class="fu">=</span> fmap <span class="dt">V</span> <span class="fu">.</span> unV</a></code></pre></div>
 <p>And a runner:</p>
 <div class="sourceCode" id="cb21"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb21-1" data-line-number="1">runBaz</a>
 <a class="sourceLine" id="cb21-2" data-line-number="2"><span class="ot">  ::</span> ( <span class="dt">Monad</span> m )</a>

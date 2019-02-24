@@ -2,8 +2,10 @@
 title: Composing Transformers
 ---
 
-> {-# LANGUAGE FlexibleInstances #-}
-> {-# LANGUAGE MultiParamTypeClasses #-}
+> {-# LANGUAGE DerivingVia                #-}
+> {-# LANGUAGE FlexibleInstances          #-}
+> {-# LANGUAGE DerivingStrategies         #-}
+> {-# LANGUAGE MultiParamTypeClasses      #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
 > module Control.FX.Demo.Compose where
@@ -17,86 +19,66 @@ title: Composing Transformers
 > newtype Mung t m a = Mung
 >   { unMung ::
 >       TeletypeTT S
->         (OverTT
->           (TeletypeTT T)
->           (StateT S String) t)
->       m a
+>       (OverTT
+>         (TeletypeTT T)
+>         (ComposeT (StateT S String) (ExceptT T Bool))
+>       t) m a
 >   } deriving
 >     ( Functor, Applicative, Monad, MonadTrans
->     , MonadState S String, MonadTeletype S, MonadTeletype T
->     , MonadExcept TeletypeError IOException )
+>     , MonadState S String
+>     , MonadTeletype S
+>     , MonadTeletype T
+>     , MonadExcept TeletypeError IOException
+>     , MonadExcept T Bool )
 
 > test6 :: (Monad m, MonadTrans t) => Mung t m ()
 > test6 = do
 >   printLine $ S "foo"
 >   printLine $ T "foo"
 >   put $ S "Foo"
+>   throw $ T False
 >   return ()
 
 > runMung
->   :: Mung IdentityT IO a -> IO (Compose
->                            (Except TeletypeError IOException)
->                            (Pair (S [Char]))
->                            (Except TeletypeError IOException a))
-> runMung = unIdentityT . runOverTT (Eval evalTeletypeIO) (S "") . runTeletypeTT (Eval evalTeletypeIO) . unMung
-
-> {-
-
-> instance
->   LiftTeletype S Mung
->     (OverTT IdentityTT (StateT S String))
->   where
->     liftTeletype _ = Mung . ComposeTT
-
-> runMung
 >   :: Mung IdentityT IO a
->   -> IO (Pair
->           (S [Char])
->           (Except TeletypeError IOException a))
-> runMung x = fmap unIdentity $ fmap unCompose $ fmap unCompose $ unIdentityT $ runTT (Dub (Eval evalTeletypeIO) (Sing Unit (S ""))) (unMung x)
+>   -> IO (Compose
+>             (Except TeletypeError IOException)
+>             (Compose (Except T Bool) (Pair (S [Char])))
+>             (Except TeletypeError IOException a))
+> runMung =
+>   unIdentityT
+>     . runOverTT (Eval evalTeletypeIO) (S "", T ())
+>     . runTeletypeTT (Eval evalTeletypeIO)
+>     . unMung
 
- > foo = Mung . ComposeTT . liftT
 
-> -}
-
-> data S a = S
->   { unS :: a
->   } deriving (Eq, Show)
-> instance Functor S where
->   fmap f (S x) = S (f x)
+> data S a = S { unS :: a }
+>   deriving stock
+>     ( Eq, Show )
+>   deriving
+>     ( Functor, Applicative, Monad, MonadIdentity )
+>     via (Wrap S)
+>   deriving
+>     ( Semigroup, Monoid )
+>     via (Wrap S a)
+> 
+> instance Renaming S where
+>   namingMap = S
+>   namingInv = unS
+> 
 > instance Commutant S where
->   commute (S x) = fmap S x
-> instance Applicative S where
->   pure = S
->   (S f) <*> (S x) = S (f x)
-> instance Monad S where
->   return = S
->   (S x) >>= f = f x
-> instance MonadIdentity S where
->   unwrap = unS
-> instance (Semigroup x) => Semigroup (S x) where
->   (S a) <> (S b) = S (a <> b)
-> instance (Monoid x) => Monoid (S x) where
->   mempty = S mempty
->   mappend = (<>)
+>   commute = fmap S . unS
 
-> data T a = T
->   { unT :: a
->   } deriving (Eq, Show)
-> instance Functor T where
->   fmap f (T x) = T (f x)
+
+> data T a = T { unT :: a }
+>   deriving stock ( Eq, Show )
+>   deriving ( Functor, Applicative, Monad
+>            , MonadIdentity ) via (Wrap T)
+>   deriving ( Semigroup, Monoid ) via (Wrap T a)
+> 
+> instance Renaming T where
+>   namingMap = T
+>   namingInv = unT
+> 
 > instance Commutant T where
->   commute (T x) = fmap T x
-> instance Applicative T where
->   pure = T
->   (T f) <*> (T x) = T (f x)
-> instance Monad T where
->   return = T
->   (T x) >>= f = f x
-> instance MonadIdentity T where
->   unwrap = unT
-> instance (Semigroup x) => Semigroup (T x) where
->   (T a) <> (T b) = T (a <> b)
-> instance (Monoid x) => Monoid (T x) where
->   mempty = T mempty
->   mappend = (<>)
+>   commute = fmap T . unT

@@ -179,6 +179,12 @@ class
     -- | Extract a pure value
     unwrap :: m a -> a
 
+instance
+  ( Renaming f
+  ) => MonadIdentity (Wrap f)
+  where
+    unwrap = namingInv . unWrap
+
 
 
 -- | Class representing monads which can fail catastrophically, returning
