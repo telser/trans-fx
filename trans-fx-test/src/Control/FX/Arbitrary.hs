@@ -58,6 +58,15 @@ instance
     arbitrary = State <$> arbitrary
 
 instance
+  ( Arbitrary a, Arbitrary w, Monoid w
+  ) => Arbitrary (AppendOnly mark w a)
+  where
+    arbitrary = do
+      w1 <- arbitrary
+      a <- arbitrary
+      return $ AppendOnly $ \w -> Pair (w <> w1) a
+
+instance
   ( Arbitrary a, CoArbitrary r
   ) => Arbitrary (ReadOnly mark r a)
   where

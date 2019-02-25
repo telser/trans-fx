@@ -29,6 +29,7 @@ import Test.Tasty.QuickCheck.Laws.FX.MonadTrans
 import Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
 import Test.Tasty.QuickCheck.Laws.FX.LiftCatch
 import Test.Tasty.QuickCheck.Laws.FX.LiftDraft
+import Test.Tasty.QuickCheck.Laws.FX.AppendOnly
 
 
 
@@ -48,7 +49,7 @@ main = do
       , test_all_Functor_B
       ]
 
-    , testGroup "Monad"
+    ,  testGroup "Monad"
       [ test_all_Monad_FAM
       , test_all_Monad_FX
       , test_all_Monad_C
@@ -268,6 +269,9 @@ test_all_Monad_FAM = testGroup "All Monad (FAM)"
 
   , test_Monad_FAM (Proxy :: Proxy (ReadOnly Identity Bool)) pIdB
   , test_Monad_FAM (Proxy :: Proxy (ReadOnly Identity Int))  pIdI
+
+  , test_Monad_FAM (Proxy :: Proxy (AppendOnly Identity Bool)) pIdU
+  , test_Monad_FAM (Proxy :: Proxy (AppendOnly Identity Int))  pIdU
   ]
 
 
@@ -286,6 +290,9 @@ test_all_Monad_FX = testGroup "All Monad (FX)"
 
   , testErrorMonadLaws (Proxy :: Proxy (Except Identity Bool)) pIdU (pAp pId pB) pB pI eqIn throw catch
   , testErrorMonadLaws (Proxy :: Proxy (Except Identity Int))  pIdU (pAp pId pI) pB pI eqIn throw catch
+
+  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Bool)) pIdU (pAp pId pB) pB pI eqIn look append
+  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Int))  pIdU (pAp pId pI) pB pI eqIn look append
   ]
 
 

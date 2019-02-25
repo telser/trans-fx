@@ -38,6 +38,7 @@ module Control.FX.Monad.Class (
   , MonadState(..)
   , MonadWriteOnly(..)
   , MonadReadOnly(..)
+  , MonadAppendOnly(..)
   , MonadPrompt(..)
 ) where
 
@@ -356,6 +357,43 @@ class
       -> m a
       -> m a
     local = liftLocal local
+
+
+
+-- | Class representing monads with access to a marked append-only state
+-- @mark w@. Instances should satisfy the following laws:
+--
+-- > (1) append mempty  ===  return ()
+-- >
+-- > (2) append (a <> b)  ===  append a >> append b
+-- >
+-- > (3) look  ===  return mempty
+-- >
+-- > (4) x >> look >> y  ===  x >> y
+-- >
+-- > (5) append w >> look  ===  append w >> return w
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadAppendOnly mark w m
+  where
+    -- | Retrieve the append-only state
+    look :: m (mark w)
+
+    default look
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadAppendOnly mark w m1 )
+      => m (mark w)
+    look = lift look
+
+    -- | Append a value to the state
+    append :: mark w -> m ()
+
+    default append
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadAppendOnly mark w m1 )
+      => mark w
+      -> m ()
+    append = lift . append
 
 
 

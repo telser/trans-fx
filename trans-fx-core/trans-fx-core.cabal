@@ -39,6 +39,7 @@ library
     , Control.FX.Monad.Halt
     , Control.FX.Monad.Except
     , Control.FX.Monad.WriteOnly
+    , Control.FX.Monad.AppendOnly
     , Control.FX.Monad.Trans
     , Control.FX.Monad.Trans.Class
     , Control.FX.Monad.Trans.IdentityT
