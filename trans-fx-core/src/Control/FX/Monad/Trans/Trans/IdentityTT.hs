@@ -273,6 +273,20 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadAppendOnly mark w (t m), Monoid w
+  ) => MonadAppendOnly mark w (IdentityTT t m)
+  where
+    jot
+      :: mark w
+      -> IdentityTT t m ()
+    jot = IdentityTT . jot
+
+    look
+      :: IdentityTT t m (mark w)
+    look = IdentityTT look
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadExcept mark e (t m)
   ) => MonadExcept mark e (IdentityTT t m)
   where

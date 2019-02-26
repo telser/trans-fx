@@ -237,3 +237,8 @@ instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadPrompt mark p m
   ) => MonadPrompt mark p (HaltT mark1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadAppendOnly mark w m, Monoid w
+  ) => MonadAppendOnly mark w (HaltT mark1 m)

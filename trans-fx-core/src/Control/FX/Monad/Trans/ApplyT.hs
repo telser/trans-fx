@@ -217,6 +217,20 @@ instance
     tell = ApplyT . tell
 
 instance
+  ( Monad m, Monoid w, MonadTrans t, MonadIdentity mark
+  , forall x. (Monad x) => MonadAppendOnly mark w (t x)
+  ) => MonadAppendOnly mark w (ApplyT t m)
+  where
+    look
+      :: ApplyT t m (mark w)
+    look = ApplyT look
+
+    jot
+      :: mark w
+      -> ApplyT t m ()
+    jot = ApplyT . jot
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   , forall x. (Monad x) => MonadState mark s (t x)
   ) => MonadState mark s (ApplyT t m)

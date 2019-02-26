@@ -203,6 +203,20 @@ instance
     draft = liftDraftT draft
 
 instance
+  ( Monad m, MonadTrans t, Monoid w, MonadIdentity mark1
+  , MonadAppendOnly mark w (t m)
+  ) => MonadAppendOnly mark w (HaltTT mark1 t m)
+  where
+    jot
+      :: mark w
+      -> HaltTT mark1 t m ()
+    jot = HaltTT . lift . jot
+
+    look
+      :: HaltTT mark1 t m (mark w)
+    look = HaltTT $ lift look
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity mark1
   , MonadReadOnly mark r (t m)
   ) => MonadReadOnly mark r (HaltTT mark1 t m)

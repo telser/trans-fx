@@ -240,3 +240,8 @@ instance
   ( Monad m, MonadIdentity mark1, MonadIdentity mark
   , MonadHalt mark m
   ) => MonadHalt mark (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadAppendOnly mark w m, Monoid w
+  ) => MonadAppendOnly mark w (StateT mark1 s m)

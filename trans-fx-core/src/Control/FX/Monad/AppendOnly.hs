@@ -135,8 +135,8 @@ instance
     look = AppendOnly $ \w ->
       Pair w (pure w)
 
-    append
+    jot
       :: mark w
       -> AppendOnly mark w ()
-    append w =
+    jot w =
       AppendOnly $ \w1 -> Pair (w1 <> (unwrap w)) ()

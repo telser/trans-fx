@@ -170,6 +170,20 @@ instance {-# OVERLAPPABLE #-}
     draft = liftDraftT draft
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1, Monoid w, Monoid w1
+  , forall x. (Monad x) => MonadAppendOnly mark w (t x)
+  ) => MonadAppendOnly mark w (WriteOnlyTT mark1 w1 t m)
+  where
+    jot
+      :: mark w
+      -> WriteOnlyTT mark1 w1 t m ()
+    jot = WriteOnlyTT . lift . jot
+
+    look
+      :: WriteOnlyTT mark1 w1 t m (mark w)
+    look = WriteOnlyTT $ lift look
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1, Monoid w
   , forall x. (Monad x) => MonadState mark s (t x)
   ) => MonadState mark s (WriteOnlyTT mark1 w t m)

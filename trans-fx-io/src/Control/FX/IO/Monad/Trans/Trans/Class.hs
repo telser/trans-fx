@@ -58,6 +58,11 @@ instance
 
 instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark m, Monoid w
+  ) => MonadTeletype mark (AppendOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadTeletype mark m
   ) => MonadTeletype mark (StateT mark1 s m)
 
@@ -156,6 +161,20 @@ instance
       :: mark String
       -> WriteOnlyTT mark1 w t m ()
     printLine = WriteOnlyTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m), Monoid w
+  ) => MonadTeletype mark (AppendOnlyTT mark1 w t m)
+  where
+    readLine
+      :: AppendOnlyTT mark1 w t m (mark String)
+    readLine = AppendOnlyTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> AppendOnlyTT mark1 w t m ()
+    printLine = AppendOnlyTT . lift . printLine
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1

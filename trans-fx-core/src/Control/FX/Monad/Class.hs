@@ -363,15 +363,15 @@ class
 -- | Class representing monads with access to a marked append-only state
 -- @mark w@. Instances should satisfy the following laws:
 --
--- > (1) append mempty  ===  return ()
+-- > (1) jot mempty  ===  return ()
 -- >
--- > (2) append (a <> b)  ===  append a >> append b
+-- > (2) jot (a <> b)  ===  jot a >> jot b
 -- >
 -- > (3) look  ===  return mempty
 -- >
 -- > (4) x >> look >> y  ===  x >> y
 -- >
--- > (5) append w >> look  ===  append w >> return w
+-- > (5) jot w >> look  ===  jot w >> return w
 class
   ( Monad m, MonadIdentity mark
   ) => MonadAppendOnly mark w m
@@ -386,14 +386,14 @@ class
     look = lift look
 
     -- | Append a value to the state
-    append :: mark w -> m ()
+    jot :: mark w -> m ()
 
-    default append
+    default jot
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
          , MonadAppendOnly mark w m1 )
       => mark w
       -> m ()
-    append = lift . append
+    jot = lift . jot
 
 
 

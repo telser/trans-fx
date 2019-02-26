@@ -291,8 +291,8 @@ test_all_Monad_FX = testGroup "All Monad (FX)"
   , testErrorMonadLaws (Proxy :: Proxy (Except Identity Bool)) pIdU (pAp pId pB) pB pI eqIn throw catch
   , testErrorMonadLaws (Proxy :: Proxy (Except Identity Int))  pIdU (pAp pId pI) pB pI eqIn throw catch
 
-  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Bool)) pIdU (pAp pId pB) pB pI eqIn look append
-  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Int))  pIdU (pAp pId pI) pB pI eqIn look append
+  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Bool)) pIdU (pAp pId pB) pB pI eqIn look jot
+  , testAppendOnlyMonadLaws (Proxy :: Proxy (AppendOnly Identity Int))  pIdU (pAp pId pI) pB pI eqIn look jot
   ]
 
 

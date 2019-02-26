@@ -199,6 +199,20 @@ instance
     draft = liftDraftT draft
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1, Monoid w
+  , forall x. (Monad x) => MonadAppendOnly mark w (t x)
+  ) => MonadAppendOnly mark w (StateTT mark1 s t m)
+  where
+    jot
+      :: mark w
+      -> StateTT mark1 s t m ()
+    jot = StateTT . lift . jot
+
+    look
+      :: StateTT mark1 s t m (mark w)
+    look = StateTT $ lift look
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
   , forall x. (Monad x) => MonadReadOnly mark r (t x)
   ) => MonadReadOnly mark r (StateTT mark1 s t m)

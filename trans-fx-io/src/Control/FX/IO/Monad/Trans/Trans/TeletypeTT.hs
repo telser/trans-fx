@@ -267,6 +267,23 @@ instance
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadIdentity mark1, Commutant mark1, Monoid w
+  , forall x. (Monad x) => MonadAppendOnly mark w (t x)
+  ) => MonadAppendOnly mark w (TeletypeTT mark1 t m)
+  where
+    jot
+      :: mark w
+      -> TeletypeTT mark1 t m ()
+    jot = TeletypeTT . OverTT . lift . liftT . jot
+
+    look
+      :: TeletypeTT mark1 t m (mark w)
+    look = TeletypeTT $ OverTT $ lift $ liftT look
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1, Monoid w
   , forall x. (Monad x) => MonadWriteOnly mark w (t x)
   ) => MonadWriteOnly mark w (TeletypeTT mark1 t m)
   where

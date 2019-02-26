@@ -226,3 +226,8 @@ instance
   ( Monad m, MonadIdentity mark1, Commutant mark1, MonadIdentity mark
   , MonadHalt mark m
   ) => MonadHalt mark (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadAppendOnly mark w m, Commutant mark1, Monoid w
+  ) => MonadAppendOnly mark w (ReadOnlyT mark1 r m)

@@ -296,6 +296,42 @@ instance {-# OVERLAPPABLE #-}
 
 
 instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
+  , MonadTransTrans u, MonadIdentity mark, LiftDraft z v f
+  , forall x y. (Monad x, MonadTrans y) => MonadAppendOnly mark w (u y x)
+  ) => MonadAppendOnly mark w (OverTT (ApplyTT u) v t m)
+  where
+    jot
+      :: mark w
+      -> OverTT (ApplyTT u) v t m ()
+    jot = OverTT . lift . ApplyTT . jot
+
+    look
+      :: OverTT (ApplyTT u) v t m (mark w)
+    look = OverTT $ hoist ApplyTT $ lift look
+
+
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
+  , MonadTransTrans u, MonadIdentity mark
+  , forall x. (Monad x) => MonadAppendOnly mark w (v x)
+  ) => MonadAppendOnly mark w (OverTT u v t m)
+  where
+    jot
+      :: mark w
+      -> OverTT u v t m ()
+    jot = OverTT . jot
+
+    look
+      :: OverTT u v t m (mark w)
+    look = OverTT look
+
+
+
+
+
+instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u, MonadIdentity mark
   , forall x y. (Monad x, MonadTrans y) => MonadHalt mark (u y x)
   ) => MonadHalt mark (OverTT (ApplyTT u) v t m)

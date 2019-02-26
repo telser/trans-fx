@@ -251,3 +251,7 @@ instance
 instance
   ( MonadExcept mark e m
   ) => MonadExcept mark e (IdentityT m)
+
+instance
+  ( MonadAppendOnly mark w m
+  ) => MonadAppendOnly mark w (IdentityT m)

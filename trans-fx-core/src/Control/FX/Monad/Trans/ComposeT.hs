@@ -34,6 +34,7 @@ import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.StateT
 import Control.FX.Monad.Trans.ReadOnlyT
 import Control.FX.Monad.Trans.HaltT
+import Control.FX.Monad.Trans.AppendOnlyT
 
 
 
@@ -464,3 +465,47 @@ instance {-# OVERLAPPABLE #-}
       :: mark ()
       -> ComposeT t1 t2 m r
     halt = ComposeT . lift . halt
+
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t2, Monoid w, MonadIdentity mark
+  ) => MonadAppendOnly mark w (ComposeT (AppendOnlyT mark w) t2 m)
+  where
+    look
+      :: ComposeT (AppendOnlyT mark w) t2 m (mark w)
+    look = ComposeT look
+
+    jot
+      :: mark w
+      -> ComposeT (AppendOnlyT mark w) t2 m ()
+    jot = ComposeT . jot
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, Monoid w, MonadIdentity mark
+  , forall x. (Monad x) => MonadAppendOnly mark w (t1 x)
+  ) => MonadAppendOnly mark w (ComposeT (ApplyT t1) t2 m)
+  where
+    look
+      :: ComposeT (ApplyT t1) t2 m (mark w)
+    look = ComposeT $ ApplyT look
+
+    jot
+      :: mark w
+      -> ComposeT (ApplyT t1) t2 m ()
+    jot = ComposeT . ApplyT . jot
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, Monoid w
+  , LiftDraft z1 t1 f1, MonadIdentity mark
+  , forall x. (Monad x) => MonadAppendOnly mark w (t2 x)
+  ) => MonadAppendOnly mark w (ComposeT t1 t2 m)
+  where
+    look
+      :: ComposeT t1 t2 m (mark w)
+    look = ComposeT $ lift look
+
+    jot
+      :: mark w
+      -> ComposeT t1 t2 m ()
+    jot = ComposeT . lift . jot

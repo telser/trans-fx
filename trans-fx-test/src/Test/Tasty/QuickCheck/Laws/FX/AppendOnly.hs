@@ -31,7 +31,7 @@ import Test.Tasty.QuickCheck.Laws.Class
 import Control.FX
 
 
--- | Constructs a @TestTree@ checking that the append only monad laws hold for @m@ with append state type @w@ and value types @a@ and @b@, using a given equality test for values of type @forall u. m u@. The equality context type @t@ is for constructors @m@ from which we can only extract a value within a context, such as reader-like constructors.
+-- | Constructs a @TestTree@ checking that the append only monad laws hold for @m@ with jot state type @w@ and value types @a@ and @b@, using a given equality test for values of type @forall u. m u@. The equality context type @t@ is for constructors @m@ from which we can only extract a value within a context, such as reader-like constructors.
 testAppendOnlyMonadLaws
   :: ( Monoid w, Monad m
      , Eq w, Eq a, Eq b
@@ -48,9 +48,9 @@ testAppendOnlyMonadLaws
   -> Proxy b -- ^ Value type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
   -> (m w) -- ^ @look@
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> TestTree
-testAppendOnlyMonadLaws pm pt pw pa pb eq look append =
+testAppendOnlyMonadLaws pm pt pw pa pb eq look jot =
   let
     label = "AppendOnly Monad Laws for " ++ (show $ typeRep pm) ++ " with " ++
       "w :: " ++ (show $ typeRep pw) ++ ", " ++
@@ -58,17 +58,17 @@ testAppendOnlyMonadLaws pm pt pw pa pb eq look append =
       "b :: " ++ (show $ typeRep pb)
   in
     testGroup label
-      [ testAppendOnlyMonadLawAppendUnit pm pt pw eq append
-      , testAppendOnlyMonadLawAppendHom pm pt pw eq append
+      [ testAppendOnlyMonadLawJotUnit pm pt pw eq jot
+      , testAppendOnlyMonadLawJotHom pm pt pw eq jot
       , testAppendOnlyMonadLawLookUnit pm pt pw eq look
-      , testAppendOnlyMonadLawAppendLook pm pt pw eq look append
+      , testAppendOnlyMonadLawJotLook pm pt pw eq look jot
       , testAppendOnlyMonadLawLookNeutral pm pt pw pa pb eq look
       ]
 
 
 
--- | @append mempty === return ()@
-testAppendOnlyMonadLawAppendUnit
+-- | @jot mempty === return ()@
+testAppendOnlyMonadLawJotUnit
   :: ( Monad m
      , Eq w, Monoid w
      , Show t, Show w
@@ -78,25 +78,25 @@ testAppendOnlyMonadLawAppendUnit
   -> Proxy t -- ^ Equality context for @m@
   -> Proxy w -- ^ Writer type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> TestTree
-testAppendOnlyMonadLawAppendUnit pm pt pw eq append =
-  testProperty "append mempty === return ()" $
-    appendOnlyMonadLawAppendUnit pm pt pw eq append
+testAppendOnlyMonadLawJotUnit pm pt pw eq jot =
+  testProperty "jot mempty === return ()" $
+    appendOnlyMonadLawJotUnit pm pt pw eq jot
 
-appendOnlyMonadLawAppendUnit
+appendOnlyMonadLawJotUnit
   :: (Monad m, Eq w, Monoid w)
   => Proxy m -> Proxy t -> Proxy w
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> t -> w -> Bool
-appendOnlyMonadLawAppendUnit _ _ _ eq append t w =
-  (eq t) (append mempty) (return ())
+appendOnlyMonadLawJotUnit _ _ _ eq jot t w =
+  (eq t) (jot mempty) (return ())
 
 
 
--- | @append (a <> b) == append a >> append b@
-testAppendOnlyMonadLawAppendHom
+-- | @jot (a <> b) == jot a >> jot b@
+testAppendOnlyMonadLawJotHom
   :: ( Monoid w, Monad m
      , Show t, Arbitrary w, Show w
      , Arbitrary t
@@ -105,20 +105,20 @@ testAppendOnlyMonadLawAppendHom
   -> Proxy t -- ^ Equality context for @m@
   -> Proxy w -- ^ Writer type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> TestTree
-testAppendOnlyMonadLawAppendHom pm pt pw eq append =
-  testProperty "append (a <> b) == append a >> append b" $
-    appendOnlyMonadLawAppendHom pm pt pw eq append
+testAppendOnlyMonadLawJotHom pm pt pw eq jot =
+  testProperty "jot (a <> b) == jot a >> jot b" $
+    appendOnlyMonadLawJotHom pm pt pw eq jot
 
-appendOnlyMonadLawAppendHom
+appendOnlyMonadLawJotHom
   :: (Monoid w, Monad m, Arbitrary w, Show w)
   => Proxy m -> Proxy t -> Proxy w
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> t -> w -> w -> Bool
-appendOnlyMonadLawAppendHom _ _ _ eq append t w1 w2 =
-  (eq t) (append w1 >> append w2) (append (w1 <> w2))
+appendOnlyMonadLawJotHom _ _ _ eq jot t w1 w2 =
+  (eq t) (jot w1 >> jot w2) (jot (w1 <> w2))
 
 
 
@@ -149,8 +149,8 @@ appendOnlyMonadLawLookUnit _ _ _ eq look t =
 
 
 
--- | @append w >> look  ===  append w >> return w@
-testAppendOnlyMonadLawAppendLook
+-- | @jot w >> look  ===  jot w >> return w@
+testAppendOnlyMonadLawJotLook
   :: ( Monoid w, Monad m
      , Eq w
      , Show t, Show w
@@ -161,21 +161,21 @@ testAppendOnlyMonadLawAppendLook
   -> Proxy w -- ^ Writer type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
   -> (m w) -- ^ look
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> TestTree
-testAppendOnlyMonadLawAppendLook pm pt pw eq look append =
-  testProperty "append w >> look  ===  append w >> return w" $
-    appendOnlyMonadLawAppendLook pm pt pw eq look append
+testAppendOnlyMonadLawJotLook pm pt pw eq look jot =
+  testProperty "jot w >> look  ===  jot w >> return w" $
+    appendOnlyMonadLawJotLook pm pt pw eq look jot
 
-appendOnlyMonadLawAppendLook
+appendOnlyMonadLawJotLook
   :: (Monoid w, Monad m, Eq w)
   => Proxy m -> Proxy t -> Proxy w
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
   -> (m w) -- ^ look
-  -> (w -> m ()) -- ^ @append@
+  -> (w -> m ()) -- ^ @jot@
   -> t -> w -> Bool
-appendOnlyMonadLawAppendLook _ _ _ eq look append t w =
-  (eq t) (append w >> look) (append w >> return w)
+appendOnlyMonadLawJotLook _ _ _ eq look jot t w =
+  (eq t) (jot w >> look) (jot w >> return w)
 
 
 

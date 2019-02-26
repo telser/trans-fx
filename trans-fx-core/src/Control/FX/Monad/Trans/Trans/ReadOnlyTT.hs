@@ -202,6 +202,21 @@ instance
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadIdentity mark1, Monoid w, Commutant mark1
+  , forall x. (Monad x) => MonadAppendOnly mark w (t x)
+  ) => MonadAppendOnly mark w (ReadOnlyTT mark1 r t m)
+  where
+    jot
+      :: mark w
+      -> ReadOnlyTT mark1 r t m ()
+    jot = ReadOnlyTT . lift . jot
+
+    look
+      :: ReadOnlyTT mark1 r1 t m (mark w)
+    look = ReadOnlyTT $ lift look
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Monoid w, Commutant mark1
   , forall x. (Monad x) => MonadWriteOnly mark w (t x)
   ) => MonadWriteOnly mark w (ReadOnlyTT mark1 r t m)
   where
