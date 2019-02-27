@@ -17,6 +17,7 @@ module Control.FX.Monad.Trans (
   , module Control.FX.Monad.Trans.ExceptT
   , module Control.FX.Monad.Trans.WriteOnlyT
   , module Control.FX.Monad.Trans.AppendOnlyT
+  , module Control.FX.Monad.Trans.CoroutineT
 ) where
 
 import Control.FX.Monad.Trans.Class
@@ -29,3 +30,4 @@ import Control.FX.Monad.Trans.HaltT
 import Control.FX.Monad.Trans.ExceptT
 import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.AppendOnlyT
+import Control.FX.Monad.Trans.CoroutineT

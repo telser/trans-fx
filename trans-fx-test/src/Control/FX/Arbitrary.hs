@@ -149,6 +149,62 @@ instance
   where
     arbitrary = ApplyT <$> arbitrary
 
+instance
+  ( CoArbitrary exp, Arbitrary a
+  ) => Arbitrary (Await exp a)
+  where
+    arbitrary = Await <$> arbitrary
+
+instance
+  ( Arbitrary res, Arbitrary a
+  ) => Arbitrary (Yield res a)
+  where
+    arbitrary = Yield <$> arbitrary <*> arbitrary
+
+instance
+  ( Monad m, Arbitrary a
+  , forall x. (Arbitrary x) => Arbitrary (sus x)
+  ) => Arbitrary (CoroutineT mark sus m a)
+  where
+    arbitrary = CoroutineT <$> do
+      p <- arbitrary
+      if p
+        then (return . Idea) <$> arbitrary
+        else (return . Muse) <$> arbitrary
+
+instance
+  Arbitrary (Pogo mark Identity)
+  where
+    arbitrary = return $ Pogo unIdentity
+
+instance
+  ( Arbitrary exp
+  ) => Arbitrary (Pogo mark (Await exp))
+  where
+    arbitrary = do
+      exp <- arbitrary
+      return $ Pogo $ \(Await f) -> f exp
+
+instance
+  Arbitrary (Pogo mark (Yield res))
+  where
+    arbitrary = do
+      return $ Pogo $ \(Yield _ x) -> x
+
+instance
+  ( Arbitrary a, Monad m
+  , forall x. (Arbitrary x) => Arbitrary (m x)
+  , forall x. (Arbitrary x) => Arbitrary (sus x)
+  ) => Arbitrary (Muse sus m a)
+  where
+    arbitrary = do
+      p <- arbitrary
+      if p
+        then Idea <$> arbitrary
+        else Muse <$> arbitrary
+
+
+
 instance Arbitrary (Unit m) where
   arbitrary = return Unit
 

@@ -11,9 +11,15 @@ module Control.FX.Functor (
   , module Control.FX.Functor.Pair
   , module Control.FX.Functor.LeftZero
   , module Control.FX.Functor.RightZero
+  , module Control.FX.Functor.Muse
+  , module Control.FX.Functor.Yield
+  , module Control.FX.Functor.Await
 ) where
 
 import Control.FX.Functor.Class
 import Control.FX.Functor.Pair
 import Control.FX.Functor.LeftZero
 import Control.FX.Functor.RightZero
+import Control.FX.Functor.Muse
+import Control.FX.Functor.Yield
+import Control.FX.Functor.Await

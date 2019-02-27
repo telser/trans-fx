@@ -102,6 +102,12 @@ pAp _ _ = Proxy
 pMb :: Proxy Maybe
 pMb = Proxy
 
+pAwait :: Proxy exp -> Proxy (Await exp)
+pAwait _ = Proxy
+
+pYield :: Proxy res -> Proxy (Yield res)
+pYield _ = Proxy
+
 pUnit :: Proxy (a :: * -> *) -> Proxy (Unit a)
 pUnit _ = Proxy
 
@@ -371,6 +377,9 @@ test_Monad_C proxyC =
 {- MonadTrans -}
 {--------------}
 
+pPogo :: Proxy mark -> Proxy sus -> Proxy (Pogo mark sus)
+pPogo _ _ = Proxy
+
 -- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
 test_all_MonadTrans_FAM :: TestTree
 test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
@@ -390,6 +399,10 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
   , test_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyT Identity Bool)) pIdB
   , test_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyT Identity Int))  pIdI
 
+  , test_MonadTrans_FAM (Proxy :: Proxy (CoroutineT Identity Identity))     (pPogo pId pId)
+  , test_MonadTrans_FAM (Proxy :: Proxy (CoroutineT Identity (Await Bool))) (pPogo pId (pAwait pB))
+  , test_MonadTrans_FAM (Proxy :: Proxy (CoroutineT Identity (Yield Bool))) (pPogo pId (pYield pB))
+
   , testGroup "ComposeT"
     [ test_MonadTrans_ComposeT_FAM (Proxy :: Proxy IdentityT) pU
 
@@ -406,6 +419,10 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (StateT Identity Bool)) pIdB
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (StateT Identity Int))  pIdI
+
+    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (CoroutineT Identity Identity))     (pPogo pId pId)
+    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (CoroutineT Identity (Await Bool))) (pPogo pId (pAwait pB))
+    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (CoroutineT Identity (Yield Bool))) (pPogo pId (pYield pB))
     ]
   ]
 
@@ -429,6 +446,10 @@ test_all_MonadTrans_T = testGroup "All MonadTrans (T)"
 
   , test_MonadTrans_T (Proxy :: Proxy (ReadOnlyT Identity Bool)) pIdB
   , test_MonadTrans_T (Proxy :: Proxy (ReadOnlyT Identity Int))  pIdI
+
+  , test_MonadTrans_T (Proxy :: Proxy (CoroutineT Identity Identity))     (pPogo pId pId)
+  , test_MonadTrans_T (Proxy :: Proxy (CoroutineT Identity (Await Bool))) (pPogo pId (pAwait pB))
+  , test_MonadTrans_T (Proxy :: Proxy (CoroutineT Identity (Yield Bool))) (pPogo pId (pYield pB))
   ]
 
 

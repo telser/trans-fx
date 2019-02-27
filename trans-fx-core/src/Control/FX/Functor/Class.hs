@@ -6,8 +6,10 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE InstanceSigs   #-}
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE InstanceSigs           #-}
+{-# LANGUAGE KindSignatures         #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
+{-# LANGUAGE FunctionalDependencies #-}
 
 module Control.FX.Functor.Class (
     Commutant(..)

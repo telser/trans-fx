@@ -40,6 +40,7 @@ module Control.FX.Monad.Class (
   , MonadReadOnly(..)
   , MonadAppendOnly(..)
   , MonadPrompt(..)
+  , MonadCoroutine(..)
 ) where
 
 
@@ -411,3 +412,13 @@ class
       => mark (p a)
       -> m (mark a)
     prompt = lift . prompt
+
+
+
+class
+  ( Functor sus, Monad n, Monad m, MonadIdentity mark
+  ) => MonadCoroutine mark sus n m | m -> n
+  where
+    suspend :: forall a. mark (sus (m a)) -> mark (m a)
+
+    resume :: forall a. mark (m a) -> n (Muse sus m a)

@@ -28,6 +28,9 @@ library
     , Control.FX.Functor.Pair
     , Control.FX.Functor.LeftZero
     , Control.FX.Functor.RightZero
+    , Control.FX.Functor.Muse
+    , Control.FX.Functor.Await
+    , Control.FX.Functor.Yield
     , Control.FX.Monad
     , Control.FX.Monad.Class
     , Control.FX.Monad.Identity
@@ -51,6 +54,7 @@ library
     , Control.FX.Monad.Trans.ExceptT
     , Control.FX.Monad.Trans.WriteOnlyT
     , Control.FX.Monad.Trans.AppendOnlyT
+    , Control.FX.Monad.Trans.CoroutineT
     , Control.FX.Monad.Trans.Trans
     , Control.FX.Monad.Trans.Trans.Class
     , Control.FX.Monad.Trans.Trans.IdentityTT
