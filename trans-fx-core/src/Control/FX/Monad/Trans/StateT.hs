@@ -10,6 +10,7 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.StateT (
@@ -192,6 +193,29 @@ instance
         Pair s1 a <- local f $ fmap (bimap1 pure) $ unStateT x s
         return $ Pair (unwrap s1) a
 
+instance
+  ( MonadIdentity mark
+  ) => LiftCoroutine (mark s) (StateT mark s) (Pair (mark s))
+  where
+    liftSuspend
+      :: ( Monad m, Functor sus, MonadIdentity mark1 )
+      => Suspend mark1 sus m (Pair (mark s) a)
+      -> Suspend mark1 sus (StateT mark s m) a
+    liftSuspend suspend x = StateT $ \s ->
+      fmap (bimap1 unwrap . commuteId) $
+        suspend $ fmap (fmap (bimap1 pure) . ($ s) . unStateT) x
+
+    liftResume
+      :: ( Monad m, Functor sus, MonadIdentity mark1 )
+      => Suspend mark1 sus m (Pair (mark s) a)
+      -> Resume mark1 sus m (Pair (mark s) a)
+      -> Resume mark1 sus (StateT mark s m) a
+    liftResume suspend resume x = StateT $ \s -> do
+      y <- resume $ fmap (pure . bimap1 pure . fmap unwrap) $ ($ s) $ unStateT x
+      case y of
+        Idea (Pair s1 a) -> return $ Pair s $ Idea a
+        Muse z -> fmap (fmap Idea . bimap1 unwrap . unwrap) $ suspend z
+
 
 
 
@@ -245,3 +269,8 @@ instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadAppendOnly mark w m, Monoid w
   ) => MonadAppendOnly mark w (StateT mark1 s m)
+
+instance
+  ( Monad m, Functor sus, MonadIdentity mark, MonadIdentity mark1
+  , MonadCoroutine mark sus m
+  ) => MonadCoroutine mark sus (StateT mark1 s m)

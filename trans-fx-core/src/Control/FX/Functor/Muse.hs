@@ -5,6 +5,7 @@
 
 module Control.FX.Functor.Muse (
     Muse(..)
+  , liftMuseT
 ) where
 
 
@@ -35,3 +36,12 @@ instance
     fmap f x = case x of
       Idea a -> Idea (f a)
       Muse z -> Muse $ fmap (fmap f) z
+
+liftMuseT
+  :: ( Functor f )
+  => (t m a -> u t m a)
+  -> Muse f (t m) a
+  -> Muse f (u t m) a
+liftMuseT lift x = case x of
+  Idea a -> Idea a
+  Muse z -> Muse $ fmap lift z

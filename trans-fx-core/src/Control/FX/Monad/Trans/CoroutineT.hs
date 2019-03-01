@@ -191,50 +191,22 @@ instance
 
 {- Effect Classes -}
 
-instance {-# OVERLAPPING #-}
+instance
   ( Functor sus, MonadIdentity mark, Monad m
-  ) => MonadCoroutine mark sus m (CoroutineT mark sus m)
+  ) => MonadCoroutine mark sus (CoroutineT mark sus m)
   where
     suspend
-      :: mark (sus (CoroutineT mark sus m a))
-      -> mark (CoroutineT mark sus m a)
-    suspend = pure . CoroutineT . return . Muse . unwrap
+      :: sus (CoroutineT mark sus m a)
+      -> CoroutineT mark sus m (mark a)
+    suspend = CoroutineT . return . fmap pure . Muse
 
     resume
-      :: mark (CoroutineT mark sus m a)
-      -> m (Muse sus (CoroutineT mark sus m) a)
-    resume = unCoroutineT . unwrap
+      :: CoroutineT mark sus m (mark a)
+      -> CoroutineT mark sus m (Muse sus (CoroutineT mark sus m) a)
+    resume x = CoroutineT $ do
+      y <- unCoroutineT x
+      return $ Idea (fmap unwrap y)
 
-instance {-# OVERLAPPABLE #-}
-  ( Functor sus, MonadIdentity mark, Functor sus1, MonadIdentity mark1
-  , MonadCoroutine mark sus n m, Applicative sus
-  ) => MonadCoroutine mark sus n (CoroutineT mark1 sus1 m)
-  where
-    suspend
-      :: mark (sus (CoroutineT mark1 sus1 m a))
-      -> mark (CoroutineT mark1 sus1 m a)
-    suspend = fmap CoroutineT . suspend . pure . fmap unCoroutineT . unwrap
-
-    resume
-      :: mark (CoroutineT mark1 sus1 m a)
-      -> n (Muse sus (CoroutineT mark1 sus1 m) a)
-    resume =
-      let
-        f
-          :: Muse sus m (Muse sus1 (CoroutineT mark1 sus1 m) a)
-          -> Muse sus (CoroutineT mark1 sus1 m) a
-        f z = case z of
-          Idea v -> case v of
-            Idea a -> Idea a
-            Muse b ->
-              let
-                g :: a -> mark1 a
-                g = pure
-              in
-                Muse $ pure $ CoroutineT $ resume $ suspend $ g b
-          Muse u -> Muse $ fmap CoroutineT u
-      in
-        fmap f . resume . fmap unCoroutineT
 
 instance
   ( Functor sus, MonadIdentity mark, MonadIdentity mark1, Monad m

@@ -177,6 +177,31 @@ instance
         fmap unwrap $
           local f (fmap pure $ (unReadOnly $ unReadOnlyT x) r)
 
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => LiftCoroutine (mark r) (ReadOnlyT mark r) mark
+  where
+    liftSuspend
+      :: ( Monad m, Functor sus, MonadIdentity mark1 )
+      => Suspend mark1 sus m (mark a)
+      -> Suspend mark1 sus (ReadOnlyT mark r m) a
+    liftSuspend suspend x = ReadOnlyT $ ReadOnly $ \r ->
+      fmap (fmap unwrap) $
+        suspend $ fmap (fmap pure . ($ r) . unReadOnly . unReadOnlyT) x
+
+    liftResume
+      :: ( Monad m, Functor sus, MonadIdentity mark1 )
+      => Suspend mark1 sus m (mark a)
+      -> Resume mark1 sus m (mark a)
+      -> Resume mark1 sus (ReadOnlyT mark r m) a
+    liftResume suspend resume x = ReadOnlyT $ ReadOnly $ \r -> do
+      y <- resume $ fmap (fmap pure) $ ($ r) $ unReadOnly $ unReadOnlyT x
+      case y of
+        Idea a -> return $ Idea $ unwrap a
+        Muse z -> fmap (Idea . unwrap . unwrap) $ suspend z
+
+
+
 
 
 {- Effect Class -}
@@ -231,3 +256,8 @@ instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadAppendOnly mark w m, Commutant mark1, Monoid w
   ) => MonadAppendOnly mark w (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, Functor sus, MonadIdentity mark, MonadIdentity mark1, Commutant mark1
+  , MonadCoroutine mark sus m
+  ) => MonadCoroutine mark sus (ReadOnlyT mark1 r m)
