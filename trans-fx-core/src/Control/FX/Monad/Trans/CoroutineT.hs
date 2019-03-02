@@ -189,24 +189,56 @@ instance
 
 
 
+{- Specialized Lifts -}
+
+
+
+
+
+
+
 {- Effect Classes -}
 
-instance
+instance {-# OVERLAPPING #-}
   ( Functor sus, MonadIdentity mark, Monad m
   ) => MonadCoroutine mark sus (CoroutineT mark sus m)
   where
     suspend
       :: sus (CoroutineT mark sus m a)
-      -> CoroutineT mark sus m (mark a)
-    suspend = CoroutineT . return . fmap pure . Muse
+      -> Thunk mark sus (CoroutineT mark sus m) a
+    suspend = Thunk . CoroutineT . return . Muse
 
     resume
-      :: CoroutineT mark sus m (mark a)
+      :: Thunk mark sus (CoroutineT mark sus m) a
       -> CoroutineT mark sus m (Muse sus (CoroutineT mark sus m) a)
-    resume x = CoroutineT $ do
+    resume (Thunk x) = CoroutineT $ do
       y <- unCoroutineT x
-      return $ Idea (fmap unwrap y)
+      return $ Idea y
 
+{-
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadCoroutine mark (Yield res) m, Functor sus1
+  ) => MonadCoroutine mark (Yield res) (CoroutineT mark1 sus1 m)
+  where
+    suspend
+      :: Yield res (CoroutineT mark1 sus1 m a)
+      -> Thunk mark (Yield res) (CoroutineT mark1 sus1 m) a
+    suspend (Yield res x) = Thunk $ CoroutineT $ do
+      y <- unCoroutineT x
+      case y of
+        Idea a -> return $ Idea a
+        Muse z -> _2 $ Muse z
+
+    resume
+      :: Thunk mark (Yield res) (CoroutineT mark1 sus1 m) a
+      -> CoroutineT mark1 sus1 m (Muse (Yield res) (CoroutineT mark1 sus1 m) a)
+    resume (Thunk x) = CoroutineT $ do
+      y <- unCoroutineT x
+      return $ case y of
+        Idea a -> Idea $ Idea a
+        Muse z -> fmap Idea $ Muse z
+-}
 
 instance
   ( Functor sus, MonadIdentity mark, MonadIdentity mark1, Monad m

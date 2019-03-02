@@ -185,8 +185,8 @@ instance
       :: ( Monad m, Functor sus, MonadIdentity mark1 )
       => Suspend mark1 sus m (mark a)
       -> Suspend mark1 sus (ReadOnlyT mark r m) a
-    liftSuspend suspend x = ReadOnlyT $ ReadOnly $ \r ->
-      fmap (fmap unwrap) $
+    liftSuspend suspend x = Thunk $ ReadOnlyT $ ReadOnly $ \r ->
+      fmap unwrap $ unThunk $
         suspend $ fmap (fmap pure . ($ r) . unReadOnly . unReadOnlyT) x
 
     liftResume
@@ -194,11 +194,11 @@ instance
       => Suspend mark1 sus m (mark a)
       -> Resume mark1 sus m (mark a)
       -> Resume mark1 sus (ReadOnlyT mark r m) a
-    liftResume suspend resume x = ReadOnlyT $ ReadOnly $ \r -> do
-      y <- resume $ fmap (fmap pure) $ ($ r) $ unReadOnly $ unReadOnlyT x
+    liftResume suspend resume (Thunk x) = ReadOnlyT $ ReadOnly $ \r -> do
+      y <- resume $ Thunk $ fmap pure $ ($ r) $ unReadOnly $ unReadOnlyT x
       case y of
         Idea a -> return $ Idea $ unwrap a
-        Muse z -> fmap (Idea . unwrap . unwrap) $ suspend z
+        Muse z -> fmap (Idea . unwrap) $ unThunk $ suspend z
 
 
 

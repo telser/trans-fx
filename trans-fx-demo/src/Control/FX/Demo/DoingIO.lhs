@@ -8,6 +8,7 @@ Now let's add some IO effects.
 > {-# LANGUAGE FlexibleInstances          #-}
 > {-# LANGUAGE DerivingStrategies         #-}
 > {-# LANGUAGE ScopedTypeVariables        #-}
+> {-# LANGUAGE FlexibleContexts           #-}
 > {-# LANGUAGE MultiParamTypeClasses      #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
@@ -91,3 +92,30 @@ And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Agai
 > 
 > instance Commutant T where
 >   commute = fmap T . unT
+
+
+> newtype Baz t m a = Baz
+>   { unBaz ::
+>       (CoroutineTT S (Yield Char)
+>       (StateTT T String
+>       (TeletypeTT S
+>       t))) m a
+>   } deriving
+>     ( Functor, Applicative, Monad, MonadTrans
+>     , MonadState T String
+>     -- , MonadCoroutine S (Yield Char)
+>     , MonadTeletype S
+>     )
+
+> instance
+>   ( Monad m, MonadTrans t
+>   ) => MonadCoroutine S (Yield Char) (Baz t m)
+>   where
+>     suspend = _1
+>
+>     resume (Thunk (Baz x)) = resume (Thunk x)
+
+> yield
+>   :: (MonadCoroutine mark (Yield res) m)
+>   => res -> Thunk mark (Yield res) m ()
+> yield res = suspend $ Yield res $ return ()

@@ -213,20 +213,20 @@ instance
       :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark1 )
       => (forall x. Suspend mark1 sus (t m) (mark x))
       -> (forall x. Suspend mark1 sus (PromptTT mark p t m) x)
-    liftSuspendT suspend x = PromptTT $ \end cont ->
-      fmap (unwrap . unwrap) $
-        suspend $ fmap (\y -> fmap pure $ unPromptTT y (end . pure) cont) x
+    liftSuspendT suspend x = Thunk $ PromptTT $ \end cont ->
+      fmap (unwrap) $ unThunk $
+        suspend $ fmap (\y -> fmap pure $ unPromptTT y end cont) x
 
     liftResumeT
       :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark1 )
       => (forall x. Suspend mark1 sus (t m) (mark x))
       -> (forall x. Resume mark1 sus (t m) (mark x))
       -> (forall x. Resume mark1 sus (PromptTT mark p t m) x)
-    liftResumeT suspend resume x = PromptTT $ \end cont -> do
-      y <- resume $ fmap (pure . pure) $ unPromptTT x (end . Idea . unwrap) cont
+    liftResumeT suspend resume (Thunk x) = PromptTT $ \end cont -> do
+      y <- resume $ Thunk $ fmap (pure) $ unPromptTT x (end . Idea) cont
       case y of
         Idea a -> return $ unwrap a
-        Muse z -> fmap (unwrap . unwrap) $ suspend z
+        Muse z -> fmap unwrap $ unThunk $ suspend z
 
 
 
@@ -341,10 +341,10 @@ instance
   where
     suspend
       :: sus (PromptTT mark1 p t m a)
-      -> PromptTT mark1 p t m (mark a)
+      -> Thunk mark sus (PromptTT mark1 p t m) a
     suspend = liftSuspendT suspend
 
     resume
-      :: PromptTT mark1 p t m (mark a)
+      :: Thunk mark sus (PromptTT mark1 p t m) a
       -> PromptTT mark1 p t m (Muse sus (PromptTT mark1 p t m) a)
     resume = liftResumeT suspend resume

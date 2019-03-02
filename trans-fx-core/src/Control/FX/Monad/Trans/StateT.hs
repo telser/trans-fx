@@ -201,8 +201,8 @@ instance
       :: ( Monad m, Functor sus, MonadIdentity mark1 )
       => Suspend mark1 sus m (Pair (mark s) a)
       -> Suspend mark1 sus (StateT mark s m) a
-    liftSuspend suspend x = StateT $ \s ->
-      fmap (bimap1 unwrap . commuteId) $
+    liftSuspend suspend x = Thunk $ StateT $ \s ->
+      fmap (bimap1 unwrap) $ unThunk $
         suspend $ fmap (fmap (bimap1 pure) . ($ s) . unStateT) x
 
     liftResume
@@ -210,11 +210,11 @@ instance
       => Suspend mark1 sus m (Pair (mark s) a)
       -> Resume mark1 sus m (Pair (mark s) a)
       -> Resume mark1 sus (StateT mark s m) a
-    liftResume suspend resume x = StateT $ \s -> do
-      y <- resume $ fmap (pure . bimap1 pure . fmap unwrap) $ ($ s) $ unStateT x
+    liftResume suspend resume (Thunk x) = StateT $ \s -> do
+      y <- resume $ Thunk $ fmap (bimap1 pure) $ ($ s) $ unStateT x
       case y of
-        Idea (Pair s1 a) -> return $ Pair s $ Idea a
-        Muse z -> fmap (fmap Idea . bimap1 unwrap . unwrap) $ suspend z
+        Idea (Pair s1 a) -> return $ Pair (unwrap s1) $ Idea a
+        Muse z -> fmap (bimap1 unwrap . fmap Idea) $ unThunk $ suspend z
 
 
 

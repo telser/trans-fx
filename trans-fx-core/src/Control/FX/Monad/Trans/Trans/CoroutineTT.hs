@@ -202,13 +202,13 @@ instance
   where
     suspend
       :: sus (CoroutineTT mark sus t m a)
-      -> CoroutineTT mark sus t m (mark a)
-    suspend = CoroutineTT . return . fmap pure . Muse
+      -> Thunk mark sus (CoroutineTT mark sus t m) a
+    suspend = Thunk . CoroutineTT . return . Muse
 
     resume
-      :: CoroutineTT mark sus t m (mark a)
+      :: Thunk mark sus (CoroutineTT mark sus t m) a
       -> CoroutineTT mark sus t m (Muse sus (CoroutineTT mark sus t m) a)
-    resume = liftT . unCoroutineTT . fmap unwrap
+    resume = liftT . unCoroutineTT . unThunk
 
 instance
   ( Functor sus, MonadIdentity mark, MonadIdentity mark1, Monad m, MonadTrans t

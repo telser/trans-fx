@@ -135,8 +135,6 @@ instance
     liftLocalT local f =
       StateTT . liftLocal local f . unStateTT
 
-
-
 instance
   ( MonadIdentity mark
   ) => LiftCoroutineT (Val (mark s)) (StateTT mark s) (Pair (mark s))
@@ -145,8 +143,8 @@ instance
       :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark1 )
       => (forall x. Suspend mark1 sus (t m) (Pair (mark s) x))
       -> (forall x. Suspend mark1 sus (StateTT mark s t m) x)
-    liftSuspendT suspend x = StateTT $ StateT $ \s ->
-      fmap (bimap1 unwrap . commuteId) $
+    liftSuspendT suspend x = Thunk $ StateTT $ StateT $ \s ->
+      fmap (bimap1 unwrap) $ unThunk $
         suspend $ fmap (fmap (bimap1 pure) . ($ s) . unStateT . unStateTT) x
 
     liftResumeT
@@ -154,11 +152,11 @@ instance
       => (forall x. Suspend mark1 sus (t m) (Pair (mark s) x))
       -> (forall x. Resume mark1 sus (t m) (Pair (mark s) x))
       -> (forall x. Resume mark1 sus (StateTT mark s t m) x)
-    liftResumeT suspend resume x = StateTT $ StateT $ \s -> do
-      y <- resume $ fmap (fmap (bimap1 pure) . commute) $ unStateT (unStateTT x) s
+    liftResumeT suspend resume (Thunk x) = StateTT $ StateT $ \s -> do
+      y <- resume $ Thunk $ fmap (bimap1 pure) $ unStateT (unStateTT x) s
       case y of
-        Idea (Pair s1 a) -> return $ Pair (unwrap s1) (Idea a)
-        Muse z -> fmap (fmap Idea . bimap1 unwrap . unwrap) $ suspend z
+        Idea (Pair s1 a) -> return $ Pair (unwrap s1) $ Idea a
+        Muse z -> fmap (fmap Idea . bimap1 unwrap) $ unThunk $ suspend z
 
 
 
@@ -280,10 +278,10 @@ instance
   where
     suspend
       :: sus (StateTT mark1 s t m a)
-      -> StateTT mark1 s t m (mark a)
+      -> Thunk mark sus (StateTT mark1 s t m) a
     suspend = liftSuspendT suspend
 
     resume
-      :: StateTT mark1 s t m (mark a)
+      :: Thunk mark sus (StateTT mark1 s t m) a
       -> StateTT mark1 s t m (Muse sus (StateTT mark1 s t m) a)
     resume = liftResumeT suspend resume

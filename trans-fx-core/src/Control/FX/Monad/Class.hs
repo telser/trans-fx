@@ -164,9 +164,9 @@ class
       => Local r m (f a)
       -> Local r (t m) a
 
-type Suspend mark sus m a = sus (m a) -> m (mark a)
+type Suspend mark sus m a = sus (m a) -> Thunk mark sus m a
 
-type Resume mark sus m a = m (mark a) -> m (Muse sus m a)
+type Resume mark sus m a = Thunk mark sus m a -> m (Muse sus m a)
 
 class
   ( MonadTrans t, RunMonadTrans z t f
@@ -445,20 +445,20 @@ class
   ( Functor sus, Monad m, MonadIdentity mark
   ) => MonadCoroutine mark sus m
   where
-    suspend :: sus (m a) -> m (mark a)
+    suspend :: sus (m a) -> Thunk mark sus m a
 
     default suspend
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
          , LiftCoroutine z t1 f, MonadCoroutine mark sus m1 )
       => sus (m a)
-      -> m (mark a)
+      -> Thunk mark sus m a
     suspend = liftSuspend suspend
 
-    resume :: m (mark a) -> m (Muse sus m a)
+    resume :: Thunk mark sus m a -> m (Muse sus m a)
 
     default resume
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
          , LiftCoroutine z t1 f, MonadCoroutine mark sus m1 )
-      => m (mark a)
+      => Thunk mark sus m a
       -> m (Muse sus m a)
     resume = liftResume suspend resume
