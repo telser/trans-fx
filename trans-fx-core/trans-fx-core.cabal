@@ -28,9 +28,6 @@ library
     , Control.FX.Functor.Pair
     , Control.FX.Functor.LeftZero
     , Control.FX.Functor.RightZero
-    , Control.FX.Functor.Muse
-    , Control.FX.Functor.Await
-    , Control.FX.Functor.Yield
     , Control.FX.Monad
     , Control.FX.Monad.Class
     , Control.FX.Monad.Identity
@@ -54,7 +51,6 @@ library
     , Control.FX.Monad.Trans.ExceptT
     , Control.FX.Monad.Trans.WriteOnlyT
     , Control.FX.Monad.Trans.AppendOnlyT
-    , Control.FX.Monad.Trans.CoroutineT
     , Control.FX.Monad.Trans.Trans
     , Control.FX.Monad.Trans.Trans.Class
     , Control.FX.Monad.Trans.Trans.IdentityTT
@@ -67,7 +63,6 @@ library
     , Control.FX.Monad.Trans.Trans.ExceptTT
     , Control.FX.Monad.Trans.Trans.HaltTT
     , Control.FX.Monad.Trans.Trans.AppendOnlyTT
-    , Control.FX.Monad.Trans.Trans.CoroutineTT
 
 test-suite trans-fx-core-test
   default-language: Haskell2010

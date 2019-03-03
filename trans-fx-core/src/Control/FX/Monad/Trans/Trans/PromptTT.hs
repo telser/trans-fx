@@ -205,29 +205,6 @@ instance
     liftLocalT local f x = PromptTT $ \end cont ->
       fmap unwrap $ local f $ fmap pure $ unPromptTT x end cont
 
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftCoroutineT (Eval p) (PromptTT mark p) mark
-  where
-    liftSuspendT
-      :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark1 )
-      => (forall x. Suspend mark1 sus (t m) (mark x))
-      -> (forall x. Suspend mark1 sus (PromptTT mark p t m) x)
-    liftSuspendT suspend x = Thunk $ PromptTT $ \end cont ->
-      fmap (unwrap) $ unThunk $
-        suspend $ fmap (\y -> fmap pure $ unPromptTT y end cont) x
-
-    liftResumeT
-      :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark1 )
-      => (forall x. Suspend mark1 sus (t m) (mark x))
-      -> (forall x. Resume mark1 sus (t m) (mark x))
-      -> (forall x. Resume mark1 sus (PromptTT mark p t m) x)
-    liftResumeT suspend resume (Thunk x) = PromptTT $ \end cont -> do
-      y <- resume $ Thunk $ fmap (pure) $ unPromptTT x (end . Idea) cont
-      case y of
-        Idea a -> return $ unwrap a
-        Muse z -> fmap unwrap $ unThunk $ suspend z
-
 
 
 
@@ -333,18 +310,3 @@ instance
       -> (mark e -> PromptTT mark1 p t m a)
       -> PromptTT mark1 p t m a
     catch = liftCatchT catch
-
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark1, MonadIdentity mark, Commutant mark1
-  , forall x. (Monad x) => MonadCoroutine mark sus (t x), Functor sus
-  ) => MonadCoroutine mark sus (PromptTT mark1 p t m)
-  where
-    suspend
-      :: sus (PromptTT mark1 p t m a)
-      -> Thunk mark sus (PromptTT mark1 p t m) a
-    suspend = liftSuspendT suspend
-
-    resume
-      :: Thunk mark sus (PromptTT mark1 p t m) a
-      -> PromptTT mark1 p t m (Muse sus (PromptTT mark1 p t m) a)
-    resume = liftResumeT suspend resume

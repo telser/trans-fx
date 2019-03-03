@@ -22,7 +22,6 @@ module Control.FX.Monad.Trans.Trans.Class (
   , LiftCatchT(..)
   , LiftDraftT(..)
   , LiftLocalT(..)
-  , LiftCoroutineT(..)
 
   , Val(..)
 ) where
@@ -128,22 +127,6 @@ class
       :: ( Monad m, MonadTrans t )
       => (forall x. Local r (t m) (f x))
       -> (forall x. Local r (u t m) x)
-
-
-class
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => LiftCoroutineT z u f
-  where
-    liftSuspendT
-      :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark )
-      => (forall x. Suspend mark sus (t m) (f x))
-      -> (forall x. Suspend mark sus (u t m) x)
-
-    liftResumeT
-      :: ( Monad m, MonadTrans t, Functor sus, MonadIdentity mark )
-      => (forall x. Suspend mark sus (t m) (f x))
-      -> (forall x. Resume mark sus (t m) (f x))
-      -> (forall x. Resume mark sus (u t m) x)
 
 
 

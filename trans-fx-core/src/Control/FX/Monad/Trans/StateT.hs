@@ -193,29 +193,6 @@ instance
         Pair s1 a <- local f $ fmap (bimap1 pure) $ unStateT x s
         return $ Pair (unwrap s1) a
 
-instance
-  ( MonadIdentity mark
-  ) => LiftCoroutine (mark s) (StateT mark s) (Pair (mark s))
-  where
-    liftSuspend
-      :: ( Monad m, Functor sus, MonadIdentity mark1 )
-      => Suspend mark1 sus m (Pair (mark s) a)
-      -> Suspend mark1 sus (StateT mark s m) a
-    liftSuspend suspend x = Thunk $ StateT $ \s ->
-      fmap (bimap1 unwrap) $ unThunk $
-        suspend $ fmap (fmap (bimap1 pure) . ($ s) . unStateT) x
-
-    liftResume
-      :: ( Monad m, Functor sus, MonadIdentity mark1 )
-      => Suspend mark1 sus m (Pair (mark s) a)
-      -> Resume mark1 sus m (Pair (mark s) a)
-      -> Resume mark1 sus (StateT mark s m) a
-    liftResume suspend resume (Thunk x) = StateT $ \s -> do
-      y <- resume $ Thunk $ fmap (bimap1 pure) $ ($ s) $ unStateT x
-      case y of
-        Idea (Pair s1 a) -> return $ Pair (unwrap s1) $ Idea a
-        Muse z -> fmap (bimap1 unwrap . fmap Idea) $ unThunk $ suspend z
-
 
 
 
@@ -269,8 +246,3 @@ instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadAppendOnly mark w m, Monoid w
   ) => MonadAppendOnly mark w (StateT mark1 s m)
-
-instance
-  ( Monad m, Functor sus, MonadIdentity mark, MonadIdentity mark1
-  , MonadCoroutine mark sus m
-  ) => MonadCoroutine mark sus (StateT mark1 s m)

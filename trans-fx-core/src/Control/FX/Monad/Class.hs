@@ -30,13 +30,9 @@ module Control.FX.Monad.Class (
   , LiftDraft(..)
   , Local
   , LiftLocal(..)
-  , Suspend
-  , Resume
-  , LiftCoroutine(..)
 
   -- * Basic Effects
   , MonadIdentity(..)
-  , commuteId
   , MonadHalt(..)
   , MonadExcept(..)
   , MonadState(..)
@@ -44,7 +40,6 @@ module Control.FX.Monad.Class (
   , MonadReadOnly(..)
   , MonadAppendOnly(..)
   , MonadPrompt(..)
-  , MonadCoroutine(..)
 ) where
 
 
@@ -164,24 +159,7 @@ class
       => Local r m (f a)
       -> Local r (t m) a
 
-type Suspend mark sus m a = sus (m a) -> Thunk mark sus m a
 
-type Resume mark sus m a = Thunk mark sus m a -> m (Muse sus m a)
-
-class
-  ( MonadTrans t, RunMonadTrans z t f
-  ) => LiftCoroutine z t f
-  where
-    liftSuspend
-      :: ( Monad m, Functor sus, MonadIdentity mark )
-      => Suspend mark sus m (f a)
-      -> Suspend mark sus (t m) a
-
-    liftResume
-      :: ( Monad m, Functor sus, MonadIdentity mark )
-      => Suspend mark sus m (f a)
-      -> Resume mark sus m (f a)
-      -> Resume mark sus (t m) a
 
 
 
@@ -204,9 +182,6 @@ class
   where
     -- | Extract a pure value
     unwrap :: m a -> a
-
-commuteId :: ( Functor f, MonadIdentity m ) => m (f a) -> f (m a)
-commuteId = fmap pure . unwrap
 
 instance
   ( Renaming f
@@ -438,27 +413,3 @@ class
       => mark (p a)
       -> m (mark a)
     prompt = lift . prompt
-
-
-
-class
-  ( Functor sus, Monad m, MonadIdentity mark
-  ) => MonadCoroutine mark sus m
-  where
-    suspend :: sus (m a) -> Thunk mark sus m a
-
-    default suspend
-      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , LiftCoroutine z t1 f, MonadCoroutine mark sus m1 )
-      => sus (m a)
-      -> Thunk mark sus m a
-    suspend = liftSuspend suspend
-
-    resume :: Thunk mark sus m a -> m (Muse sus m a)
-
-    default resume
-      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , LiftCoroutine z t1 f, MonadCoroutine mark sus m1 )
-      => Thunk mark sus m a
-      -> m (Muse sus m a)
-    resume = liftResume suspend resume

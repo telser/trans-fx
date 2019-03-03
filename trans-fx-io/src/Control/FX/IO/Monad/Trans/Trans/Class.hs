@@ -67,11 +67,6 @@ instance
   ) => MonadTeletype mark (StateT mark1 s m)
 
 instance
-  ( Monad m, Functor sus1, MonadIdentity mark, MonadIdentity mark1
-  , MonadTeletype mark m
-  ) => MonadTeletype mark (CoroutineT mark1 sus1 m)
-
-instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadTeletype mark m
   ) => MonadTeletype mark (HaltT mark1 m)
@@ -194,20 +189,6 @@ instance
       :: mark String
       -> ExceptTT mark1 e t m ()
     printLine = ExceptTT . lift . printLine
-
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
-  , MonadTeletype mark (t m), Functor sus1
-  ) => MonadTeletype mark (CoroutineTT mark1 sus1 t m)
-  where
-    readLine
-      :: CoroutineTT mark1 sus1 t m (mark String)
-    readLine = liftT readLine
-
-    printLine
-      :: mark String
-      -> CoroutineTT mark1 sus1 t m ()
-    printLine = liftT . printLine
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
