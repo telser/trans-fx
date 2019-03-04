@@ -282,8 +282,8 @@ test_all_Monad_FX = testGroup "All Monad (FX)"
   [ testStateMonadLaws (Proxy :: Proxy (State Identity Bool)) pIdB (pAp pId pB) pI eqIn get put
   , testStateMonadLaws (Proxy :: Proxy (State Identity Int))  pIdI (pAp pId pI) pI eqIn get put
 
-  , testReaderMonadLaws (Proxy :: Proxy (ReadOnly Identity Bool)) pIdB (pAp pId pB) pB pI eqIn ask local
-  , testReaderMonadLaws (Proxy :: Proxy (ReadOnly Identity Int))  pIdI (pAp pId pI) pB pI eqIn ask local
+  , testReaderMonadLaws (Proxy :: Proxy (ReadOnly Identity Bool)) pIdB (Proxy :: Proxy (Context' (ReadOnly Identity Bool))) pB pI eqIn'' ask local
+  , testReaderMonadLaws (Proxy :: Proxy (ReadOnly Identity Int))  pIdI (pAp pId pI) pB pI eqIn' ask local
 
   , testWriterMonadLaws (Proxy :: Proxy (WriteOnly Identity Bool)) pIdU (pAp pId pB) pB pI eqIn tell (fixDraft draft)
   , testWriterMonadLaws (Proxy :: Proxy (WriteOnly Identity Int))  pIdU (pAp pId pI) pB pI eqIn tell (fixDraft draft)
@@ -1021,6 +1021,31 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
 
   , testGroup "PromptTT"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (PromptTT Identity Identity)) (Proxy :: Proxy (Eval Identity))
+    ]
+
+  , testGroup "StateTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StateTT Identity Int))  (Proxy :: Proxy (Val (Identity Int)))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StateTT Identity Bool)) (Proxy :: Proxy (Val (Identity Bool)))
+    ]
+
+  , testGroup "ReadOnlyTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyTT Identity Int))  (Proxy :: Proxy (Val (Identity Int)))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyTT Identity Bool)) (Proxy :: Proxy (Val (Identity Bool)))
+    ]
+
+  , testGroup "WriteOnlyTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyTT Identity Int))  (Proxy :: Proxy (Val (Identity ())))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyTT Identity Bool)) (Proxy :: Proxy (Val (Identity ())))
+    ]
+
+  , testGroup "AppendOnlyTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyTT Identity Int))  (Proxy :: Proxy (Val (Identity ())))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyTT Identity Bool)) (Proxy :: Proxy (Val (Identity ())))
+    ]
+
+  , testGroup "ExceptTT"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ExceptTT Identity Int))  (Proxy :: Proxy (Val (Identity ())))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ExceptTT Identity Bool)) (Proxy :: Proxy (Val (Identity ())))
     ]
 
   , testGroup "OverTT"

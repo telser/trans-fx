@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -39,12 +40,16 @@ newtype IdentityT
       { unIdentityT :: m a
       } deriving (Typeable)
 
+type instance Context (IdentityT m)
+  = ((), Context m)
+
 instance
-  ( EqIn h (m a), Functor m
-  ) => EqIn ((),h) (IdentityT m a)
+  ( EqIn m, Functor m
+  ) => EqIn (IdentityT m)
   where
     eqIn
-      :: ((),h)
+      :: (Eq a)
+      => ((), Context m)
       -> IdentityT m a
       -> IdentityT m a
       -> Bool

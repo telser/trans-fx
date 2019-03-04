@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -34,12 +35,16 @@ newtype WriteOnly
         { unWriteOnly :: Pair w a
         } deriving (Eq, Show, Typeable)
 
+type instance Context (WriteOnly mark w)
+  = mark ()
+
 instance
-  ( Eq w, Eq a
-  ) => EqIn (mark ()) (WriteOnly mark w a)
+  ( Eq w
+  ) => EqIn (WriteOnly mark w)
   where
     eqIn
-      :: mark ()
+      :: (Eq a)
+      => mark ()
       -> WriteOnly mark w a
       -> WriteOnly mark w a
       -> Bool

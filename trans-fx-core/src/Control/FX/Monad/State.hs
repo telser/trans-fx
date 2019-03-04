@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -34,12 +35,16 @@ newtype State
         { unState :: s -> Pair s a
         } deriving (Typeable)
 
+type instance Context (State mark s)
+  = mark s
+
 instance
-  ( Eq a, Eq s, MonadIdentity mark
-  ) => EqIn (mark s) (State mark s a)
+  ( Eq s, MonadIdentity mark
+  ) => EqIn (State mark s)
   where
     eqIn
-      :: mark s
+      :: (Eq a)
+      => mark s
       -> State mark s a
       -> State mark s a
       -> Bool

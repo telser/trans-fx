@@ -1,4 +1,5 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -83,13 +84,17 @@ runReadOnlyTT
   -> t m (mark a)
 runReadOnlyTT r = runTT (Val r)
 
+type instance Context (ReadOnlyTT mark r t m)
+  = (Val (mark r) m, Context (t m))
+
 instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark, Eq a
-  , forall x. (Eq x) => EqIn h (t m x)
-  ) => EqIn (Val (mark r) m, h) (ReadOnlyTT mark r t m a)
+  ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark
+  , EqIn (t m)
+  ) => EqIn (ReadOnlyTT mark r t m)
   where
     eqIn
-      :: (Val (mark r) m, h)
+      :: (Eq a)
+      => (Val (mark r) m, Context (t m))
       -> ReadOnlyTT mark r t m a
       -> ReadOnlyTT mark r t m a
       -> Bool

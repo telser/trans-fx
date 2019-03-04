@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}

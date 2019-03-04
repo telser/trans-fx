@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -38,12 +39,16 @@ newtype ReadOnlyT
         { unReadOnlyT :: ReadOnly mark r (m a)
         } deriving (Typeable)
 
+type instance Context (ReadOnlyT mark r m)
+  = (mark r, Context m)
+
 instance
-  ( EqIn h (m a), Functor m, MonadIdentity mark
-  ) => EqIn (mark r, h) (ReadOnlyT mark r m a)
+  ( EqIn m, Functor m, MonadIdentity mark
+  ) => EqIn (ReadOnlyT mark r m)
   where
     eqIn
-      :: (mark r, h)
+      :: (Eq a)
+      => (mark r, Context m)
       -> ReadOnlyT mark r m a
       -> ReadOnlyT mark r m a
       -> Bool

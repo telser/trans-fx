@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -37,12 +38,16 @@ newtype AppendOnlyT
         { unAppendOnlyT :: w -> m (Pair w a)
         } deriving (Typeable)
 
+type instance Context (AppendOnlyT mark w m)
+  = (mark w, Context m)
+
 instance
-  ( EqIn h (m (Pair w a)), MonadIdentity mark
-  ) => EqIn (mark w, h) (AppendOnlyT mark w m a)
+  ( EqIn m, MonadIdentity mark, Eq w
+  ) => EqIn (AppendOnlyT mark w m)
   where
     eqIn
-      :: (mark w, h)
+      :: (Eq a)
+      => (mark w, Context m)
       -> AppendOnlyT mark w m a
       -> AppendOnlyT mark w m a
       -> Bool

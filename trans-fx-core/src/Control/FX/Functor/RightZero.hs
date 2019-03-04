@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -31,12 +32,15 @@ data RightZero
     = RightZero a | RightUnit
     deriving (Eq, Show, Typeable)
 
+type instance Context RightZero
+  = ()
+
 instance
-  ( Eq a
-  ) => EqIn () (RightZero a)
+  EqIn RightZero
   where
     eqIn
-      :: ()
+      :: (Eq a)
+      => ()
       -> RightZero a
       -> RightZero a
       -> Bool

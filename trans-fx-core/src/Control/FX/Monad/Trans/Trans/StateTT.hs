@@ -1,4 +1,5 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -84,13 +85,17 @@ runStateTT
   -> t m (Pair (mark s) a)
 runStateTT s = runTT (Val s)
 
+type instance Context (StateTT mark s t m)
+  = (Val (mark s) m, Context (t m))
+
 instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, Eq a, Eq s
-  , forall x. (Eq x) => EqIn h (t m x)
-  ) => EqIn (Val (mark s) m, h) (StateTT mark s t m a)
+  ( Monad m, MonadTrans t, MonadIdentity mark, Eq s
+  , EqIn (t m)
+  ) => EqIn (StateTT mark s t m)
   where
     eqIn
-      :: (Val (mark s) m, h)
+      :: (Eq a)
+      => (Val (mark s) m, Context (t m))
       -> StateTT mark s t m a
       -> StateTT mark s t m a
       -> Bool

@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -35,12 +36,15 @@ data Halt
     | Halt   -- ^ Bail out
     deriving (Eq, Show, Typeable)
 
+type instance Context (Halt mark)
+  = mark ()
+
 instance
-  ( Eq a
-  ) => EqIn (mark ()) (Halt mark a)
+  EqIn (Halt mark)
   where
     eqIn
-      :: mark ()
+      :: (Eq a)
+      => mark ()
       -> Halt mark a
       -> Halt mark a
       -> Bool

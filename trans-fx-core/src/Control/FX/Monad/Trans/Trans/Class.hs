@@ -133,4 +133,6 @@ class
 newtype Val
   (a :: *)
   (m :: * -> *)
-    = Val { unVal :: a }
+    = Val
+        { unVal :: a 
+        } deriving (Eq, Show, Typeable)

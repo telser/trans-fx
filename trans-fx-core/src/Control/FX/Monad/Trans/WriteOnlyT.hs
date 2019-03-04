@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -41,17 +42,21 @@ newtype WriteOnlyT
         { unWriteOnlyT :: m (WriteOnly mark w a)
         } deriving (Typeable)
 
+type instance Context (WriteOnlyT mark w m)
+  = (mark (), Context m)
+
 instance
-  ( EqIn h (m (WriteOnly mark w a)), MonadIdentity mark
-  ) => EqIn (mark (), h) (WriteOnlyT mark w m a)
+  ( EqIn m, MonadIdentity mark, Eq w
+  ) => EqIn (WriteOnlyT mark w m)
   where
     eqIn
-      :: (mark (), h)
+      :: (Eq a)
+      => (mark (), Context m)
       -> WriteOnlyT mark w m a
       -> WriteOnlyT mark w m a
       -> Bool
-    eqIn (_,h) (WriteOnlyT x) (WriteOnlyT y) =
-      eqIn h x y
+    eqIn (_,h) x y =
+      eqIn h (unWriteOnlyT x) (unWriteOnlyT y)
 
 deriving instance
   ( Show (m (WriteOnly mark w a))

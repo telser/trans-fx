@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -39,12 +40,16 @@ newtype AppendOnly
           -- preserve it.
         } deriving (Typeable)
 
+type instance Context (AppendOnly mark w)
+  = mark ()
+
 instance
-  ( Eq w, Eq a, Monoid w
-  ) => EqIn (mark ()) (AppendOnly mark w a)
+  ( Eq w, Monoid w
+  ) => EqIn (AppendOnly mark w)
   where
     eqIn
-      :: mark ()
+      :: (Eq a)
+      => mark ()
       -> AppendOnly mark w a
       -> AppendOnly mark w a
       -> Bool

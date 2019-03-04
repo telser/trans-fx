@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -41,21 +42,25 @@ newtype ExceptT
         { unExceptT :: m (Except mark e a)
         } deriving (Typeable)
 
+type instance Context (ExceptT mark e m)
+  = (mark (), Context m)
+
 instance
-  ( EqIn h (m (Except mark e a)), MonadIdentity mark
-  ) => EqIn (mark (),h) (ExceptT mark e m a)
+  ( EqIn m, MonadIdentity mark, Eq e
+  ) => EqIn (ExceptT mark e m)
   where
     eqIn
-      :: (mark (), h)
+      :: (Eq a)
+      => (mark (), Context m)
       -> ExceptT mark e m a
       -> ExceptT mark e m a
       -> Bool
-    eqIn (_,h) (ExceptT x) (ExceptT y) =
-      eqIn h x y
+    eqIn (_,h) x y =
+      eqIn h (unExceptT x) (unExceptT y)
 
 deriving instance
-  ( Show (m (Except k e a))
-  ) => Show (ExceptT k e m a)
+  ( Show (m (Except mark e a))
+  ) => Show (ExceptT mark e m a)
 
 instance
   ( Monad m, MonadIdentity mark

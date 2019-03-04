@@ -2,6 +2,8 @@
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -33,6 +35,10 @@ newtype ExceptTT
         { unExceptTT :: ExceptT mark e (t m) a
         } deriving
           ( Typeable, Functor, Applicative, Monad )
+
+deriving instance
+  ( Show (t m (Except mark e a))
+  ) => Show (ExceptTT mark e t m a)
 
 instance
   ( MonadTrans t, MonadIdentity mark

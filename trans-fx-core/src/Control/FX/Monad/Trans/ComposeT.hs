@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -48,17 +49,21 @@ newtype ComposeT
         { unComposeT :: t1 (t2 m) a
         } deriving (Typeable)
 
+type instance Context (ComposeT t1 t2 m)
+  = Context (t1 (t2 m))
+
 instance
-  ( EqIn (h1,(h2,h3)) (t1 (t2 m) a)
-  ) => EqIn ((h1,h2),h3) (ComposeT t1 t2 m a)
+  ( EqIn (t1 (t2 m))
+  ) => EqIn (ComposeT t1 t2 m)
   where
     eqIn
-      :: ((h1,h2),h3)
+      :: (Eq a)
+      => Context (t1 (t2 m))
       -> ComposeT t1 t2 m a
       -> ComposeT t1 t2 m a
       -> Bool
-    eqIn ((h1,h2),h3) (ComposeT x) (ComposeT y) =
-      eqIn (h1,(h2,h3)) x y
+    eqIn h (ComposeT x) (ComposeT y) =
+      eqIn h x y
 
 deriving instance
   ( Show (t1 (t2 m) a)

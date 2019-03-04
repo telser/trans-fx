@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -161,6 +162,21 @@ instance
       -> Bool
     eqIn (eval, h) x y =
       eqIn h (runTT eval x) (runTT eval y)
+
+type instance Context (PromptTT mark p t m a) = (Eval p m, Context (t m (mark a)))
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , Commutant mark, EqIn' (t m (mark a))
+  ) => EqIn' (PromptTT mark p t m a)
+  where
+    eqIn'
+      :: (Eval p m, Context (t m (mark a)))
+      -> PromptTT mark p t m a
+      -> PromptTT mark p t m a
+      -> Bool
+    eqIn' (eval, h) x y =
+      eqIn' h (runTT eval x) (runTT eval y)
 
 
 

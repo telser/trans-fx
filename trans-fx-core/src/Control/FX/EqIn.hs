@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.EqIn where
@@ -20,6 +21,8 @@ module Control.FX.EqIn where
 -- > (2) eqIn env x y  ===  eqIn env y x
 -- >
 -- > (3) if (eqIn env x y) && (eqIn env y z) then eqIn env x z else True
+
+{-
 class EqIn env a where
   eqIn :: env -> a -> a -> Bool
 
@@ -44,3 +47,17 @@ instance
       -> Either a b
       -> Bool
     eqIn () = (==)
+-}
+
+
+
+type family Context (f :: * -> *)
+
+class EqIn t
+  where
+    eqIn
+      :: (Eq a)
+      => Context t
+      -> t a
+      -> t a
+      -> Bool

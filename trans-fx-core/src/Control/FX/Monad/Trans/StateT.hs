@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -38,12 +39,16 @@ newtype StateT
         { unStateT :: s -> m (Pair s a)
         } deriving (Typeable)
 
+type instance Context (StateT mark s m)
+  = (mark s, Context m)
+
 instance
-  ( EqIn h (m (Pair s a)), MonadIdentity mark
-  ) => EqIn (mark s, h) (StateT mark s m a)
+  ( EqIn m, MonadIdentity mark, Eq s
+  ) => EqIn (StateT mark s m)
   where
     eqIn
-      :: (mark s, h)
+      :: (Eq a)
+      => (mark s, Context m)
       -> StateT mark s m a
       -> StateT mark s m a
       -> Bool

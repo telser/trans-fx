@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
@@ -31,12 +32,15 @@ data LeftZero
     = LeftZero a | LeftUnit
     deriving (Eq, Show, Typeable)
 
+type instance Context LeftZero
+  = ()
+
 instance
-  ( Eq a
-  ) => EqIn () (LeftZero a)
+  EqIn LeftZero
   where
     eqIn
-      :: ()
+      :: (Eq a)
+      => ()
       -> LeftZero a
       -> LeftZero a
       -> Bool

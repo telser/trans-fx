@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -38,17 +39,23 @@ newtype HaltT
         { unHaltT :: m (Halt mark a)
         } deriving (Typeable)
 
+type instance Context (HaltT mark m) =
+  (mark (), Context m)
+
 instance
-  ( EqIn h (m (Halt mark a)), MonadIdentity mark
-  ) => EqIn (mark (),h) (HaltT mark m a)
+  ( EqIn m
+  ) => EqIn (HaltT mark m)
   where
     eqIn
-      :: (mark (),h)
+      :: (Eq a)
+      => (mark (), Context m)
       -> HaltT mark m a
       -> HaltT mark m a
       -> Bool
     eqIn (_,h) (HaltT x) (HaltT y) =
       eqIn h x y
+
+
 
 deriving instance
   ( Show (m (Halt mark a))

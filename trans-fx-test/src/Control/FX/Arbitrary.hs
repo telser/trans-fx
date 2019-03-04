@@ -149,6 +149,12 @@ instance
   where
     arbitrary = ApplyT <$> arbitrary
 
+instance
+  ( Arbitrary (m (Pair w a)), Arbitrary w, Monoid w, CoArbitrary w
+  ) => Arbitrary (AppendOnlyT mark w m a)
+  where
+    arbitrary = AppendOnlyT <$> arbitrary
+
 
 
 instance Arbitrary (Unit m) where
@@ -189,4 +195,46 @@ instance
   where
     arbitrary = OverTT <$> arbitrary
 
+instance
+  ( Arbitrary a
+  ) => Arbitrary (Val a m)
+  where
+    arbitrary = Val <$> arbitrary
 
+instance
+  ( Arbitrary (t m (Pair s a)), CoArbitrary s
+  ) => Arbitrary (StateTT mark s t m a)
+  where
+    arbitrary = StateTT <$> arbitrary
+
+instance
+  ( Arbitrary (t m (WriteOnly mark w a)), Functor (t m)
+  ) => Arbitrary (WriteOnlyTT mark w t m a)
+  where
+    arbitrary = WriteOnlyTT <$> arbitrary
+
+instance
+  ( Arbitrary (t m a), CoArbitrary r, Functor m
+  ) => Arbitrary (ReadOnlyTT mark r t m a)
+  where
+    arbitrary = do
+      f <- arbitrary
+      return (ReadOnlyTT $ ReadOnlyT f)
+
+instance
+  ( Arbitrary (t m a), Arbitrary e, Functor (t m)
+  ) => Arbitrary (ExceptTT mark e t m a)
+  where
+    arbitrary = ExceptTT <$> arbitrary
+
+instance
+  ( Arbitrary (t m a), Functor (t m), MonadIdentity mark
+  ) => Arbitrary (HaltTT mark t m a)
+  where
+    arbitrary = HaltTT <$> arbitrary
+
+instance
+  ( Arbitrary (t m (Pair w a)), Arbitrary w, Monoid w, CoArbitrary w
+  ) => Arbitrary (AppendOnlyTT mark w t m a)
+  where
+    arbitrary = AppendOnlyTT <$> arbitrary

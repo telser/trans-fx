@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -36,14 +37,18 @@ data Except
     | Accept a -- ^ Normal result
     deriving (Eq, Show, Typeable)
 
+type instance Context (Except mark e)
+  = mark ()
+
 instance
-  ( Eq a, Eq b
-  ) => EqIn (mark ()) (Except mark a b)
+  ( Eq e
+  ) => EqIn (Except mark e)
   where
     eqIn
-      :: mark ()
-      -> Except mark a b
-      -> Except mark a b
+      :: (Eq a)
+      => mark ()
+      -> Except mark e a
+      -> Except mark e a
       -> Bool
     eqIn _ = (==)
 

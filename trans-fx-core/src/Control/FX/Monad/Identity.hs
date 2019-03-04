@@ -6,6 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -32,12 +33,15 @@ data Identity
       { unIdentity :: a -- ^ Extract a pure value
       } deriving (Eq, Show, Typeable)
 
+type instance Context Identity
+  = ()
+
 instance
-  ( Eq a
-  ) => EqIn () (Identity a)
+  EqIn Identity
   where
     eqIn
-      :: ()
+      :: (Eq a)
+      => ()
       -> Identity a
       -> Identity a
       -> Bool

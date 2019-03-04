@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -32,12 +33,16 @@ data Pair
        { slot1 :: a, slot2 :: b
        } deriving (Eq, Show, Typeable)
 
+type instance Context (Pair a)
+  = ()
+
 instance
-  ( Eq a, Eq b
-  ) => EqIn () (Pair a b)
+  ( Eq a
+  ) => EqIn (Pair a)
   where
     eqIn
-      :: ()
+      :: (Eq b)
+      => ()
       -> Pair a b
       -> Pair a b
       -> Bool

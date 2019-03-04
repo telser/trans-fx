@@ -1,7 +1,10 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -33,6 +36,10 @@ newtype WriteOnlyTT
         { unWriteOnlyTT :: WriteOnlyT mark w (t m) a
         } deriving
           ( Typeable, Functor, Applicative, Monad )
+
+deriving instance
+  ( Show (t m (WriteOnly mark w a))
+  ) => Show (WriteOnlyTT mark w t m a)
 
 instance
   ( MonadTrans t, MonadIdentity mark, Monoid w
@@ -83,13 +90,17 @@ runWriteOnlyTT
   -> t m (Pair (mark w) a)
 runWriteOnlyTT w = runTT (Val w)
 
+type instance Context (WriteOnlyTT mark w t m)
+  = (Val (mark ()) m, Context (t m))
+
 instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, Eq a, Eq w
-  , forall x. (Eq x) => EqIn h (t m x), Monoid w
-  ) => EqIn (Val (mark ()) m, h) (WriteOnlyTT mark w t m a)
+  ( Monad m, MonadTrans t, MonadIdentity mark, Eq w
+  , EqIn (t m), Monoid w
+  ) => EqIn (WriteOnlyTT mark w t m)
   where
     eqIn
-      :: (Val (mark ()) m, h)
+      :: (Eq a)
+      => (Val (mark ()) m, Context (t m))
       -> WriteOnlyTT mark w t m a
       -> WriteOnlyTT mark w t m a
       -> Bool
