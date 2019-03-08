@@ -10,10 +10,14 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.ReadOnly (
     ReadOnly(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -36,22 +40,6 @@ newtype ReadOnly
     = ReadOnly
         { unReadOnly :: r -> a
         } deriving (Typeable)
-
-type instance Context (ReadOnly mark r)
-  = mark r
-
-instance
-  ( MonadIdentity mark
-  ) => EqIn (ReadOnly mark r)
-  where
-    eqIn
-      :: (Eq a)
-      => mark r
-      -> ReadOnly mark r a
-      -> ReadOnly mark r a
-      -> Bool
-    eqIn r (ReadOnly x) (ReadOnly y) =
-      (x $ unwrap r) == (y $ unwrap r)
 
 
 
@@ -107,15 +95,76 @@ instance
       let a = x r
       in unReadOnly (f a) r
 
+
+
+
+
+instance
+  ( MonadIdentity mark
+  ) => EqIn (ReadOnly mark r)
+  where
+    newtype Context (ReadOnly mark r)
+      = ReadOnlyCtx
+          { unReadOnlyCtx :: mark r
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (ReadOnly mark r)
+      -> ReadOnly mark r a
+      -> ReadOnly mark r a
+      -> Bool
+    eqIn (ReadOnlyCtx r) (ReadOnly x) (ReadOnly y) =
+      (x $ unwrap r) == (y $ unwrap r)
+
+deriving instance
+  ( Eq (mark r)
+  ) => Eq (Context (ReadOnly mark r))
+
+deriving instance
+  ( Show (mark r)
+  ) => Show (Context (ReadOnly mark r))
+
+
+
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => RunMonad (mark r) (ReadOnly mark r) mark
+  ) => RunMonad (ReadOnly mark r)
   where
+    newtype Input (ReadOnly mark r)
+      = ReadOnlyIn
+          { unReadOnlyIn :: mark r
+          } deriving (Typeable)
+
+    newtype Output (ReadOnly mark r) a
+      = ReadOnlyOut
+          { unReadOnlyOut :: mark a
+          } deriving (Typeable)
+
     run
-      :: mark r
+      :: Input (ReadOnly mark r)
       -> ReadOnly mark r a
-      -> mark a
-    run r (ReadOnly x) = pure (x (unwrap r))
+      -> Output (ReadOnly mark r) a
+    run (ReadOnlyIn r) (ReadOnly x) =
+      ReadOnlyOut $ pure (x (unwrap r))
+
+deriving instance
+  ( Eq (mark r)
+  ) => Eq (Input (ReadOnly mark r))
+
+deriving instance
+  ( Show (mark r)
+  ) => Show (Input (ReadOnly mark r))
+
+deriving instance
+  ( Eq (mark a)
+  ) => Eq (Output (ReadOnly mark r) a)
+
+deriving instance
+  ( Show (mark a)
+  ) => Show (Output (ReadOnly mark r) a)
+
+
 
 
 

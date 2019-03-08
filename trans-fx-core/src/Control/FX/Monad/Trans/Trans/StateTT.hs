@@ -2,7 +2,9 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -11,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.StateTT (
     StateTT(..)
   , runStateTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -67,40 +72,86 @@ instance
       -> StateTT mark s t m a
     liftT = StateTT . lift
 
-instance
-  ( MonadIdentity mark
-  ) => RunMonadTransTrans (Val (mark s)) (StateTT mark s) (Pair (mark s))
-  where
-    runTT
-      :: ( Monad m, MonadTrans t )
-      => Val (mark s) m
-      -> StateTT mark s t m a
-      -> t m (Pair (mark s) a)
-    runTT (Val s) = runT s . unStateTT
 
-runStateTT
-  :: ( MonadIdentity mark, Monad m, MonadTrans t )
-  => mark s
-  -> StateTT mark s t m a
-  -> t m (Pair (mark s) a)
-runStateTT s = runTT (Val s)
 
-type instance Context (StateTT mark s t m)
-  = (Val (mark s) m, Context (t m))
+
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, Eq s
   , EqIn (t m)
   ) => EqIn (StateTT mark s t m)
   where
+    newtype Context (StateTT mark s t m)
+      = StateTTCtx
+          { unStateTTCtx :: (mark s, Context (t m))
+          } deriving (Typeable)
+
     eqIn
       :: (Eq a)
-      => (Val (mark s) m, Context (t m))
+      => Context (StateTT mark s t m)
       -> StateTT mark s t m a
       -> StateTT mark s t m a
       -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+    eqIn (StateTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unStateTTOut $ runTT (StateTTIn v) x)
+        (fmap unStateTTOut $ runTT (StateTTIn v) y)
+
+deriving instance
+  ( Eq (mark s), Eq (Context (t m))
+  ) => Eq (Context (StateTT mark s t m))
+
+deriving instance
+  ( Show (mark s), Show (Context (t m))
+  ) => Show (Context (StateTT mark s t m))
+
+
+
+instance
+  ( MonadIdentity mark
+  ) => RunMonadTransTrans (StateTT mark s)
+  where
+    newtype InputTT (StateTT mark s) m
+      = StateTTIn
+          { unStateTTIn :: mark s
+          } deriving (Typeable)
+
+    newtype OutputTT (StateTT mark s) a
+      = StateTTOut
+          { unStateTTOut :: Pair (mark s) a
+          } deriving (Typeable)
+
+    runTT
+      :: ( Monad m, MonadTrans t )
+      => InputTT (StateTT mark s) m
+      -> StateTT mark s t m a
+      -> t m (OutputTT (StateTT mark s) a)
+    runTT (StateTTIn s) =
+      fmap (StateTTOut . unStateTOut)
+        . runT (StateTIn s) . unStateTT
+
+deriving instance
+  ( Eq (mark s)
+  ) => Eq (InputTT (StateTT mark s) m)
+
+deriving instance
+  ( Show (mark s)
+  ) => Show (InputTT (StateTT mark s) m)
+
+deriving instance
+  ( Eq (mark s), Eq a
+  ) => Eq (OutputTT (StateTT mark s) a)
+
+deriving instance
+  ( Show (mark s), Show a
+  ) => Show (OutputTT (StateTT mark s) a)
+
+runStateTT
+  :: ( MonadIdentity mark, Monad m, MonadTrans t )
+  => mark s
+  -> StateTT mark s t m a
+  -> t m (Pair (mark s) a)
+runStateTT s = fmap unStateTTOut . runTT (StateTTIn s)
 
 
 
@@ -110,35 +161,59 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatchT (Val (mark s)) (StateTT mark s) (Pair (mark s))
+  ) => LiftCatchT (StateTT mark s)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (Pair (mark s) x))
+      :: forall m t e
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (OutputTT (StateTT mark s) x))
       -> (forall x. Catch e (StateTT mark s t m) x)
-    liftCatchT catch x h = StateTT $
-      liftCatch catch (unStateTT x) (unStateTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e (t m) (OutputT (StateT mark s) x)
+        catch' y g =
+          fmap (StateTOut . unStateTTOut) $ catch
+            (fmap (StateTTOut . unStateTOut) y)
+            (fmap (StateTTOut . unStateTOut) . g)
+      in
+        StateTT $
+          liftCatch catch' (unStateTT x) (unStateTT . h)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraftT (Val (mark s)) (StateTT mark s) (Pair (mark s))
+  ) => LiftDraftT (StateTT mark s)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (Pair (mark s) x))
+      :: forall m t w
+       . ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (OutputTT (StateTT mark s) x))
       -> (forall x. Draft w (StateTT mark s t m) x)
-    liftDraftT draft = StateTT . liftDraft draft . unStateTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w (t m) (OutputT (StateT mark s) x)
+        draft' =
+          fmap (fmap (StateTOut . unStateTTOut))
+            . draft . fmap (StateTTOut . unStateTOut)
+      in
+        StateTT . liftDraft draft' . unStateTT
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocalT (Val (mark s)) (StateTT mark s) (Pair (mark s))
+  ) => LiftLocalT (StateTT mark s)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Pair (mark s) x))
+      :: forall m t r
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (OutputTT (StateTT mark s) x))
       -> (forall x. Local r (StateTT mark s t m) x)
     liftLocalT local f =
-      StateTT . liftLocal local f . unStateTT
+      let
+        local' :: Local r (t m) (OutputT (StateT mark s) x)
+        local' g =
+          fmap (StateTOut . unStateTTOut)
+            . local g . fmap (StateTTOut . unStateTOut)
+      in
+        StateTT . liftLocal local' f . unStateTT
 
 
 

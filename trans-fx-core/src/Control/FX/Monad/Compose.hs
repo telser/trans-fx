@@ -6,15 +6,19 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Compose (
     Compose(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -23,6 +27,7 @@ import Data.Typeable (Typeable)
 import Control.Monad (join)
 import Control.Applicative (liftA2)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -97,12 +102,43 @@ instance
   ( Central c1, Central c2
   ) => Central (Compose c1 c2)
 
+
+
+
+
 instance
-  ( RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m2
-  ) => RunMonad (z1,z2) (Compose m1 m2) (Compose f1 f2)
+  ( RunMonad m1, RunMonad m2, Central m2, Functor (Output m1)
+  ) => RunMonad (Compose m1 m2)
   where
+    newtype Input (Compose m1 m2)
+      = ComposeIn
+          { unComposeIn :: (Input m1, Input m2)
+          } deriving (Typeable)
+
+    newtype Output (Compose m1 m2) a
+      = ComposeOut
+          { unComposeOut :: Compose (Output m1) (Output m2) a
+          } deriving (Typeable)
+
     run
-      :: (z1,z2)
+      :: Input (Compose m1 m2)
       -> Compose m1 m2 a
-      -> Compose f1 f2 a
-    run (z1,z2) = Compose . fmap (run z2) . run z1 . unCompose
+      -> Output (Compose m1 m2) a
+    run (ComposeIn (z1,z2)) =
+      ComposeOut . Compose . fmap (run z2) . run z1 . unCompose
+
+deriving instance
+  ( Show (Input m1), Show (Input m2)
+  ) => Show (Input (Compose m1 m2))
+
+deriving instance
+  ( Eq (Input m1), Eq (Input m2)
+  ) => Eq (Input (Compose m1 m2))
+
+deriving instance
+  ( Show (Output m1 (Output m2 a)), Show (Output m2 a)
+  ) => Show (Output (Compose m1 m2) a)
+
+deriving instance
+  ( Eq (Output m1 (Output m2 a)), Eq (Output m2 a)
+  ) => Eq (Output (Compose m1 m2) a)

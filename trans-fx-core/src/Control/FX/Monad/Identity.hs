@@ -14,6 +14,9 @@
 
 module Control.FX.Monad.Identity (
     Identity(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -33,19 +36,7 @@ data Identity
       { unIdentity :: a -- ^ Extract a pure value
       } deriving (Eq, Show, Typeable)
 
-type instance Context Identity
-  = ()
 
-instance
-  EqIn Identity
-  where
-    eqIn
-      :: (Eq a)
-      => ()
-      -> Identity a
-      -> Identity a
-      -> Bool
-    eqIn () = (==)
 
 instance
   Functor Identity
@@ -122,14 +113,47 @@ instance
       mappend = (<>)
 
 
+
+
+
 instance
-  RunMonad () Identity Identity
+  EqIn Identity
   where
+    data Context Identity
+      = IdentityCtx
+          { unIdentityCtx :: ()
+          } deriving (Eq, Show, Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context Identity
+      -> Identity a
+      -> Identity a
+      -> Bool
+    eqIn _ = (==)
+
+
+
+instance
+  RunMonad Identity
+  where
+    data Input Identity
+      = IdentityIn
+          { unIdentityIn :: ()
+          } deriving (Eq, Show, Typeable)
+
+    data Output Identity a
+      = IdentityOut
+          { unIdentityOut :: Identity a
+          } deriving (Eq, Show, Typeable)
+
     run
-      :: ()
+      :: Input Identity
       -> Identity a
-      -> Identity a
-    run () = id
+      -> Output Identity a
+    run _ = IdentityOut
+
+
 
 
 

@@ -17,6 +17,9 @@
 
 module Control.FX.Monad.Trans.HaltT (
     HaltT(..)
+  , Context(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
@@ -38,22 +41,6 @@ newtype HaltT
     = HaltT
         { unHaltT :: m (Halt mark a)
         } deriving (Typeable)
-
-type instance Context (HaltT mark m) =
-  (mark (), Context m)
-
-instance
-  ( EqIn m
-  ) => EqIn (HaltT mark m)
-  where
-    eqIn
-      :: (Eq a)
-      => (mark (), Context m)
-      -> HaltT mark m a
-      -> HaltT mark m a
-      -> Bool
-    eqIn (_,h) (HaltT x) (HaltT y) =
-      eqIn h x y
 
 
 
@@ -151,16 +138,81 @@ instance
       -> HaltT mark n a
     hoist f = HaltT . f . unHaltT
 
+
+
+
+
+instance
+  ( EqIn m
+  ) => EqIn (HaltT mark m)
+  where
+    newtype Context (HaltT mark m)
+      = HaltTCtx
+          { unHaltTCtx :: (mark (), Context m)
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (HaltT mark m)
+      -> HaltT mark m a
+      -> HaltT mark m a
+      -> Bool
+    eqIn (HaltTCtx (_,h)) (HaltT x) (HaltT y) =
+      eqIn h x y
+
+deriving instance
+  ( Eq (mark ()), Eq (Context m)
+  ) => Eq (Context (HaltT mark m))
+
+deriving instance
+  ( Show (mark ()), Show (Context m)
+  ) => Show (Context (HaltT mark m))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonadTrans (mark ()) (HaltT mark) (Halt mark)
+  ) => RunMonadTrans (HaltT mark)
   where
+    newtype InputT (HaltT mark)
+      = HaltTIn
+          { unHaltTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputT (HaltT mark) a
+      = HaltTOut
+          { unHaltTOut :: Halt mark a
+          } deriving (Eq, Show, Typeable)
+
     runT
       :: ( Monad m )
-      => mark ()
+      => InputT (HaltT mark)
       -> HaltT mark m a
-      -> m (Halt mark a)
-    runT _ (HaltT x) = x
+      -> m (OutputT (HaltT mark) a)
+    runT _ (HaltT x) = fmap HaltTOut x
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputT (HaltT mark))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputT (HaltT mark))
+
+instance
+  ( MonadIdentity mark
+  ) => Functor (OutputT (HaltT mark))
+  where
+    fmap f (HaltTOut x) = HaltTOut (fmap f x)
+
+instance
+  ( MonadIdentity mark
+  ) => Applicative (OutputT (HaltT mark))
+  where
+    pure = HaltTOut . pure
+
+    (HaltTOut f) <*> (HaltTOut x) =
+      HaltTOut (f <*> x)
 
 
 
@@ -170,36 +222,38 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatch (mark ()) (HaltT mark) (Halt mark)
+  ) => LiftCatch (HaltT mark)
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (Halt mark a)
+      => Catch e m (OutputT (HaltT mark) a)
       -> Catch e (HaltT mark m) a
     liftCatch catch x h = HaltT $
-      catch (unHaltT x) (unHaltT . h)
+      fmap unHaltTOut $ catch
+        (fmap HaltTOut $ unHaltT x)
+        (fmap HaltTOut . unHaltT . h)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraft (mark ()) (HaltT mark) (Halt mark)
+  ) => LiftDraft (HaltT mark)
   where
     liftDraft
       :: ( Monad m )
-      => Draft w m (Halt mark a)
+      => Draft w m (OutputT (HaltT mark) a)
       -> Draft w (HaltT mark m) a
     liftDraft draft =
-      HaltT . fmap commute . draft . unHaltT
+      HaltT . fmap unHaltTOut . fmap commute . draft . fmap HaltTOut . unHaltT
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocal (mark ()) (HaltT mark) (Halt mark)
+  ) => LiftLocal (HaltT mark)
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Halt mark a)
+      => Local r m (OutputT (HaltT mark) a)
       -> Local r (HaltT mark m) a
     liftLocal local f =
-      HaltT . local f . unHaltT
+      HaltT . fmap unHaltTOut . local f . fmap HaltTOut . unHaltT
 
 
 

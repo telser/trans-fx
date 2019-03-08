@@ -18,11 +18,14 @@
 
 module Control.FX.Monad.Trans.ExceptT (
     ExceptT(..)
+  , Context(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
 
-import Data.Typeable (Typeable)
+import Data.Typeable (Typeable, typeOf)
 import Control.Applicative (liftA2)
 
 import Control.FX.EqIn
@@ -42,21 +45,7 @@ newtype ExceptT
         { unExceptT :: m (Except mark e a)
         } deriving (Typeable)
 
-type instance Context (ExceptT mark e m)
-  = (mark (), Context m)
 
-instance
-  ( EqIn m, MonadIdentity mark, Eq e
-  ) => EqIn (ExceptT mark e m)
-  where
-    eqIn
-      :: (Eq a)
-      => (mark (), Context m)
-      -> ExceptT mark e m a
-      -> ExceptT mark e m a
-      -> Bool
-    eqIn (_,h) x y =
-      eqIn h (unExceptT x) (unExceptT y)
 
 deriving instance
   ( Show (m (Except mark e a))
@@ -141,15 +130,81 @@ instance
     -> ExceptT mark e n a
   hoist f = ExceptT . f . unExceptT
 
+
+
+
+
+instance
+  ( EqIn m, MonadIdentity mark, Eq e
+  ) => EqIn (ExceptT mark e m)
+  where
+    newtype Context (ExceptT mark e m)
+      = ExceptTCtx
+          { unExceptTCtx :: (mark (), Context m)
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (ExceptT mark e m)
+      -> ExceptT mark e m a
+      -> ExceptT mark e m a
+      -> Bool
+    eqIn (ExceptTCtx (_,h)) x y =
+      eqIn h (unExceptT x) (unExceptT y)
+
+deriving instance
+  ( Eq (mark ()), Eq (Context m)
+  ) => Eq (Context (ExceptT mark e m))
+
+deriving instance
+  ( Show (mark ()), Show (Context m)
+  ) => Show (Context (ExceptT mark e m))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonadTrans (mark ()) (ExceptT mark e) (Except mark e)
+  ) => RunMonadTrans (ExceptT mark e)
   where
+    newtype InputT (ExceptT mark e)
+      = ExceptTIn
+          { unExceptTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputT (ExceptT mark e) a
+      = ExceptTOut
+          { unExceptTOut :: Except mark e a
+          } deriving (Eq, Show, Typeable)
+
     runT
-      :: mark ()
+      :: ( Monad m )
+      => InputT (ExceptT mark e)
       -> ExceptT mark e m a
-      -> m (Except mark e a)
-    runT _ (ExceptT x) = x
+      -> m (OutputT (ExceptT mark e) a)
+    runT _ (ExceptT x) = fmap ExceptTOut x
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputT (ExceptT mark e))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputT (ExceptT mark e))
+
+instance
+  ( MonadIdentity mark
+  ) => Functor (OutputT (ExceptT mark e))
+  where
+    fmap f (ExceptTOut x) = ExceptTOut (fmap f x)
+
+instance
+  ( MonadIdentity mark
+  ) => Applicative (OutputT (ExceptT mark e))
+  where
+    pure = ExceptTOut . pure
+
+    (ExceptTOut f) <*> (ExceptTOut x) =
+      ExceptTOut (f <*> x)
 
 
 
@@ -159,36 +214,38 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatch (mark ()) (ExceptT mark e) (Except mark e)
+  ) => LiftCatch (ExceptT mark e)
   where
     liftCatch
       :: ( Monad m )
-      => Catch e2 m (Except mark e a)
+      => Catch e2 m (OutputT (ExceptT mark e) a)
       -> Catch e2 (ExceptT mark e m) a
     liftCatch catch x h = ExceptT $
-      catch (unExceptT x) (unExceptT . h)
+      fmap unExceptTOut $ catch
+        (fmap ExceptTOut $ unExceptT x)
+        (fmap ExceptTOut . unExceptT . h)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraft (mark ()) (ExceptT mark e) (Except mark e)
+  ) => LiftDraft (ExceptT mark e)
   where
     liftDraft
       :: ( Monad m )
-      => Draft w m (Except mark e a)
+      => Draft w m (OutputT (ExceptT mark e) a)
       -> Draft w (ExceptT mark e m) a
     liftDraft draft =
-      ExceptT . fmap commute . draft . unExceptT
+      ExceptT . fmap unExceptTOut . fmap commute . draft . fmap ExceptTOut . unExceptT
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocal (mark ()) (ExceptT mark e) (Except mark e)
+  ) => LiftLocal (ExceptT mark e)
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Except mark e a)
+      => Local r m (OutputT (ExceptT mark e) a)
       -> Local r (ExceptT mark e m) a
     liftLocal local f =
-      ExceptT . local f . unExceptT
+      ExceptT . fmap unExceptTOut . local f . fmap ExceptTOut . unExceptT
 
 
 

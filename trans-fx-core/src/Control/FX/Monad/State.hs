@@ -10,10 +10,14 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.State (
     State(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -35,21 +39,7 @@ newtype State
         { unState :: s -> Pair s a
         } deriving (Typeable)
 
-type instance Context (State mark s)
-  = mark s
 
-instance
-  ( Eq s, MonadIdentity mark
-  ) => EqIn (State mark s)
-  where
-    eqIn
-      :: (Eq a)
-      => mark s
-      -> State mark s a
-      -> State mark s a
-      -> Bool
-    eqIn s (State x) (State y) =
-      (x $ unwrap s) == (y $ unwrap s)
 
 instance
   ( Typeable s, Typeable a, Typeable mark
@@ -107,17 +97,77 @@ instance
       let Pair s2 x = x' s1 in
       (unState . f) x s2
 
+
+
+
+
+instance
+  ( Eq s, MonadIdentity mark
+  ) => EqIn (State mark s)
+  where
+    data Context (State mark s)
+      = StateCtx
+          { unStateCtx :: mark s
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (State mark s)
+      -> State mark s a
+      -> State mark s a
+      -> Bool
+    eqIn (StateCtx s) (State x) (State y) =
+      (x $ unwrap s) == (y $ unwrap s)
+
+deriving instance
+  ( Eq (mark s)
+  ) => Eq (Context (State mark s))
+
+deriving instance
+  ( Show (mark s)
+  ) => Show (Context (State mark s))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonad (mark s) (State mark s) (Pair (mark s))
+  ) => RunMonad (State mark s)
   where
+    data Input (State mark s)
+      = StateIn
+          { unStateIn :: mark s
+          } deriving (Typeable)
+
+    data Output (State mark s) a
+      = StateOut
+          { unStateOut :: Pair (mark s) a
+          } deriving (Typeable)
+
     run
-      :: mark s
+      :: Input (State mark s)
       -> State mark s a
-      -> Pair (mark s) a
-    run s (State x) =
+      -> Output (State mark s) a
+    run (StateIn s) (State x) =
       let Pair s1 a = x (unwrap s)
-      in Pair (return s1) a
+      in StateOut $ Pair (return s1) a
+
+deriving instance
+  ( Eq (mark s)
+  ) => Eq (Input (State mark s))
+
+deriving instance
+  ( Show (mark s)
+  ) => Show (Input (State mark s))
+
+deriving instance
+  ( Eq (mark s), Eq a
+  ) => Eq (Output (State mark s) a)
+
+deriving instance
+  ( Show (mark s), Show a
+  ) => Show (Output (State mark s) a)
+
+
 
 
 

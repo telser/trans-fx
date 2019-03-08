@@ -13,6 +13,7 @@
 
 module Control.FX.Functor.RightZero (
     RightZero(..)
+  , Context(..)
 ) where
 
 
@@ -32,19 +33,7 @@ data RightZero
     = RightZero a | RightUnit
     deriving (Eq, Show, Typeable)
 
-type instance Context RightZero
-  = ()
 
-instance
-  EqIn RightZero
-  where
-    eqIn
-      :: (Eq a)
-      => ()
-      -> RightZero a
-      -> RightZero a
-      -> Bool
-    eqIn () = (==)
 
 instance
   Functor RightZero
@@ -111,3 +100,19 @@ instance
       case x of
         RightUnit   -> pure RightUnit
         RightZero x -> RightZero <$> x
+
+instance
+  EqIn RightZero
+  where
+    newtype Context RightZero
+      = RightZeroCtx
+          { unRightZeroCtx :: ()
+          } deriving (Eq, Show)
+
+    eqIn
+      :: (Eq a)
+      => Context RightZero
+      -> RightZero a
+      -> RightZero a
+      -> Bool
+    eqIn _ = (==)

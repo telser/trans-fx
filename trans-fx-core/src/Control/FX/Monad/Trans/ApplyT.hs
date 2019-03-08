@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -17,6 +18,8 @@
 
 module Control.FX.Monad.Trans.ApplyT (
     ApplyT(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
@@ -158,16 +161,46 @@ instance
       -> ApplyT t n a
     hoist f = ApplyT . hoist f . unApplyT
 
+
+
+
+
 instance
-  ( RunMonadTrans z t f
-  ) => RunMonadTrans z (ApplyT t) f
+  ( RunMonadTrans t
+  ) => RunMonadTrans (ApplyT t)
   where
+    newtype InputT (ApplyT t)
+      = ApplyTIn
+          { unApplyTIn :: InputT t
+          } deriving (Typeable)
+
+    newtype OutputT (ApplyT t) a
+      = ApplyTOut
+          { unApplyTOut :: OutputT t a
+          } deriving (Typeable)
+
     runT
       :: ( Monad m )
-      => z
+      => InputT (ApplyT t)
       -> ApplyT t m a
-      -> m (f a)
-    runT z (ApplyT x) = runT z x
+      -> m (OutputT (ApplyT t) a)
+    runT (ApplyTIn z) (ApplyT x) = fmap ApplyTOut $ runT z x
+
+deriving instance
+  ( Eq (InputT t)
+  ) => Eq (InputT (ApplyT t))
+
+deriving instance
+  ( Show (InputT t)
+  ) => Show (InputT (ApplyT t))
+
+deriving instance
+  ( Eq (OutputT t a)
+  ) => Eq (OutputT (ApplyT t) a)
+
+deriving instance
+  ( Show (OutputT t a)
+  ) => Show (OutputT (ApplyT t) a)
 
 
 

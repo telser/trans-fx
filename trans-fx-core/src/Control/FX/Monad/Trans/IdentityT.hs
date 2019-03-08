@@ -18,6 +18,9 @@
 
 module Control.FX.Monad.Trans.IdentityT (
     IdentityT(..)
+  , Context(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
@@ -40,21 +43,7 @@ newtype IdentityT
       { unIdentityT :: m a
       } deriving (Typeable)
 
-type instance Context (IdentityT m)
-  = ((), Context m)
 
-instance
-  ( EqIn m, Functor m
-  ) => EqIn (IdentityT m)
-  where
-    eqIn
-      :: (Eq a)
-      => ((), Context m)
-      -> IdentityT m a
-      -> IdentityT m a
-      -> Bool
-    eqIn ((),h) (IdentityT x) (IdentityT y) =
-      eqIn h x y
 
 deriving instance
   ( Show (m a)
@@ -171,15 +160,58 @@ instance
       -> IdentityT n a
     hoist f = IdentityT . f . unIdentityT
 
+
+
+
+
 instance
-  RunMonadTrans () IdentityT Identity
+  ( EqIn m, Functor m
+  ) => EqIn (IdentityT m)
   where
+    data Context (IdentityT m)
+      = IdentityTCtx
+          { unIdentityTCtx :: Context m
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (IdentityT m)
+      -> IdentityT m a
+      -> IdentityT m a
+      -> Bool
+    eqIn (IdentityTCtx h) (IdentityT x) (IdentityT y) =
+      eqIn h x y
+
+deriving instance
+  ( Eq (Context m)
+  ) => Eq (Context (IdentityT m))
+
+deriving instance
+  ( Show (Context m)
+  ) => Show (Context (IdentityT m))
+
+
+
+instance
+  RunMonadTrans IdentityT
+  where
+    data instance InputT IdentityT
+      = IdentityTIn
+          { unIdentityTIn :: ()
+          } deriving (Eq, Show, Typeable)
+
+    data instance OutputT IdentityT a
+      = IdentityTOut
+          { unIdentityTOut :: Identity a
+          } deriving (Eq, Show, Typeable)
+
     runT
       :: ( Monad m )
-      => ()
+      => InputT IdentityT
       -> IdentityT m a
-      -> m (Identity a)
-    runT () (IdentityT x) = fmap Identity x
+      -> m (OutputT IdentityT a)
+    runT _ (IdentityT x) =
+      fmap (IdentityTOut . Identity) x
 
 
 
@@ -188,35 +220,38 @@ instance
 {- Specialized Lifts -}
 
 instance
-  LiftCatch () IdentityT Identity
+  LiftCatch IdentityT
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (Identity a)
+      => Catch e m (OutputT IdentityT a)
       -> Catch e (IdentityT m) a
-    liftCatch catch m h = IdentityT $ fmap unIdentity $ catch
-      (unIdentityT $ fmap Identity m)
-      (unIdentityT . fmap Identity . h)
+    liftCatch catch m h =
+      IdentityT $ fmap (unIdentity . unIdentityTOut) $ catch
+        (unIdentityT $ fmap (IdentityTOut . Identity) m)
+        (unIdentityT . fmap (IdentityTOut . Identity) . h)
 
 instance
-  LiftDraft () IdentityT Identity
+  LiftDraft IdentityT
   where
     liftDraft
       :: ( Monad m )
-      => Draft w m (Identity a)
+      => Draft w m (OutputT IdentityT a)
       -> Draft w (IdentityT m) a
     liftDraft draft =
-      IdentityT . fmap (fmap unIdentity) . draft . (fmap Identity . unIdentityT)
+      IdentityT . fmap (fmap (unIdentity . unIdentityTOut))
+        . draft . fmap (IdentityTOut . Identity) . unIdentityT
 
 instance
-  LiftLocal () IdentityT Identity
+  LiftLocal IdentityT
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Identity a)
+      => Local r m (OutputT IdentityT a)
       -> Local r (IdentityT m) a
     liftLocal local f =
-      IdentityT . fmap unIdentity . local f . fmap Identity . unIdentityT
+      IdentityT . fmap (unIdentity . unIdentityTOut)
+        . local f . fmap (IdentityTOut . Identity) . unIdentityT
 
 
 

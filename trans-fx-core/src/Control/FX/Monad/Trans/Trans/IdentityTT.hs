@@ -10,18 +10,22 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.Trans.IdentityTT (
     IdentityTT(..)
-  , Unit(..)
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
 
-import Data.Typeable (Typeable)
+import Data.Typeable (Typeable, typeOf)
 
 import Control.FX.EqIn
 import Control.FX.Functor
@@ -148,32 +152,57 @@ instance
       -> IdentityTT t m2 x
     raiseT f = IdentityTT . hoist f . unIdentityTT
 
-instance
-  RunMonadTransTrans Unit IdentityTT Identity
-  where
-    runTT
-      :: (Monad m, MonadTrans t)
-      => Unit m
-      -> IdentityTT t m a
-      -> t m (Identity a)
-    runTT Unit (IdentityTT x) = fmap Identity x
 
--- | Helper type for running @IdentityTT@
-data Unit (a :: * -> *)
-  = Unit
-  deriving (Eq, Show, Typeable)
+
+
 
 instance
-  ( EqIn h (t m a)
-  ) => EqIn (Unit m, h) (IdentityTT t m a)
+  ( EqIn (t m)
+  ) => EqIn (IdentityTT t m)
   where
+    newtype Context (IdentityTT t m)
+      = IdentityTTCtx
+          { unIdentityTTCtx :: Context (t m)
+          } deriving (Typeable)
+
     eqIn
-      :: (Unit m, h)
+      :: (Eq a)
+      => Context (IdentityTT t m)
       -> IdentityTT t m a
       -> IdentityTT t m a
       -> Bool
-    eqIn (Unit, h) (IdentityTT x) (IdentityTT y) =
+    eqIn (IdentityTTCtx h) (IdentityTT x) (IdentityTT y) =
       eqIn h x y
+
+deriving instance
+  ( Eq (Context (t m))
+  ) => Eq (Context (IdentityTT t m))
+
+deriving instance
+  ( Show (Context (t m))
+  ) => Show (Context (IdentityTT t m))
+
+
+
+instance
+  RunMonadTransTrans IdentityTT
+  where
+    newtype InputTT IdentityTT m
+      = IdentityTTIn
+          { unIdentityTTIn :: ()
+          } deriving (Eq, Show, Typeable)
+
+    newtype OutputTT IdentityTT a
+      = IdentityTTOut
+          { unIdentityTTOut :: Identity a
+          } deriving (Eq, Show, Typeable)
+
+    runTT
+      :: (Monad m, MonadTrans t)
+      => InputTT IdentityTT m
+      -> IdentityTT t m a
+      -> t m (OutputTT IdentityTT a)
+    runTT _ (IdentityTT x) = fmap (IdentityTTOut . Identity) x
 
 
 
@@ -182,36 +211,37 @@ instance
 {- Specialized Lifts -}
 
 instance
-  LiftCatchT Unit IdentityTT Identity
+  LiftCatchT IdentityTT
   where
     liftCatchT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (Identity x))
+      => (forall x. Catch e (t m) (OutputTT IdentityTT x))
       -> (forall x. Catch e (IdentityTT t m) x)
-    liftCatchT catch x h = IdentityTT $ fmap unIdentity $ catch
-      (fmap Identity $ unIdentityTT x)
-      (fmap Identity . unIdentityTT . h)
+    liftCatchT catch x h =
+      IdentityTT $ fmap (unIdentity . unIdentityTTOut) $ catch
+        (fmap (IdentityTTOut . Identity) $ unIdentityTT x)
+        (fmap (IdentityTTOut . Identity) . unIdentityTT . h)
 
 instance
-  LiftDraftT Unit IdentityTT Identity
+  LiftDraftT IdentityTT
   where
     liftDraftT
       :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (Identity x))
+      => (forall x. Draft w (t m) (OutputTT IdentityTT x))
       -> (forall x. Draft w (IdentityTT t m) x)
     liftDraftT draft x = IdentityTT $
-      fmap (bimap2 unIdentity) $ draft
-        (fmap Identity $ unIdentityTT x)
+      fmap (bimap2 (unIdentity . unIdentityTTOut)) $ draft
+        (fmap (IdentityTTOut . Identity) $ unIdentityTT x)
 
 instance
-  LiftLocalT Unit IdentityTT Identity
+  LiftLocalT IdentityTT
   where
     liftLocalT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Identity x))
+      => (forall x. Local r (t m) (OutputTT IdentityTT x))
       -> (forall x. Local r (IdentityTT t m) x)
     liftLocalT local f =
-      IdentityTT . fmap unIdentity . local f . fmap Identity . unIdentityTT
+      IdentityTT . fmap (unIdentity . unIdentityTTOut) . local f . fmap (IdentityTTOut . Identity) . unIdentityTT
 
 
 

@@ -11,11 +11,15 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.StateT (
     StateT(..)
+  , Context(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
@@ -39,21 +43,7 @@ newtype StateT
         { unStateT :: s -> m (Pair s a)
         } deriving (Typeable)
 
-type instance Context (StateT mark s m)
-  = (mark s, Context m)
 
-instance
-  ( EqIn m, MonadIdentity mark, Eq s
-  ) => EqIn (StateT mark s m)
-  where
-    eqIn
-      :: (Eq a)
-      => (mark s, Context m)
-      -> StateT mark s m a
-      -> StateT mark s m a
-      -> Bool
-    eqIn (s,h) (StateT x) (StateT y) =
-      eqIn h (x $ unwrap s) (y $ unwrap s)
 
 instance
   ( Typeable s, Typeable m, Typeable a, Typeable mark
@@ -140,18 +130,76 @@ instance
         a <- f $ fmap slot2 (x s)
         return $ Pair s a
 
+
+
+
+
+instance
+  ( EqIn m, MonadIdentity mark, Eq s
+  ) => EqIn (StateT mark s m)
+  where
+    newtype Context (StateT mark s m)
+      = StateTCtx
+          { unStateTCtx :: (mark s, Context m)
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (StateT mark s m)
+      -> StateT mark s m a
+      -> StateT mark s m a
+      -> Bool
+    eqIn (StateTCtx (s,h)) (StateT x) (StateT y) =
+      eqIn h (x $ unwrap s) (y $ unwrap s)
+
+deriving instance
+  ( Eq (mark s), Eq (Context m)
+  ) => Eq (Context (StateT mark s m))
+
+deriving instance
+  ( Show (mark s), Show (Context m)
+  ) => Show (Context (StateT mark s m))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonadTrans (mark s) (StateT mark s) (Pair (mark s))
+  ) => RunMonadTrans (StateT mark s)
   where
+    newtype InputT (StateT mark s)
+      = StateTIn
+          { unStateTIn :: mark s
+          } deriving (Typeable)
+
+    newtype OutputT (StateT mark s) a
+      = StateTOut
+          { unStateTOut :: Pair (mark s) a
+          } deriving (Typeable)
+
     runT
       :: ( Monad m )
-      => mark s
+      => InputT (StateT mark s)
       -> StateT mark s m a
-      -> m (Pair (mark s) a)
-    runT s (StateT x) = do
+      -> m (OutputT (StateT mark s) a)
+    runT (StateTIn s) (StateT x) = do
       Pair s1 a <- x (unwrap s)
-      return $ Pair (pure s1) a
+      return $ StateTOut $ Pair (pure s1) a
+
+deriving instance
+  ( Eq (mark s)
+  ) => Eq (InputT (StateT mark s))
+
+deriving instance
+  ( Show (mark s)
+  ) => Show (InputT (StateT mark s))
+
+deriving instance
+  ( Eq (mark s), Eq a
+  ) => Eq (OutputT (StateT mark s) a)
+
+deriving instance
+  ( Show (mark s), Show a
+  ) => Show (OutputT (StateT mark s) a)
 
 
 
@@ -161,41 +209,41 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatch (mark s) (StateT mark s) (Pair (mark s))
+  ) => LiftCatch (StateT mark s)
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (Pair (mark s) a)
+      => Catch e m (OutputT (StateT mark s) a)
       -> Catch e (StateT mark s m) a
     liftCatch catch x h = StateT $ \s ->
-      fmap (bimap1 unwrap) $ catch
-        (fmap (bimap1 pure) $ unStateT x s)
-        (\e -> fmap (bimap1 pure) $ unStateT (h e) s)
+      fmap (bimap1 unwrap . unStateTOut) $ catch
+        (fmap (StateTOut . bimap1 pure) $ unStateT x s)
+        (\e -> fmap (StateTOut . bimap1 pure) $ unStateT (h e) s)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraft (mark s) (StateT mark s) (Pair (mark s))
+  ) => LiftDraft (StateT mark s)
   where
     liftDraft
       :: ( Monad m )
-      => Draft w m (Pair (mark s) a)
+      => Draft w m (OutputT (StateT mark s) a)
       -> Draft w (StateT mark s m) a
     liftDraft draft x =
       StateT $ \s -> do
-        Pair w (Pair s a) <- draft $ fmap (bimap1 pure) $ unStateT x s
+        Pair w (StateTOut (Pair s a)) <- draft $ fmap (StateTOut . bimap1 pure) $ unStateT x s
         return $ Pair (unwrap s) (Pair w a)
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocal (mark s) (StateT mark s) (Pair (mark s))
+  ) => LiftLocal (StateT mark s)
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Pair (mark s) a)
+      => Local r m (OutputT (StateT mark s) a)
       -> Local r (StateT mark s m) a
     liftLocal local f x =
       StateT $ \s -> do
-        Pair s1 a <- local f $ fmap (bimap1 pure) $ unStateT x s
+        StateTOut (Pair s1 a) <- local f $ fmap (StateTOut . bimap1 pure) $ unStateT x s
         return $ Pair (unwrap s1) a
 
 

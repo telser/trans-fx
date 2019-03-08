@@ -10,11 +10,15 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Except (
     Except(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -36,21 +40,6 @@ data Except
     = Except e -- ^ Exceptional result
     | Accept a -- ^ Normal result
     deriving (Eq, Show, Typeable)
-
-type instance Context (Except mark e)
-  = mark ()
-
-instance
-  ( Eq e
-  ) => EqIn (Except mark e)
-  where
-    eqIn
-      :: (Eq a)
-      => mark ()
-      -> Except mark e a
-      -> Except mark e a
-      -> Bool
-    eqIn _ = (==)
 
 instance
   ( MonadIdentity mark
@@ -138,15 +127,74 @@ instance
   ( MonadIdentity mark
   ) => Central (Except mark e)
 
+
+
+
+
+instance
+  ( Eq e
+  ) => EqIn (Except mark e)
+  where
+    newtype Context (Except mark e)
+      = ExceptCtx
+          { unExceptCtx :: mark ()
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (Except mark e)
+      -> Except mark e a
+      -> Except mark e a
+      -> Bool
+    eqIn _ = (==)
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Context (Except mark e))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Context (Except mark e))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonad (mark ()) (Except mark e) (Except mark e)
+  ) => RunMonad (Except mark e)
   where
+    newtype Input (Except mark e)
+      = ExceptIn
+          { unExceptIn :: mark ()
+          } deriving (Typeable)
+
+    newtype Output (Except mark e) a
+      = ExceptOut
+          { unExceptOut :: Except mark e a
+          } deriving (Typeable)
+
     run
-      :: mark ()
+      :: Input (Except mark e)
       -> Except mark e a
-      -> Except mark e a
-    run _ = id
+      -> Output (Except mark e) a
+    run _ = ExceptOut
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Input (Except mark e))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Input (Except mark e))
+
+deriving instance
+  ( Eq e, Eq a
+  ) => Eq (Output (Except mark e) a)
+
+deriving instance
+  ( Show e, Show a
+  ) => Show (Output (Except mark e) a)
+
+
 
 
 

@@ -10,10 +10,14 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.WriteOnly (
     WriteOnly(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -35,20 +39,7 @@ newtype WriteOnly
         { unWriteOnly :: Pair w a
         } deriving (Eq, Show, Typeable)
 
-type instance Context (WriteOnly mark w)
-  = mark ()
 
-instance
-  ( Eq w
-  ) => EqIn (WriteOnly mark w)
-  where
-    eqIn
-      :: (Eq a)
-      => mark ()
-      -> WriteOnly mark w a
-      -> WriteOnly mark w a
-      -> Bool
-    eqIn _ = (==)
 
 instance
   ( Monoid w, MonadIdentity mark
@@ -126,16 +117,71 @@ instance
 
 
 
+
+
+instance
+  ( Eq w
+  ) => EqIn (WriteOnly mark w)
+  where
+    newtype Context (WriteOnly mark w)
+      = WriteOnlyCtx
+          { unWriteOnlyCtx :: mark ()
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (WriteOnly mark w)
+      -> WriteOnly mark w a
+      -> WriteOnly mark w a
+      -> Bool
+    eqIn _ = (==)
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Context (WriteOnly mark w))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Context (WriteOnly mark w))
+
+
+
 instance
   ( Monoid w, MonadIdentity mark
-  ) => RunMonad (mark ()) (WriteOnly mark w) (Pair (mark w))
+  ) => RunMonad (WriteOnly mark w)
   where
+    newtype Input (WriteOnly mark w)
+      = WriteOnlyIn
+          { unWriteOnlyIn :: mark ()
+          } deriving (Typeable)
+
+    newtype Output (WriteOnly mark w) a
+      = WriteOnlyOut
+          { unWriteOnlyOut :: Pair (mark w) a
+          } deriving (Typeable)
+
     run
-      :: mark ()
+      :: Input (WriteOnly mark w)
       -> WriteOnly mark w a
-      -> Pair (mark w) a
+      -> Output (WriteOnly mark w) a
     run _ (WriteOnly (Pair w a)) =
-      Pair (pure w) a
+      WriteOnlyOut $ Pair (pure w) a
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Input (WriteOnly mark w))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Input (WriteOnly mark w))
+
+deriving instance
+  ( Eq (mark w), Eq a
+  ) => Eq (Output (WriteOnly mark w) a)
+
+deriving instance
+  ( Show (mark w), Show a
+  ) => Show (Output (WriteOnly mark w) a)
 
 
 

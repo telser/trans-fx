@@ -7,14 +7,18 @@
 --   Portability : POSIX
 
 {-# LANGUAGE InstanceSigs          #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE UndecidableInstances  #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Flip (
     Flip(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -23,6 +27,7 @@ import Data.Typeable (Typeable)
 import Control.Applicative (liftA2)
 import Control.Monad (join)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -35,7 +40,7 @@ newtype Flip
   (a :: *)
     = Flip
         { unFlip :: m (c a)
-        } deriving (Typeable)
+        } deriving (Eq, Typeable)
 
 deriving instance
   ( Show (m (c a))
@@ -97,12 +102,43 @@ instance
   ( Central c1, Central c2
   ) => Central (Flip c1 c2)
 
+
+
+
+
 instance
-  ( RunMonad z1 m1 f1, RunMonad z2 m2 f2, Central m1
-  ) => RunMonad (z1,z2) (Flip m1 m2) (Flip f1 f2)
+  ( RunMonad m1, RunMonad m2, Central m1, Functor (Output m2)
+  ) => RunMonad (Flip m1 m2)
   where
+    data Input (Flip m1 m2)
+      = FlipIn
+          { unFlipIn :: (Input m1, Input m2)
+          } deriving (Typeable)
+
+    data Output (Flip m1 m2) a
+      = FlipOut
+          { unFlipOut :: Flip (Output m1) (Output m2) a
+          } deriving (Typeable)
+
     run
-      :: (z1,z2)
+      :: Input (Flip m1 m2)
       -> Flip m1 m2 a
-      -> Flip f1 f2 a
-    run (z1,z2) = Flip . fmap (run z1) . run z2 . unFlip
+      -> Output (Flip m1 m2) a
+    run (FlipIn (z1,z2)) =
+      FlipOut . Flip . fmap (run z1) . run z2 . unFlip
+
+deriving instance
+  ( Eq (Input m1), Eq (Input m2)
+  ) => Eq (Input (Flip m1 m2))
+
+deriving instance
+  ( Show (Input m1), Show (Input m2)
+  ) => Show (Input (Flip m1 m2))
+
+deriving instance
+  ( Eq (Output m2 (Output m1 a)), Eq (Output m1 a)
+  ) => Eq (Output (Flip m1 m2) a)
+
+deriving instance
+  ( Show (Output m2 (Output m1 a)), Show (Output m1 a)
+  ) => Show (Output (Flip m1 m2) a)

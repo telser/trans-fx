@@ -32,7 +32,7 @@ import Control.FX.Monad.Trans
 
 
 testLiftDraftLaws
-  :: ( LiftDraft z t f, MonadWriteOnly mark w m
+  :: ( LiftDraft t, MonadWriteOnly mark w m
      , Arbitrary h, Arbitrary (m a)
      , Show h, Show (m a)
      , Eq a, Eq (mark w)
@@ -63,7 +63,7 @@ testLiftDraftLaws pt ph pm pw pmark pa eq =
 
 -- | @liftDraft draft (lift x) === lift (draft x)@
 testLiftDraftLawHom
-  :: ( LiftDraft z t f, MonadWriteOnly mark w m
+  :: ( LiftDraft t, MonadWriteOnly mark w m
      , Arbitrary h, Arbitrary (m a)
      , Show h, Show (m a)
      , Eq a, Eq (mark w)
@@ -81,8 +81,8 @@ testLiftDraftLawHom pt ph pm pw pmark pa eq =
     liftDraftLawHom pt ph pm pw pmark pa eq
 
 liftDraftLawHom
-  :: forall t h m z f w mark a
-   . ( LiftDraft z t f, MonadWriteOnly mark w m
+  :: forall t h m w mark a
+   . ( LiftDraft t, MonadWriteOnly mark w m
      , Arbitrary h, Arbitrary (m a)
      , Show h, Show (m a)
      , Eq a, Eq (mark w)

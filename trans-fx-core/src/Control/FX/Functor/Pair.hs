@@ -6,13 +6,13 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE InstanceSigs   #-}
+{-# LANGUAGE TypeFamilies   #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Control.FX.Functor.Pair (
     Pair(..)
+  , Context(..)
 ) where
 
 
@@ -33,20 +33,7 @@ data Pair
        { slot1 :: a, slot2 :: b
        } deriving (Eq, Show, Typeable)
 
-type instance Context (Pair a)
-  = ()
 
-instance
-  ( Eq a
-  ) => EqIn (Pair a)
-  where
-    eqIn
-      :: (Eq b)
-      => ()
-      -> Pair a b
-      -> Pair a b
-      -> Bool
-    eqIn () = (==)
 
 instance
   Functor (Pair c)
@@ -113,3 +100,20 @@ instance
       -> Pair a b
       -> Pair a c
     bimap2 f (Pair a b) = Pair a (f b)
+
+instance
+  ( Eq a
+  ) => EqIn (Pair a)
+  where
+    newtype Context (Pair a)
+      = PairCtx
+          { unPairCtx :: ()
+          } deriving (Eq, Show)
+
+    eqIn
+      :: (Eq b)
+      => Context (Pair a)
+      -> Pair a b
+      -> Pair a b
+      -> Bool
+    eqIn _ = (==)

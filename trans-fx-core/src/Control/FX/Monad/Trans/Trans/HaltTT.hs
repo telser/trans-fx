@@ -1,7 +1,11 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -9,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.HaltTT (
     HaltTT(..)
   , runHaltTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -64,35 +71,85 @@ instance
       -> HaltTT mark t m a
     liftT = HaltTT . lift
 
+
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , EqIn (t m)
+  ) => EqIn (HaltTT mark t m)
+  where
+    newtype Context (HaltTT mark t m)
+      = HaltTTCtx
+          { unHaltTTCtx :: (mark (), Context (t m))
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (HaltTT mark t m)
+      -> HaltTT mark t m a
+      -> HaltTT mark t m a
+      -> Bool
+    eqIn (HaltTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unHaltTTOut $ runTT (HaltTTIn v) x)
+        (fmap unHaltTTOut $ runTT (HaltTTIn v) y)
+
+deriving instance
+  ( Eq (mark ()), Eq (Context (t m))
+  ) => Eq (Context (HaltTT mark t m))
+
+deriving instance
+  ( Show (mark ()), Show (Context (t m))
+  ) => Show (Context (HaltTT mark t m))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonadTransTrans (Val (mark ())) (HaltTT mark) (Halt mark)
+  ) => RunMonadTransTrans (HaltTT mark)
   where
+    newtype InputTT (HaltTT mark) m
+      = HaltTTIn
+          { unHaltTTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputTT (HaltTT mark) a
+      = HaltTTOut
+          { unHaltTTOut :: Halt mark a
+          } deriving (Typeable)
+
     runTT
       :: ( Monad m, MonadTrans t )
-      => Val (mark ()) m
+      => InputTT (HaltTT mark) m
       -> HaltTT mark t m a
-      -> t m (Halt mark a)
-    runTT (Val x) = runT x . unHaltTT
+      -> t m (OutputTT (HaltTT mark) a)
+    runTT (HaltTTIn x) =
+      fmap (HaltTTOut . unHaltTOut)
+        . runT (HaltTIn x) . unHaltTT
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputTT (HaltTT mark) m)
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputTT (HaltTT mark) m)
+
+deriving instance
+  ( Eq (mark ()), Eq a
+  ) => Eq (OutputTT (HaltTT mark) a)
+
+deriving instance
+  ( Show (mark ()), Show a
+  ) => Show (OutputTT (HaltTT mark) a)
 
 runHaltTT
   :: ( Monad m, MonadTrans t, MonadIdentity mark )
   => HaltTT mark t m a
   -> t m (Halt mark a)
-runHaltTT = runTT (Val (pure ()))
-
-instance
-  ( Monad m, MonadTrans t, Eq a, MonadIdentity mark
-  , forall x. (Eq x) => EqIn h (t m x)
-  ) => EqIn (Val (mark ()) m, h) (HaltTT mark t m a)
-  where
-    eqIn
-      :: (Val (mark ()) m, h)
-      -> HaltTT mark t m a
-      -> HaltTT mark t m a
-      -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+runHaltTT = fmap unHaltTTOut . runTT (HaltTTIn (pure ()))
 
 
 
@@ -102,35 +159,58 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatchT (Val (mark ())) (HaltTT mark) (Halt mark)
+  ) => LiftCatchT (HaltTT mark)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (Halt mark x))
+      :: forall m t e
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (OutputTT (HaltTT mark) x))
       -> (forall x. Catch e (HaltTT mark t m) x)
-    liftCatchT catch x h = HaltTT $
-      liftCatch catch (unHaltTT x) (unHaltTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e (t m) (OutputT (HaltT mark) x)
+        catch' y g =
+          fmap (HaltTOut . unHaltTTOut) $ catch
+            (fmap (HaltTTOut . unHaltTOut) y)
+            (fmap (HaltTTOut . unHaltTOut) . g)
+      in
+        HaltTT $ liftCatch catch' (unHaltTT x) (unHaltTT . h)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraftT (Val (mark ())) (HaltTT mark) (Halt mark)
+  ) => LiftDraftT (HaltTT mark)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (Halt mark x))
+      :: forall m t w
+       . ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (OutputTT (HaltTT mark) x))
       -> (forall x. Draft w (HaltTT mark t m) x)
-    liftDraftT draft = HaltTT . liftDraft draft . unHaltTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w (t m) (OutputT (HaltT mark) x)
+        draft' =
+          fmap (fmap (HaltTOut . unHaltTTOut))
+            . draft . fmap (HaltTTOut . unHaltTOut)
+      in
+        HaltTT . liftDraft draft' . unHaltTT
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocalT (Val (mark ())) (HaltTT mark) (Halt mark)
+  ) => LiftLocalT (HaltTT mark)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Halt mark x))
+      :: forall m t r
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (OutputTT (HaltTT mark) x))
       -> (forall x. Local r (HaltTT mark t m) x)
     liftLocalT local f =
-      HaltTT . liftLocal local f . unHaltTT
+      let
+        local' :: Local r (t m) (OutputT (HaltT mark) x)
+        local' g =
+          fmap (HaltTOut . unHaltTTOut)
+            . local g . fmap (HaltTTOut . unHaltTOut)
+      in
+        HaltTT . liftLocal local' f . unHaltTT
 
 
 

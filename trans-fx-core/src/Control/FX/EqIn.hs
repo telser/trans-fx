@@ -10,7 +10,16 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Control.FX.EqIn where
+module Control.FX.EqIn (
+    EqIn(..)
+  , Context(..)
+) where
+
+
+
+import Data.Typeable (Typeable, typeOf)
+
+
 
 -- | Class representing types which can be compared
 -- for equality within an environment. Instances
@@ -21,43 +30,50 @@ module Control.FX.EqIn where
 -- > (2) eqIn env x y  ===  eqIn env y x
 -- >
 -- > (3) if (eqIn env x y) && (eqIn env y z) then eqIn env x z else True
-
-{-
-class EqIn env a where
-  eqIn :: env -> a -> a -> Bool
-
-instance
-  ( Eq a
-  ) => EqIn () (Maybe a)
+class EqIn (t :: * -> *)
   where
-    eqIn
-      :: ()
-      -> Maybe a
-      -> Maybe a
-      -> Bool
-    eqIn () = (==)
+    data Context t
 
-instance
-  ( Eq a, Eq b
-  ) => EqIn () (Either a b)
-  where
-    eqIn
-      :: ()
-      -> Either a b
-      -> Either a b
-      -> Bool
-    eqIn () = (==)
--}
-
-
-
-type family Context (f :: * -> *)
-
-class EqIn t
-  where
     eqIn
       :: (Eq a)
       => Context t
       -> t a
       -> t a
       -> Bool
+
+
+
+instance
+  EqIn Maybe
+  where
+    data Context Maybe
+      = MaybeCtx
+          { unMaybeCtx :: ()
+          } deriving (Eq, Show)
+
+    eqIn
+      :: (Eq a)
+      => Context Maybe
+      -> Maybe a
+      -> Maybe a
+      -> Bool
+    eqIn _ = (==)
+
+
+
+instance
+  ( Eq a
+  ) => EqIn (Either a)
+  where
+    data Context (Either a)
+       = EitherCtx
+          { unEitherCtx :: ()
+          } deriving (Eq, Show)
+
+    eqIn
+      :: (Eq b)
+      => Context (Either a)
+      -> Either a b
+      -> Either a b
+      -> Bool
+    eqIn _ = (==)

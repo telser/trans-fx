@@ -1,8 +1,10 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -11,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.ExceptTT (
     ExceptTT(..)
   , runExceptTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -71,36 +76,86 @@ instance
       -> ExceptTT mark e t m a
     liftT = ExceptTT . lift
 
+
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Eq e
+  , EqIn (t m)
+  ) => EqIn (ExceptTT mark e t m)
+  where
+    newtype Context (ExceptTT mark e t m)
+      = ExceptTTCtx
+          { unExceptTTCtx :: (mark (), Context (t m))
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (ExceptTT mark e t m)
+      -> ExceptTT mark e t m a
+      -> ExceptTT mark e t m a
+      -> Bool
+    eqIn (ExceptTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unExceptTTOut $ runTT (ExceptTTIn v) x)
+        (fmap unExceptTTOut $ runTT (ExceptTTIn v) y)
+
+deriving instance
+  ( Eq (mark ()), Eq (Context (t m))
+  ) => Eq (Context (ExceptTT mark e t m))
+
+deriving instance
+  ( Show (mark ()), Show (Context (t m))
+  ) => Show (Context (ExceptTT mark e t m))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonadTransTrans (Val (mark ())) (ExceptTT mark e) (Except mark e)
+  ) => RunMonadTransTrans (ExceptTT mark e)
   where
+    newtype InputTT (ExceptTT mark e) m
+      = ExceptTTIn
+          { unExceptTTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputTT (ExceptTT mark e) a
+      = ExceptTTOut
+          { unExceptTTOut :: Except mark e a
+          } deriving (Typeable)
+
     runTT
       :: ( Monad m, MonadTrans t )
-      => Val (mark ()) m
+      => InputTT (ExceptTT mark e) m
       -> ExceptTT mark e t m a
-      -> t m (Except mark e a)
-    runTT (Val s) = runT s . unExceptTT
+      -> t m (OutputTT (ExceptTT mark e) a)
+    runTT (ExceptTTIn s) =
+      fmap (ExceptTTOut . unExceptTOut)
+        . runT (ExceptTIn s) . unExceptTT
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputTT (ExceptTT mark e) m)
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputTT (ExceptTT mark e) m)
+
+deriving instance
+  ( Eq e, Eq a
+  ) => Eq (OutputTT (ExceptTT mark e) a)
+
+deriving instance
+  ( Show e, Show a
+  ) => Show (OutputTT (ExceptTT mark e) a)
 
 runExceptTT
   :: ( MonadIdentity mark, Monad m, MonadTrans t )
   => mark ()
   -> ExceptTT mark e t m a
   -> t m (Except mark e a)
-runExceptTT s = runTT (Val s)
-
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, Eq a, Eq e
-  , forall x. (Eq x) => EqIn h (t m x)
-  ) => EqIn (Val (mark ()) m, h) (ExceptTT mark e t m a)
-  where
-    eqIn
-      :: (Val (mark ()) m, h)
-      -> ExceptTT mark e t m a
-      -> ExceptTT mark e t m a
-      -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+runExceptTT s = fmap unExceptTTOut . runTT (ExceptTTIn s)
 
 
 
@@ -110,35 +165,58 @@ instance
 
 instance
   ( MonadIdentity mark
-  ) => LiftCatchT (Val (mark ())) (ExceptTT mark e) (Except mark e)
+  ) => LiftCatchT (ExceptTT mark e)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e1 (t m) (Except mark e x))
+      :: forall m t e1
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e1 (t m) (OutputTT (ExceptTT mark e) x))
       -> (forall x. Catch e1 (ExceptTT mark e t m) x)
-    liftCatchT catch x h = ExceptTT $
-      liftCatch catch (unExceptTT x) (unExceptTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e1 (t m) (OutputT (ExceptT mark e) x)
+        catch' y g =
+          fmap (ExceptTOut . unExceptTTOut) $ catch
+            (fmap (ExceptTTOut . unExceptTOut) y)
+            (fmap (ExceptTTOut . unExceptTOut) . g)
+      in
+        ExceptTT $ liftCatch catch' (unExceptTT x) (unExceptTT . h)
 
 instance
   ( MonadIdentity mark
-  ) => LiftDraftT (Val (mark ())) (ExceptTT mark e) (Except mark e)
+  ) => LiftDraftT (ExceptTT mark e)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (Except mark e x))
+      :: forall m t w
+       . ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (OutputTT (ExceptTT mark e) x))
       -> (forall x. Draft w (ExceptTT mark e t m) x)
-    liftDraftT draft = ExceptTT . liftDraft draft . unExceptTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w (t m) (OutputT (ExceptT mark e) x)
+        draft' =
+          fmap (fmap (ExceptTOut . unExceptTTOut))
+            . draft . fmap (ExceptTTOut . unExceptTOut)
+      in
+        ExceptTT . liftDraft draft' . unExceptTT
 
 instance
   ( MonadIdentity mark
-  ) => LiftLocalT (Val (mark ())) (ExceptTT mark e) (Except mark e)
+  ) => LiftLocalT (ExceptTT mark e)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Except mark e x))
+      :: forall m t r
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (OutputTT (ExceptTT mark e) x))
       -> (forall x. Local r (ExceptTT mark e t m) x)
     liftLocalT local f =
-      ExceptTT . liftLocal local f . unExceptTT
+      let
+        local' :: Local r (t m) (OutputT (ExceptT mark e) x)
+        local' g =
+          fmap (ExceptTOut . unExceptTTOut)
+            . local g . fmap (ExceptTTOut . unExceptTOut)
+      in
+        ExceptTT . liftLocal local' f . unExceptTT
 
 
 

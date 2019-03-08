@@ -30,7 +30,7 @@ import Control.FX.Monad.Trans
 
 
 testLiftCatchLaws
-  :: ( LiftCatch z t f, MonadExcept mark e m
+  :: ( LiftCatch t, MonadExcept mark e m
      , Arbitrary h, Arbitrary (m a), CoArbitrary (mark e)
      , Show h, Show (m a)
      , Eq a
@@ -61,7 +61,7 @@ testLiftCatchLaws pt ph pm pe pmark pa eq =
 
 -- | @lift (catch x h) === liftCatch catch (lift x) (lift . h)@
 testLiftCatchLawHom
-  :: ( LiftCatch z t f, MonadExcept mark e m
+  :: ( LiftCatch t, MonadExcept mark e m
      , Arbitrary h, Arbitrary (m a), CoArbitrary (mark e)
      , Show h, Show (m a)
      , Eq a
@@ -79,7 +79,7 @@ testLiftCatchLawHom pt ph pm pe pmark pa eq =
     liftCatchLawHom pt ph pm pe pmark pa eq
 
 liftCatchLawHom
-  :: ( LiftCatch z t f, MonadExcept mark e m
+  :: ( LiftCatch t, MonadExcept mark e m
      , Arbitrary h, Arbitrary (m a), CoArbitrary (mark e)
      , Show h, Show (m a)
      , Eq a

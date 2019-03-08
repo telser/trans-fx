@@ -1,7 +1,11 @@
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -9,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.AppendOnlyTT (
     AppendOnlyTT(..)
   , runAppendOnlyTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -65,36 +72,92 @@ instance
       -> AppendOnlyTT mark w t m a
     liftT = AppendOnlyTT . lift
 
+
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Eq w
+  , EqIn (t m), Monoid w
+  ) => EqIn (AppendOnlyTT mark w t m)
+  where
+    newtype Context (AppendOnlyTT mark w t m)
+      = AppendOnlyTTCtx
+          { unAppendOnlyTTCtx :: (mark (), Context (t m))
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (AppendOnlyTT mark w t m)
+      -> AppendOnlyTT mark w t m a
+      -> AppendOnlyTT mark w t m a
+      -> Bool
+    eqIn (AppendOnlyTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unAppendOnlyTTOut $ runTT (AppendOnlyTTIn v) x)
+        (fmap unAppendOnlyTTOut $ runTT (AppendOnlyTTIn v) y)
+
+deriving instance
+  ( Eq (mark ()), Eq (Context (t m))
+  ) => Eq (Context (AppendOnlyTT mark w t m))
+
+deriving instance
+  ( Show (mark ()), Show (Context (t m))
+  ) => Show (Context (AppendOnlyTT mark w t m))
+
+
+
 instance
   ( MonadIdentity mark, Monoid w
-  ) => RunMonadTransTrans (Val (mark ())) (AppendOnlyTT mark w) (Pair (mark w))
+  ) => RunMonadTransTrans (AppendOnlyTT mark w)
   where
+    newtype InputTT (AppendOnlyTT mark w) m
+      = AppendOnlyTTIn
+          { unAppendOnlyTTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputTT (AppendOnlyTT mark w) a
+      = AppendOnlyTTOut
+          { unAppendOnlyTTOut :: Pair (mark w) a
+          } deriving (Typeable)
+
     runTT
       :: ( Monad m, MonadTrans t )
-      => Val (mark ()) m
+      => InputTT (AppendOnlyTT mark w) m
       -> AppendOnlyTT mark w t m a
-      -> t m (Pair (mark w) a)
-    runTT (Val w) = runT w . unAppendOnlyTT
+      -> t m (OutputTT (AppendOnlyTT mark w) a)
+    runTT (AppendOnlyTTIn w) =
+      fmap (AppendOnlyTTOut . unAppendOnlyTOut)
+        . runT (AppendOnlyTIn w) . unAppendOnlyTT
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputTT (AppendOnlyTT mark w) m)
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputTT (AppendOnlyTT mark w) m)
+
+deriving instance
+  ( Eq (mark w), Eq a
+  ) => Eq (OutputTT (AppendOnlyTT mark w) a)
+
+deriving instance
+  ( Show (mark w), Show a
+  ) => Show (OutputTT (AppendOnlyTT mark w) a)
 
 runAppendOnlyTT
   :: ( MonadIdentity mark, Monad m, MonadTrans t, Monoid w )
   => mark ()
   -> AppendOnlyTT mark w t m a
   -> t m (Pair (mark w) a)
-runAppendOnlyTT w = runTT (Val w)
+runAppendOnlyTT w = fmap unAppendOnlyTTOut . runTT (AppendOnlyTTIn w)
 
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark, Eq a, Eq w
-  , forall x. (Eq x) => EqIn h (t m x), Monoid w
-  ) => EqIn (Val (mark ()) m, h) (AppendOnlyTT mark w t m a)
-  where
-    eqIn
-      :: (Val (mark ()) m, h)
-      -> AppendOnlyTT mark w t m a
-      -> AppendOnlyTT mark w t m a
-      -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+
+
+
+
+
 
 
 
@@ -104,35 +167,58 @@ instance
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftCatchT (Val (mark ())) (AppendOnlyTT mark w) (Pair (mark w))
+  ) => LiftCatchT (AppendOnlyTT mark w)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (Pair (mark w) x))
+      :: forall m t e
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (OutputTT (AppendOnlyTT mark w) x))
       -> (forall x. Catch e (AppendOnlyTT mark w t m) x)
-    liftCatchT catch x h = AppendOnlyTT $
-      liftCatch catch (unAppendOnlyTT x) (unAppendOnlyTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e (t m) (OutputT (AppendOnlyT mark w) x)
+        catch' y g =
+          fmap (AppendOnlyTOut . unAppendOnlyTTOut) $ catch
+            (fmap (AppendOnlyTTOut . unAppendOnlyTOut) y)
+            (fmap (AppendOnlyTTOut . unAppendOnlyTOut) . g)
+      in
+        AppendOnlyTT $ liftCatch catch' (unAppendOnlyTT x) (unAppendOnlyTT . h)
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftDraftT (Val (mark ())) (AppendOnlyTT mark w) (Pair (mark w))
+  ) => LiftDraftT (AppendOnlyTT mark w)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w1 )
-      => (forall x. Draft w1 (t m) (Pair (mark w) x))
+      :: forall m t w1
+       . ( Monad m, MonadTrans t, Monoid w1 )
+      => (forall x. Draft w1 (t m) (OutputTT (AppendOnlyTT mark w) x))
       -> (forall x. Draft w1 (AppendOnlyTT mark w t m) x)
-    liftDraftT draft = AppendOnlyTT . liftDraft draft . unAppendOnlyTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w1 (t m) (OutputT (AppendOnlyT mark w) x)
+        draft' =
+          fmap (fmap (AppendOnlyTOut . unAppendOnlyTTOut))
+            . draft . fmap (AppendOnlyTTOut . unAppendOnlyTOut)
+      in
+        AppendOnlyTT . liftDraft draft' . unAppendOnlyTT
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftLocalT (Val (mark ())) (AppendOnlyTT mark w) (Pair (mark w))
+  ) => LiftLocalT (AppendOnlyTT mark w)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Pair (mark w) x))
+      :: forall m t r
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (OutputTT (AppendOnlyTT mark w) x))
       -> (forall x. Local r (AppendOnlyTT mark w t m) x)
     liftLocalT local f =
-      AppendOnlyTT . liftLocal local f . unAppendOnlyTT
+      let
+        local' :: Local r (t m) (OutputT (AppendOnlyT mark w) x)
+        local' g =
+          fmap (AppendOnlyTOut . unAppendOnlyTTOut)
+            . local g . fmap (AppendOnlyTTOut . unAppendOnlyTOut)
+      in
+        AppendOnlyTT . liftLocal local' f . unAppendOnlyTT
 
 
 

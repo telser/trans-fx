@@ -11,12 +11,16 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.Trans.PromptTT (
     PromptTT(..)
   , Eval(..)
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -121,17 +125,119 @@ instance
     liftT x = PromptTT $ \end cont ->
       x >>= end
 
+
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , Commutant mark, EqIn (t m)
+  ) => EqIn (PromptTT mark p t m)
+  where
+    newtype Context (PromptTT mark p t m)
+      = PromptTTCtx
+          { unPromptTTCtx :: (Eval p m, Context (t m))
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (PromptTT mark p t m)
+      -> PromptTT mark p t m a
+      -> PromptTT mark p t m a
+      -> Bool
+    eqIn (PromptTTCtx (eval,h)) x y =
+      eqIn h
+        (fmap unPromptTTOut $ runTT (PromptTTIn eval) x)
+        (fmap unPromptTTOut $ runTT (PromptTTIn eval) y)
+
+instance
+  ( Typeable mark, Typeable p, Typeable t, Typeable m
+  ) => Show (Context (PromptTT mark p t m))
+  where
+    show = show . typeOf
+
+
+
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => RunMonadTransTrans (Eval p) (PromptTT mark p) mark
+  ) => RunMonadTransTrans (PromptTT mark p)
   where
+    newtype InputTT (PromptTT mark p) m
+      = PromptTTIn
+          { unPromptTTIn :: Eval p m
+          } deriving (Typeable)
+
+    newtype OutputTT (PromptTT mark p) a
+      = PromptTTOut
+          { unPromptTTOut :: mark a
+          } deriving (Typeable)
+
     runTT
       :: (Monad m, MonadTrans t)
-      => Eval p m
+      => InputTT (PromptTT mark p) m
       -> PromptTT mark p t m a
-      -> t m (mark a)
-    runTT (Eval eval) (PromptTT x) = fmap pure $
+      -> t m (OutputTT (PromptTT mark p) a)
+    runTT (PromptTTIn (Eval eval)) (PromptTT x) = fmap pure $
       x return (\p cont -> (lift $ eval p) >>= cont)
+
+instance
+  ( Typeable mark, Typeable p, Typeable m
+  ) => Show (InputTT (PromptTT mark p) m)
+  where
+    show = show . typeOf
+
+deriving instance
+  ( Eq (mark a)
+  ) => Eq (OutputTT (PromptTT mark p) a)
+
+deriving instance
+  ( Show (mark a)
+  ) => Show (OutputTT (PromptTT mark p) a)
+
+instance
+  ( MonadIdentity mark
+  ) => Functor (OutputTT (PromptTT mark p))
+  where
+    fmap f (PromptTTOut x) = PromptTTOut (fmap f x)
+
+instance
+  ( MonadIdentity mark
+  ) => Applicative (OutputTT (PromptTT mark p))
+  where
+    pure = PromptTTOut . pure
+
+    (PromptTTOut f) <*> (PromptTTOut x) =
+      PromptTTOut (f <*> x)
+
+instance
+  ( MonadIdentity mark
+  ) => Monad (OutputTT (PromptTT mark p))
+  where
+    return = PromptTTOut . return
+
+    (PromptTTOut x) >>= f =
+      PromptTTOut (x >>= (unPromptTTOut . f))
+
+instance
+  ( MonadIdentity mark, Semigroup a
+  ) => Semigroup (OutputTT (PromptTT mark p) a)
+  where
+    (PromptTTOut a) <> (PromptTTOut b) =
+      PromptTTOut (a <> b)
+
+instance
+  ( MonadIdentity mark, Monoid a
+  ) => Monoid (OutputTT (PromptTT mark p) a)
+  where
+    mempty = PromptTTOut mempty
+
+instance
+  ( MonadIdentity mark
+  ) => MonadIdentity (OutputTT (PromptTT mark p))
+  where
+    unwrap = unwrap . unPromptTTOut
+
+
 
 -- | Helper type for running prompt computations
 data Eval
@@ -150,34 +256,6 @@ instance
       -> String
     show = show . typeOf
 
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , Commutant mark, EqIn h (t m (mark a))
-  ) => EqIn (Eval p m, h) (PromptTT mark p t m a)
-  where
-    eqIn
-      :: (Eval p m, h)
-      -> PromptTT mark p t m a
-      -> PromptTT mark p t m a
-      -> Bool
-    eqIn (eval, h) x y =
-      eqIn h (runTT eval x) (runTT eval y)
-
-type instance Context (PromptTT mark p t m a) = (Eval p m, Context (t m (mark a)))
-
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , Commutant mark, EqIn' (t m (mark a))
-  ) => EqIn' (PromptTT mark p t m a)
-  where
-    eqIn'
-      :: (Eval p m, Context (t m (mark a)))
-      -> PromptTT mark p t m a
-      -> PromptTT mark p t m a
-      -> Bool
-    eqIn' (eval, h) x y =
-      eqIn' h (runTT eval x) (runTT eval y)
-
 
 
 
@@ -186,11 +264,11 @@ instance
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftCatchT (Eval p) (PromptTT mark p) mark
+  ) => LiftCatchT (PromptTT mark p)
   where
     liftCatchT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (mark x))
+      => (forall x. Catch e (t m) (OutputTT (PromptTT mark p) x))
       -> (forall x. Catch e (PromptTT mark p t m) x)
 
     liftCatchT catch x h = PromptTT $ \end cont ->
@@ -200,11 +278,11 @@ instance
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftDraftT (Eval p) (PromptTT mark p) mark
+  ) => LiftDraftT (PromptTT mark p)
   where
     liftDraftT
       :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (mark x))
+      => (forall x. Draft w (t m) (OutputTT (PromptTT mark p) x))
       -> (forall x. Draft w (PromptTT mark p t m) x)
     liftDraftT draft x = PromptTT $ \end cont ->
       fmap (unwrap . slot2) $
@@ -212,14 +290,14 @@ instance
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftLocalT (Eval p) (PromptTT mark p) mark
+  ) => LiftLocalT (PromptTT mark p)
   where
     liftLocalT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (mark x))
+      => (forall x. Local r (t m) (OutputTT (PromptTT mark p) x))
       -> (forall x. Local r (PromptTT mark p t m) x)
     liftLocalT local f x = PromptTT $ \end cont ->
-      fmap unwrap $ local f $ fmap pure $ unPromptTT x end cont
+      fmap unwrap $ local f $ fmap (pure) $ unPromptTT x end cont
 
 
 

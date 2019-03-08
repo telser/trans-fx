@@ -10,11 +10,15 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Halt (
     Halt(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -36,19 +40,7 @@ data Halt
     | Halt   -- ^ Bail out
     deriving (Eq, Show, Typeable)
 
-type instance Context (Halt mark)
-  = mark ()
 
-instance
-  EqIn (Halt mark)
-  where
-    eqIn
-      :: (Eq a)
-      => mark ()
-      -> Halt mark a
-      -> Halt mark a
-      -> Bool
-    eqIn _ = (==)
 
 instance
   ( MonadIdentity mark
@@ -116,15 +108,73 @@ instance
   ( MonadIdentity mark
   ) => Central (Halt mark)
 
+
+
+
+
+instance
+  EqIn (Halt mark)
+  where
+    data Context (Halt mark)
+      = HaltCtx
+          { unHaltCtx :: mark ()
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (Halt mark)
+      -> Halt mark a
+      -> Halt mark a
+      -> Bool
+    eqIn _ = (==)
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Context (Halt mark))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Context (Halt mark))
+
+
+
 instance
   ( MonadIdentity mark
-  ) => RunMonad (mark ()) (Halt mark) (Halt mark)
+  ) => RunMonad (Halt mark)
   where
+    data Input (Halt mark)
+      = HaltIn
+          { unHaltIn :: mark ()
+          } deriving (Typeable)
+
+    data Output (Halt mark) a
+      = HaltOut
+          { unHaltOut :: Halt mark a
+          } deriving (Typeable)
+
     run
-      :: mark ()
+      :: Input (Halt mark)
       -> Halt mark a
-      -> Halt mark a
-    run _ = id
+      -> Output (Halt mark) a
+    run _ = HaltOut
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Input (Halt mark))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Input (Halt mark))
+
+deriving instance
+  ( Eq a
+  ) => Eq (Output (Halt mark) a)
+
+deriving instance
+  ( Show a
+  ) => Show (Output (Halt mark) a)
+
+
 
 
 

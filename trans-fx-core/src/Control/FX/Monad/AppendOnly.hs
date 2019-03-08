@@ -10,10 +10,14 @@
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.AppendOnly (
     AppendOnly(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
@@ -39,22 +43,6 @@ newtype AppendOnly
           -- but the class instance methods for @AppendOnly@ all
           -- preserve it.
         } deriving (Typeable)
-
-type instance Context (AppendOnly mark w)
-  = mark ()
-
-instance
-  ( Eq w, Monoid w
-  ) => EqIn (AppendOnly mark w)
-  where
-    eqIn
-      :: (Eq a)
-      => mark ()
-      -> AppendOnly mark w a
-      -> AppendOnly mark w a
-      -> Bool
-    eqIn _ (AppendOnly x) (AppendOnly y) =
-      (x mempty) == (y mempty)
 
 instance
   ( Typeable w, Typeable a, Typeable mark
@@ -119,13 +107,69 @@ instance
 
 instance
   ( Monoid w, MonadIdentity mark
-  ) => RunMonad (mark ()) (AppendOnly mark w) (Pair (mark w))
+  ) => RunMonad (AppendOnly mark w)
   where
+    newtype Input (AppendOnly mark w)
+      = AppendOnlyIn
+          { unAppendOnlyIn :: mark ()
+          } deriving (Typeable)
+
+    newtype Output (AppendOnly mark w) a
+      = AppendOnlyOut
+          { unAppendOnlyOut :: Pair (mark w) a
+          } deriving (Typeable)
+
     run
-      :: mark ()
+      :: Input (AppendOnly mark w)
       -> AppendOnly mark w a
-      -> Pair (mark w) a
-    run _ (AppendOnly x) = bimap1 pure $ x mempty
+      -> Output (AppendOnly mark w) a
+    run _ (AppendOnly x) = AppendOnlyOut $ bimap1 pure $ x mempty
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Input (AppendOnly mark w))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Input (AppendOnly mark w))
+
+deriving instance
+  ( Eq (mark w), Eq a
+  ) => Eq (Output (AppendOnly mark w) a)
+
+deriving instance
+  ( Show (mark w), Show a
+  ) => Show (Output (AppendOnly mark w) a)
+
+
+
+instance
+  ( Eq w, Monoid w
+  ) => EqIn (AppendOnly mark w)
+  where
+    newtype Context (AppendOnly mark w)
+      = AppendOnlyCtx
+          { unAppendOnlyCtx :: mark ()
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (AppendOnly mark w)
+      -> AppendOnly mark w a
+      -> AppendOnly mark w a
+      -> Bool
+    eqIn _ (AppendOnly x) (AppendOnly y) =
+      (x mempty) == (y mempty)
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (Context (AppendOnly mark w))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (Context (AppendOnly mark w))
+
+
 
 
 

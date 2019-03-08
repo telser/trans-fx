@@ -8,6 +8,7 @@
 
 {-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE Rank2Types                 #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -26,6 +27,8 @@ module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
   , TeletypeError(..)
   , IOException
   , runTeletypeTT
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -107,25 +110,32 @@ instance MonadIdentity TeletypeError where
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => RunMonadTransTrans
-    (Eval (TeletypeAction mark))
-    (TeletypeTT mark)
-    (Except TeletypeError (mark IOException))
+  ) => RunMonadTransTrans (TeletypeTT mark)
   where
+    newtype InputTT (TeletypeTT mark) m
+      = TeletypeTTIn
+          { unTeletypeTTIn :: Eval (TeletypeAction mark) m
+          } deriving (Typeable)
+
+    newtype OutputTT (TeletypeTT mark) a
+      = TeletypeTTOut
+          { unTeletypeTTOut :: Except TeletypeError (mark IOException) a
+          } deriving (Typeable)
+
     runTT
       :: ( Monad m, MonadTrans t )
-      => Eval (TeletypeAction mark) m
+      => InputTT (TeletypeTT mark) m
       -> TeletypeTT mark t m a
-      -> t m (Except TeletypeError (mark IOException) a)
-    runTT eval (TeletypeTT x) =
-      fmap (unwrap . unCompose) $ runTT (Sing eval (pure ())) x
+      -> t m (OutputTT (TeletypeTT mark) a)
+    runTT (TeletypeTTIn eval) (TeletypeTT x) =
+      fmap (TeletypeTTOut . unExceptTOut . unwrap . unCompose . unOverTTOut) $ runTT (OverTTIn (PromptTTIn eval, ExceptTIn (pure ()))) x
 
 runTeletypeTT
   :: ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark )
   => Eval (TeletypeAction mark) m
   -> TeletypeTT mark t m a
   -> t m (Except TeletypeError (mark IOException) a)
-runTeletypeTT = runTT
+runTeletypeTT p = fmap unTeletypeTTOut . runTT (TeletypeTTIn p)
 
 
 

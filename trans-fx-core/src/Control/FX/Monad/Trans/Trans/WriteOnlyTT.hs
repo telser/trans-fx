@@ -4,6 +4,7 @@
 {-# LANGUAGE KindSignatures             #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
@@ -12,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.WriteOnlyTT (
     WriteOnlyTT(..)
   , runWriteOnlyTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -72,40 +76,86 @@ instance
       -> WriteOnlyTT mark w t m a
     liftT = WriteOnlyTT . lift
 
-instance
-  ( MonadIdentity mark, Monoid w
-  ) => RunMonadTransTrans (Val (mark ())) (WriteOnlyTT mark w) (Pair (mark w))
-  where
-    runTT
-      :: ( Monad m, MonadTrans t )
-      => Val (mark ()) m
-      -> WriteOnlyTT mark w t m a
-      -> t m (Pair (mark w) a)
-    runTT (Val w) = runT w . unWriteOnlyTT
 
-runWriteOnlyTT
-  :: ( MonadIdentity mark, Monad m, MonadTrans t, Monoid w )
-  => mark ()
-  -> WriteOnlyTT mark w t m a
-  -> t m (Pair (mark w) a)
-runWriteOnlyTT w = runTT (Val w)
 
-type instance Context (WriteOnlyTT mark w t m)
-  = (Val (mark ()) m, Context (t m))
+
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, Eq w
   , EqIn (t m), Monoid w
   ) => EqIn (WriteOnlyTT mark w t m)
   where
+    newtype Context (WriteOnlyTT mark w t m)
+      = WriteOnlyTTCtx
+          { unWriteOnlyTTCtx :: (mark (), Context (t m))
+          } deriving (Typeable)
+
     eqIn
       :: (Eq a)
-      => (Val (mark ()) m, Context (t m))
+      => Context (WriteOnlyTT mark w t m)
       -> WriteOnlyTT mark w t m a
       -> WriteOnlyTT mark w t m a
       -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+    eqIn (WriteOnlyTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unWriteOnlyTTOut $ runTT (WriteOnlyTTIn v) x)
+        (fmap unWriteOnlyTTOut $ runTT (WriteOnlyTTIn v) y)
+
+deriving instance
+  ( Eq (mark ()), Eq (Context (t m))
+  ) => Eq (Context (WriteOnlyTT mark w t m))
+
+deriving instance
+  ( Show (mark ()), Show (Context (t m))
+  ) => Show (Context (WriteOnlyTT mark w t m))
+
+
+
+instance
+  ( MonadIdentity mark, Monoid w
+  ) => RunMonadTransTrans (WriteOnlyTT mark w)
+  where
+    newtype InputTT (WriteOnlyTT mark w) m
+      = WriteOnlyTTIn
+          { unWriteOnlyTTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputTT (WriteOnlyTT mark w) a
+      = WriteOnlyTTOut
+          { unWriteOnlyTTOut :: Pair (mark w) a
+          } deriving (Typeable)
+
+    runTT
+      :: ( Monad m, MonadTrans t )
+      => InputTT (WriteOnlyTT mark w) m
+      -> WriteOnlyTT mark w t m a
+      -> t m (OutputTT (WriteOnlyTT mark w) a)
+    runTT (WriteOnlyTTIn w) =
+      fmap (WriteOnlyTTOut . unWriteOnlyTOut)
+        . runT (WriteOnlyTIn w) . unWriteOnlyTT
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputTT (WriteOnlyTT mark w) m)
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputTT (WriteOnlyTT mark w) m)
+
+deriving instance
+  ( Eq (mark w), Eq a
+  ) => Eq (OutputTT (WriteOnlyTT mark w) a)
+
+deriving instance
+  ( Show (mark w), Show a
+  ) => Show (OutputTT (WriteOnlyTT mark w) a)
+
+runWriteOnlyTT
+  :: ( MonadIdentity mark, Monad m, MonadTrans t, Monoid w )
+  => mark ()
+  -> WriteOnlyTT mark w t m a
+  -> t m (Pair (mark w) a)
+runWriteOnlyTT w = fmap unWriteOnlyTTOut . runTT (WriteOnlyTTIn w)
 
 
 
@@ -115,35 +165,58 @@ instance
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftCatchT (Val (mark ())) (WriteOnlyTT mark w) (Pair (mark w))
+  ) => LiftCatchT (WriteOnlyTT mark w)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (Pair (mark w) x))
+      :: forall m t e
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (OutputTT (WriteOnlyTT mark w) x))
       -> (forall x. Catch e (WriteOnlyTT mark w t m) x)
-    liftCatchT catch x h = WriteOnlyTT $
-      liftCatch catch (unWriteOnlyTT x) (unWriteOnlyTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e (t m) (OutputT (WriteOnlyT mark w) x)
+        catch' y g =
+          fmap (WriteOnlyTOut . unWriteOnlyTTOut) $ catch
+            (fmap (WriteOnlyTTOut . unWriteOnlyTOut) y)
+            (fmap (WriteOnlyTTOut . unWriteOnlyTOut) . g)
+      in
+        WriteOnlyTT $ liftCatch catch' (unWriteOnlyTT x) (unWriteOnlyTT . h)
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftDraftT (Val (mark ())) (WriteOnlyTT mark w) (Pair (mark w))
+  ) => LiftDraftT (WriteOnlyTT mark w)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w, Monoid w2 )
-      => (forall x. Draft w2 (t m) (Pair (mark w) x))
+      :: forall m t w w2
+       . ( Monad m, MonadTrans t, Monoid w, Monoid w2 )
+      => (forall x. Draft w2 (t m) (OutputTT (WriteOnlyTT mark w) x))
       -> (forall x. Draft w2 (WriteOnlyTT mark w t m) x)
-    liftDraftT draft = WriteOnlyTT . liftDraft draft . unWriteOnlyTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w2 (t m) (OutputT (WriteOnlyT mark w) x)
+        draft' =
+          fmap (fmap (WriteOnlyTOut . unWriteOnlyTTOut))
+            . draft . fmap (WriteOnlyTTOut . unWriteOnlyTOut)
+      in
+        WriteOnlyTT . liftDraft draft' . unWriteOnlyTT
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftLocalT (Val (mark ())) (WriteOnlyTT mark w) (Pair (mark w))
+  ) => LiftLocalT (WriteOnlyTT mark w)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (Pair (mark w) x))
+      :: forall m t r
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r (t m) (OutputTT (WriteOnlyTT mark w) x))
       -> (forall x. Local r (WriteOnlyTT mark w t m) x)
     liftLocalT local f =
-      WriteOnlyTT . liftLocal local f . unWriteOnlyTT
+      let
+        local' :: Local r (t m) (OutputT (WriteOnlyT mark w) x)
+        local' g =
+          fmap (WriteOnlyTOut . unWriteOnlyTTOut)
+            . local g . fmap (WriteOnlyTTOut . unWriteOnlyTOut)
+      in
+        WriteOnlyTT . liftLocal local' f . unWriteOnlyTT
 
 
 

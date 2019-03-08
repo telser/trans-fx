@@ -2,7 +2,10 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE InstanceSigs               #-}
 {-# LANGUAGE KindSignatures             #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -10,6 +13,9 @@
 module Control.FX.Monad.Trans.Trans.ReadOnlyTT (
     ReadOnlyTT(..)
   , runReadOnlyTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -66,40 +72,88 @@ instance
       -> ReadOnlyTT mark r t m a
     liftT = ReadOnlyTT . lift
 
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => RunMonadTransTrans (Val (mark r)) (ReadOnlyTT mark r) mark
-  where
-    runTT
-      :: ( Monad m, MonadTrans t )
-      => Val (mark r) m
-      -> ReadOnlyTT mark r t m a
-      -> t m (mark a)
-    runTT (Val r) = runT r . unReadOnlyTT
 
-runReadOnlyTT
-  :: ( MonadIdentity mark, Commutant mark, Monad m, MonadTrans t )
-  => mark r
-  -> ReadOnlyTT mark r t m a
-  -> t m (mark a)
-runReadOnlyTT r = runTT (Val r)
 
-type instance Context (ReadOnlyTT mark r t m)
-  = (Val (mark r) m, Context (t m))
+
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark
   , EqIn (t m)
   ) => EqIn (ReadOnlyTT mark r t m)
   where
+    newtype Context (ReadOnlyTT mark r t m)
+      = ReadOnlyTTCtx
+          { unReadOnlyTTCtx :: (mark r, Context (t m))
+          } deriving (Typeable)
+
     eqIn
       :: (Eq a)
-      => (Val (mark r) m, Context (t m))
+      => Context (ReadOnlyTT mark r t m)
       -> ReadOnlyTT mark r t m a
       -> ReadOnlyTT mark r t m a
       -> Bool
-    eqIn (v, h) x y =
-      eqIn h (runTT v x) (runTT v y)
+    eqIn (ReadOnlyTTCtx (v,h)) x y =
+      eqIn h
+        (fmap unReadOnlyTTOut $ runTT (ReadOnlyTTIn v) x)
+        (fmap unReadOnlyTTOut $ runTT (ReadOnlyTTIn v) y)
+
+deriving instance
+  ( Eq (mark r), Eq (Context (t m))
+  ) => Eq (Context (ReadOnlyTT mark r t m))
+
+deriving instance
+  ( Show (mark r), Show (Context (t m))
+  ) => Show (Context (ReadOnlyTT mark r t m))
+
+
+
+instance
+  ( MonadIdentity mark, Commutant mark
+  ) => RunMonadTransTrans (ReadOnlyTT mark r)
+  where
+    newtype InputTT (ReadOnlyTT mark r) m
+      = ReadOnlyTTIn
+          { unReadOnlyTTIn :: mark r
+          } deriving (Typeable)
+
+    newtype OutputTT (ReadOnlyTT mark r) a
+      = ReadOnlyTTOut
+          { unReadOnlyTTOut :: mark a
+          } deriving (Typeable)
+
+    runTT
+      :: ( Monad m, MonadTrans t )
+      => InputTT (ReadOnlyTT mark r) m
+      -> ReadOnlyTT mark r t m a
+      -> t m (OutputTT (ReadOnlyTT mark r) a)
+    runTT (ReadOnlyTTIn r) =
+      fmap (ReadOnlyTTOut . unReadOnlyTOut)
+        . runT (ReadOnlyTIn r) . unReadOnlyTT
+
+deriving instance
+  ( Eq (mark r)
+  ) => Eq (InputTT (ReadOnlyTT mark r) m)
+
+deriving instance
+  ( Show (mark r)
+  ) => Show (InputTT (ReadOnlyTT mark r) m)
+
+deriving instance
+  ( Eq (mark a)
+  ) => Eq (OutputTT (ReadOnlyTT mark r) a)
+
+deriving instance
+  ( Show (mark a)
+  ) => Show (OutputTT (ReadOnlyTT mark r) a)
+
+runReadOnlyTT
+  :: ( MonadIdentity mark, Commutant mark, Monad m, MonadTrans t )
+  => mark r
+  -> ReadOnlyTT mark r t m a
+  -> t m (mark a)
+runReadOnlyTT r = fmap unReadOnlyTTOut . runTT (ReadOnlyTTIn r)
+
+
 
 
 
@@ -109,35 +163,58 @@ instance
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftCatchT (Val (mark r)) (ReadOnlyTT mark r) mark
+  ) => LiftCatchT (ReadOnlyTT mark r)
   where
     liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (mark x))
+      :: forall m t e
+       . ( Monad m, MonadTrans t )
+      => (forall x. Catch e (t m) (OutputTT (ReadOnlyTT mark r) x))
       -> (forall x. Catch e (ReadOnlyTT mark r t m) x)
-    liftCatchT catch x h = ReadOnlyTT $
-      liftCatch catch (unReadOnlyTT x) (unReadOnlyTT . h)
+    liftCatchT catch x h =
+      let
+        catch' :: Catch e (t m) (OutputT (ReadOnlyT mark r) x)
+        catch' y g =
+          fmap (ReadOnlyTOut . unReadOnlyTTOut) $ catch
+            (fmap (ReadOnlyTTOut . unReadOnlyTOut) y)
+            (fmap (ReadOnlyTTOut . unReadOnlyTOut) . g)
+      in
+        ReadOnlyTT $ liftCatch catch' (unReadOnlyTT x) (unReadOnlyTT . h)
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftDraftT (Val (mark r)) (ReadOnlyTT mark r) mark
+  ) => LiftDraftT (ReadOnlyTT mark r)
   where
     liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (mark x))
+      :: forall m t w
+       . ( Monad m, MonadTrans t, Monoid w )
+      => (forall x. Draft w (t m) (OutputTT (ReadOnlyTT mark r) x))
       -> (forall x. Draft w (ReadOnlyTT mark r t m) x)
-    liftDraftT draft = ReadOnlyTT . liftDraft draft . unReadOnlyTT
+    liftDraftT draft =
+      let
+        draft' :: Draft w (t m) (OutputT (ReadOnlyT mark r) x)
+        draft' =
+          fmap (fmap (ReadOnlyTOut . unReadOnlyTTOut))
+            . draft . fmap (ReadOnlyTTOut . unReadOnlyTOut)
+      in
+        ReadOnlyTT . liftDraft draft' . unReadOnlyTT
 
 instance
   ( MonadIdentity mark, Commutant mark
-  ) => LiftLocalT (Val (mark r)) (ReadOnlyTT mark r) mark
+  ) => LiftLocalT (ReadOnlyTT mark r)
   where
     liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r2 (t m) (mark x))
+      :: forall m t r2
+       . ( Monad m, MonadTrans t )
+      => (forall x. Local r2 (t m) (OutputTT (ReadOnlyTT mark r) x))
       -> (forall x. Local r2 (ReadOnlyTT mark r t m) x)
     liftLocalT local f =
-      ReadOnlyTT . liftLocal local f . unReadOnlyTT
+      let
+        local' :: Local r2 (t m) (OutputT (ReadOnlyT mark r) x)
+        local' g =
+          fmap (ReadOnlyTOut . unReadOnlyTTOut)
+            . local g . fmap (ReadOnlyTTOut . unReadOnlyTOut)
+      in
+        ReadOnlyTT . liftLocal local' f . unReadOnlyTT
 
 
 

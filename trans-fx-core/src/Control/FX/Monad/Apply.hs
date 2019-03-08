@@ -6,20 +6,26 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Apply (
     Apply(..)
+  , Context(..)
+  , Input(..)
+  , Output(..)
 ) where
 
 
 
 import Data.Typeable (Typeable)
 
+import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad.Class
 
@@ -93,12 +99,70 @@ instance
   ( Central c
   ) => Central (Apply c)
 
+
+
+
+
 instance
-  ( RunMonad z m f
-  ) => RunMonad z (Apply m) f
+  ( EqIn m
+  ) => EqIn (Apply m)
   where
-    run
-      :: z
+    newtype Context (Apply m)
+      = ApplyCtx
+          { unApplyCtx :: Context m
+          } deriving (Typeable)
+
+    eqIn
+      :: ( Eq a )
+      => Context (Apply m)
       -> Apply m a
-      -> f a
-    run z (Apply x) = run z x
+      -> Apply m a
+      -> Bool
+    eqIn (ApplyCtx h) (Apply x) (Apply y) =
+      eqIn h x y
+
+deriving instance
+  ( Show (Context m)
+  ) => Show (Context (Apply m))
+
+deriving instance
+  ( Eq (Context m)
+  ) => Eq (Context (Apply m))
+
+
+
+instance
+  ( RunMonad m
+  ) => RunMonad (Apply m)
+  where
+    newtype Input (Apply m)
+      = ApplyIn
+          { unApplyIn :: Input m
+          } deriving (Typeable)
+
+    newtype Output (Apply m) a
+      = ApplyOut
+          { unApplyOut :: Output m a
+          } deriving (Typeable)
+
+    run
+      :: Input (Apply m)
+      -> Apply m a
+      -> Output (Apply m) a
+    run (ApplyIn z) (Apply x) = ApplyOut $ run z x
+
+deriving instance
+  ( Show (Input m)
+  ) => Show (Input (Apply m))
+
+deriving instance
+  ( Eq (Input m)
+  ) => Eq (Input (Apply m))
+
+deriving instance
+  ( Show (Output m a)
+  ) => Show (Output (Apply m) a)
+
+deriving instance
+  ( Eq (Output m a)
+  ) => Eq (Output (Apply m) a)

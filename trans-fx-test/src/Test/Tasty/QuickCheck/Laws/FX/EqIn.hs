@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Test.Tasty.QuickCheck.Laws.FX.EqIn (
     testEqInLaws
@@ -26,45 +26,46 @@ import Control.FX.EqIn
 
 
 testEqInLaws
-  :: ( EqIn env a, Typeable env, Typeable a
-     , Arbitrary env, Arbitrary a
-     , Show env, Show a
+  :: ( EqIn t, Typeable t, Typeable a, Eq a
+     , Arbitrary (Context t)
+     , Arbitrary (t a)
+     , Show (Context t), Show (t a)
      )
-  => Proxy env -- ^ Equality context
-  -> Proxy a   -- ^ Value type
+  => Proxy t -- ^ Constructor under test
+  -> Proxy a -- ^ Value type
   -> TestTree
-testEqInLaws pEnv pa =
+testEqInLaws pt pa =
   let
-    label = "EqIn Laws for " ++ (show $ typeRep pa) ++ " under " ++
-      "env :: " ++ (show $ typeRep pEnv)
+    label = "EqIn Laws for " ++ (show $ typeRep pt) ++ " with "
+      ++ " a = " ++ (show $ typeRep pa)
   in
     testGroup label
-      [ testEqInLawReflexive pEnv pa
-      , testEqInLawSymmetric pEnv pa
-      , testEqInLawTransitive pEnv pa
+      [ testEqInLawReflexive pt pa
+      , testEqInLawSymmetric pt pa
+      , testEqInLawTransitive pt pa
       ]
 
 
 
 -- | @eqIn env x x == True@
 testEqInLawReflexive
-  :: ( EqIn env a
-     , Arbitrary env, Arbitrary a
-     , Show env, Show a
+  :: ( EqIn t, Eq a
+     , Arbitrary (Context t), Arbitrary (t a)
+     , Show (Context t), Show (t a)
      )
-  => Proxy env -- ^ Equality context
-  -> Proxy a   -- ^ Value type
+  => Proxy t -- ^ Constructor under test
+  -> Proxy a -- ^ Value type
   -> TestTree
-testEqInLawReflexive pEnv pa =
+testEqInLawReflexive pt pa =
   testProperty "eqIn env a a === True" $
-    eqInLawReflexive pEnv pa
+    eqInLawReflexive pt pa
 
 eqInLawReflexive
-  :: ( EqIn env a
+  :: ( EqIn t, Eq a
      )
-  => Proxy env
+  => Proxy t
   -> Proxy a
-  -> env -> a -> Bool
+  -> Context t -> t a -> Bool
 eqInLawReflexive _ _ env a =
   eqIn env a a == True
 
@@ -72,23 +73,23 @@ eqInLawReflexive _ _ env a =
 
 -- | @eqIn env x y == eqIn env y x@
 testEqInLawSymmetric
-  :: ( EqIn env a
-     , Arbitrary env, Arbitrary a
-     , Show env, Show a
+  :: ( EqIn t, Eq a
+     , Arbitrary (Context t), Arbitrary (t a)
+     , Show (Context t), Show (t a)
      )
-  => Proxy env -- ^ Equality context
-  -> Proxy a   -- ^ Value type
+  => Proxy t -- ^ Constructor under test
+  -> Proxy a -- ^ Value type
   -> TestTree
-testEqInLawSymmetric pEnv pa =
+testEqInLawSymmetric pt pa =
   testProperty "eqIn env a a === True" $
-    eqInLawSymmetric pEnv pa
+    eqInLawSymmetric pt pa
 
 eqInLawSymmetric
-  :: ( EqIn env a
+  :: ( EqIn t, Eq a
      )
-  => Proxy env
+  => Proxy t
   -> Proxy a
-  -> env -> a -> a -> Bool
+  -> Context t -> t a -> t a -> Bool
 eqInLawSymmetric _ _ env a b =
   (eqIn env a b) == (eqIn env b a)
 
@@ -96,23 +97,23 @@ eqInLawSymmetric _ _ env a b =
 
 -- | If @eqIn env x y == True@ and @eqIn env y z == True@ then @eqIn env x z == True@.
 testEqInLawTransitive
-  :: ( EqIn env a
-     , Arbitrary env, Arbitrary a
-     , Show env, Show a
+  :: ( EqIn t, Eq a
+     , Arbitrary (Context t), Arbitrary (t a)
+     , Show (Context t), Show (t a)
      )
-  => Proxy env -- ^ Equality context
-  -> Proxy a   -- ^ Value type
+  => Proxy t -- ^ Constructor under test
+  -> Proxy a -- ^ Value type
   -> TestTree
-testEqInLawTransitive pEnv pa =
+testEqInLawTransitive pt pa =
   testProperty "eqIn env a a === True" $
-    eqInLawTransitive pEnv pa
+    eqInLawTransitive pt pa
 
 eqInLawTransitive
-  :: ( EqIn env a
+  :: ( EqIn t, Eq a
      )
-  => Proxy env
+  => Proxy t
   -> Proxy a
-  -> env -> a -> a -> a -> Bool
+  -> Context t -> t a -> t a -> t a -> Bool
 eqInLawTransitive _ _ env a b c =
   if (eqIn env a b) && (eqIn env b c)
     then eqIn env a c else True

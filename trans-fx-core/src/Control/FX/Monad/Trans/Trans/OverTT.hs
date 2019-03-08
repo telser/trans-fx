@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -18,8 +19,10 @@
 
 module Control.FX.Monad.Trans.Trans.OverTT (
     OverTT(..)
-  , Sing(..)
   , runOverTT
+  , Context(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -153,57 +156,90 @@ instance
       -> OverTT u v t m a
     liftT = OverTT . lift . liftT
 
-instance
-  ( RunMonadTransTrans z1 u f1, RunMonadTrans z2 v f2, MonadFunctor v
-  ) => RunMonadTransTrans (Sing z1 z2) (OverTT u v) (Compose f1 f2)
-  where
-    runTT
-      :: ( Monad m, MonadTrans t )
-      => Sing z1 z2 m
-      -> OverTT u v t m a
-      -> t m (Compose f1 f2 a)
-    runTT (Sing z1 z2) =
-      fmap Compose . runTT z1 . runT z2 . unOverTT
 
-runOverTT
-  :: ( RunMonadTransTrans z1 u f1, RunMonadTrans z2 v f2
-     , Monad m, MonadTrans t, MonadFunctor v )
-  => z1 m
-  -> z2
-  -> OverTT u v t m a
-  -> t m (Compose f1 f2 a)
-runOverTT z1 z2 = runTT (Sing z1 z2)
 
--- | Helper type for running @OverTT@
-data Sing
-  (z :: (* -> *) -> *)
-  (y :: *)
-  (m :: * -> *)
-    = Sing (z m) y
 
-instance
-  ( Typeable z, Typeable y, Typeable m
-  ) => Show (Sing z y m)
-  where
-    show
-      :: Sing z y m
-      -> String
-    show = show . typeOf
 
 instance
   ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  , Eq a, RunMonadTransTrans z1 u f1, RunMonadTrans z2 v f2
-  , forall x. (Eq x) => Eq (f1 (f2 x))
-  , forall x. (Eq x) => EqIn h (t m x)
-  ) => EqIn (Sing z1 z2 m, h) (OverTT u v t m a)
+  , RunMonadTransTrans u, RunMonadTrans v
+  , forall x. (Eq x) => Eq (OutputTT u (OutputT v x))
+  , EqIn (t m)
+  ) => EqIn (OverTT u v t m)
   where
+    newtype Context (OverTT u v t m)
+      = OverTTCtx
+          { unOverTTCtx :: ((InputTT u m, InputT v), Context (t m))
+          } deriving (Typeable)
+
     eqIn
-      :: (Sing z1 z2 m, h)
+      :: (Eq a)
+      => Context (OverTT u v t m)
       -> OverTT u v t m a
       -> OverTT u v t m a
       -> Bool
-    eqIn (k,h) x y =
-      eqIn h (runTT k x) (runTT k y)
+    eqIn (OverTTCtx (k,h)) x y =
+      eqIn h
+        (fmap unOverTTOut $ runTT (OverTTIn k) x)
+        (fmap unOverTTOut $ runTT (OverTTIn k) y)
+
+deriving instance
+  ( Eq (InputTT u m), Eq (InputT v), Eq (Context (t m))
+  ) => Eq (Context (OverTT u v t m))
+
+deriving instance
+  ( Show (InputTT u m), Show (InputT v), Show (Context (t m))
+  ) => Show (Context (OverTT u v t m))
+
+
+
+instance
+  ( RunMonadTransTrans u, RunMonadTrans v, MonadFunctor v
+  ) => RunMonadTransTrans (OverTT u v)
+  where
+    newtype InputTT (OverTT u v) m
+      = OverTTIn
+          { unOverTTIn :: (InputTT u m, InputT v)
+          } deriving (Typeable)
+
+    newtype OutputTT (OverTT u v) a
+      = OverTTOut
+          { unOverTTOut :: Compose (OutputTT u) (OutputT v) a
+          } deriving (Typeable)
+
+    runTT
+      :: ( Monad m, MonadTrans t )
+      => InputTT (OverTT u v) m
+      -> OverTT u v t m a
+      -> t m (OutputTT (OverTT u v) a)
+    runTT (OverTTIn (z1,z2)) =
+      fmap (OverTTOut . Compose) . runTT z1 . runT z2 . unOverTT
+
+deriving instance
+  ( Eq (InputTT u m), Eq (InputT v)
+  ) => Eq (InputTT (OverTT u v) m)
+
+deriving instance
+  ( Show (InputTT u m), Show (InputT v)
+  ) => Show (InputTT (OverTT u v) m)
+
+deriving instance
+  ( Eq (OutputTT u a), Eq (OutputTT u (OutputT v a))
+  ) => Eq (OutputTT (OverTT u v) a)
+
+deriving instance
+  ( Show (OutputTT u a) , Show (OutputTT u (OutputT v a))
+  ) => Show (OutputTT (OverTT u v) a)
+
+runOverTT
+  :: ( RunMonadTransTrans u, RunMonadTrans v
+     , Monad m, MonadTrans t, MonadFunctor v )
+  => InputTT u m
+  -> InputT v
+  -> OverTT u v t m a
+  -> t m (OutputTT u (OutputT v a))
+runOverTT z1 z2 =
+  fmap (unCompose . unOverTTOut) . runTT (OverTTIn (z1,z2))
 
 
 
@@ -223,7 +259,7 @@ instance
 
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u, MonadIdentity mark, LiftCatch z v f
+  , MonadTransTrans u, MonadIdentity mark, LiftCatch v
   , forall x y. (Monad x, MonadTrans y) => MonadExcept mark e (u y x)
   ) => MonadExcept mark e (OverTT (ApplyTT u) v t m)
   where
@@ -262,7 +298,7 @@ instance {-# OVERLAPPABLE #-}
 
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark, LiftDraft z v f
+  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
   , forall x y. (Monad x, MonadTrans y) => MonadWriteOnly mark w (u y x)
   ) => MonadWriteOnly mark w (OverTT (ApplyTT u) v t m)
   where
@@ -297,7 +333,7 @@ instance {-# OVERLAPPABLE #-}
 
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark, LiftDraft z v f
+  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
   , forall x y. (Monad x, MonadTrans y) => MonadAppendOnly mark w (u y x)
   ) => MonadAppendOnly mark w (OverTT (ApplyTT u) v t m)
   where
@@ -355,7 +391,7 @@ instance {-# OVERLAPPABLE #-}
 
 instance {-# OVERLAPS #-}
   ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u, MonadIdentity mark, LiftLocal z v f
+  , MonadTransTrans u, MonadIdentity mark, LiftLocal v
   , forall x y. (Monad x, MonadTrans y) => MonadReadOnly mark r (u y x)
   ) => MonadReadOnly mark r (OverTT (ApplyTT u) v t m)
   where

@@ -6,13 +6,13 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE InstanceSigs          #-}
-{-# LANGUAGE KindSignatures        #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies   #-}
+{-# LANGUAGE InstanceSigs   #-}
+{-# LANGUAGE KindSignatures #-}
 
 module Control.FX.Functor.LeftZero (
     LeftZero(..)
+  , Context(..)
 ) where
 
 
@@ -32,19 +32,7 @@ data LeftZero
     = LeftZero a | LeftUnit
     deriving (Eq, Show, Typeable)
 
-type instance Context LeftZero
-  = ()
 
-instance
-  EqIn LeftZero
-  where
-    eqIn
-      :: (Eq a)
-      => ()
-      -> LeftZero a
-      -> LeftZero a
-      -> Bool
-    eqIn () = (==)
 
 instance Functor LeftZero where
   fmap
@@ -101,3 +89,19 @@ instance Commutant LeftZero where
     case x of
       LeftUnit   -> pure LeftUnit
       LeftZero x -> LeftZero <$> x
+
+instance
+  EqIn LeftZero
+  where
+    newtype Context LeftZero
+      = LeftZeroCtx
+          { unLeftZeroCtx :: ()
+          } deriving (Eq, Show)
+
+    eqIn
+      :: (Eq a)
+      => Context LeftZero
+      -> LeftZero a
+      -> LeftZero a
+      -> Bool
+    eqIn _ = (==)

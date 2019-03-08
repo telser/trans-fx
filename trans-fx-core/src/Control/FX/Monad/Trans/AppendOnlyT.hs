@@ -10,11 +10,16 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE StandaloneDeriving    #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.AppendOnlyT (
     AppendOnlyT(..)
+  , Context(..)
+  , InputT(..)
+  , OutputT(..)
 ) where
 
 
@@ -38,21 +43,7 @@ newtype AppendOnlyT
         { unAppendOnlyT :: w -> m (Pair w a)
         } deriving (Typeable)
 
-type instance Context (AppendOnlyT mark w m)
-  = (mark w, Context m)
 
-instance
-  ( EqIn m, MonadIdentity mark, Eq w
-  ) => EqIn (AppendOnlyT mark w m)
-  where
-    eqIn
-      :: (Eq a)
-      => (mark w, Context m)
-      -> AppendOnlyT mark w m a
-      -> AppendOnlyT mark w m a
-      -> Bool
-    eqIn (w,h) (AppendOnlyT x) (AppendOnlyT y) =
-      eqIn h (x $ unwrap w) (y $ unwrap w)
 
 instance
   ( Typeable w, Typeable m, Typeable a, Typeable mark
@@ -139,18 +130,76 @@ instance
         a <- f $ fmap slot2 (x w)
         return $ Pair w a
 
+
+
+
+
+instance
+  ( EqIn m, MonadIdentity mark, Eq w
+  ) => EqIn (AppendOnlyT mark w m)
+  where
+    newtype Context (AppendOnlyT mark w m)
+      = AppendOnlyTCtx
+          { unAppendOnlyTCtx :: (mark w, Context m)
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (AppendOnlyT mark w m)
+      -> AppendOnlyT mark w m a
+      -> AppendOnlyT mark w m a
+      -> Bool
+    eqIn (AppendOnlyTCtx (w,h)) (AppendOnlyT x) (AppendOnlyT y) =
+      eqIn h (x $ unwrap w) (y $ unwrap w)
+
+deriving instance
+  ( Eq (mark w), Eq (Context m)
+  ) => Eq (Context (AppendOnlyT mark w m))
+
+deriving instance
+  ( Show (mark w), Show (Context m)
+  ) => Show (Context (AppendOnlyT mark w m))
+
+
+
 instance
   ( MonadIdentity mark, Monoid w
-  ) => RunMonadTrans (mark ()) (AppendOnlyT mark w) (Pair (mark w))
+  ) => RunMonadTrans (AppendOnlyT mark w)
   where
+    newtype InputT (AppendOnlyT mark w)
+      = AppendOnlyTIn
+          { unAppendOnlyTIn :: mark ()
+          } deriving (Typeable)
+
+    newtype OutputT (AppendOnlyT mark w) a
+      = AppendOnlyTOut
+          { unAppendOnlyTOut :: Pair (mark w) a
+          } deriving (Typeable)
+
     runT
       :: ( Monad m )
-      => mark ()
+      => InputT (AppendOnlyT mark w)
       -> AppendOnlyT mark w m a
-      -> m (Pair (mark w) a)
+      -> m (OutputT (AppendOnlyT mark w) a)
     runT _ (AppendOnlyT x) = do
       Pair w a <- x mempty
-      return $ Pair (pure w) a
+      return $ AppendOnlyTOut $ Pair (pure w) a
+
+deriving instance
+  ( Eq (mark ())
+  ) => Eq (InputT (AppendOnlyT mark w))
+
+deriving instance
+  ( Show (mark ())
+  ) => Show (InputT (AppendOnlyT mark w))
+
+deriving instance
+  ( Eq (mark w), Eq a
+  ) => Eq (OutputT (AppendOnlyT mark w) a)
+
+deriving instance
+  ( Show (mark w), Show a
+  ) => Show (OutputT (AppendOnlyT mark w) a)
 
 
 
@@ -160,41 +209,41 @@ instance
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftCatch (mark ()) (AppendOnlyT mark w) (Pair (mark w))
+  ) => LiftCatch (AppendOnlyT mark w)
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (Pair (mark w) a)
+      => Catch e m (OutputT (AppendOnlyT mark w) a)
       -> Catch e (AppendOnlyT mark w m) a
     liftCatch catch x h = AppendOnlyT $ \w ->
-      fmap (bimap1 unwrap) $ catch
-        (fmap (bimap1 pure) $ unAppendOnlyT x w)
-        (\e -> fmap (bimap1 pure) $ unAppendOnlyT (h e) w)
+      fmap (bimap1 unwrap . unAppendOnlyTOut) $ catch
+        (fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w)
+        (\e -> fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT (h e) w)
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftDraft (mark ()) (AppendOnlyT mark w) (Pair (mark w))
+  ) => LiftDraft (AppendOnlyT mark w)
   where
     liftDraft
       :: ( Monad m )
-      => Draft w1 m (Pair (mark w) a)
+      => Draft w1 m (OutputT (AppendOnlyT mark w) a)
       -> Draft w1 (AppendOnlyT mark w m) a
     liftDraft draft x =
       AppendOnlyT $ \w -> do
-        Pair w_ (Pair w1 a) <- draft $ fmap (bimap1 pure) $ unAppendOnlyT x w
+        Pair w_ (AppendOnlyTOut (Pair w1 a)) <- draft $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w
         return $ Pair (unwrap w1) (Pair w_ a)
 
 instance
   ( MonadIdentity mark, Monoid w
-  ) => LiftLocal (mark ()) (AppendOnlyT mark w) (Pair (mark w))
+  ) => LiftLocal (AppendOnlyT mark w)
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (Pair (mark w) a)
+      => Local r m (OutputT (AppendOnlyT mark w) a)
       -> Local r (AppendOnlyT mark w m) a
     liftLocal local f x =
       AppendOnlyT $ \w1 -> do
-        Pair w2 a <- local f $ fmap (bimap1 pure) $ unAppendOnlyT x w1
+        AppendOnlyTOut (Pair w2 a) <- local f $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w1
         return $ Pair (unwrap w2) a
 
 

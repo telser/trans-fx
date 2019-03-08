@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -17,6 +18,8 @@
 
 module Control.FX.Monad.Trans.Trans.ApplyTT (
     ApplyTT(..)
+  , InputTT(..)
+  , OutputTT(..)
 ) where
 
 
@@ -135,13 +138,27 @@ instance
       -> ApplyTT u t m2 x
     raiseT f = ApplyTT . raiseT f . unApplyTT
 
+
+
+
+
 instance
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => RunMonadTransTrans z (ApplyTT u) f
+  ( MonadTransTrans u, RunMonadTransTrans u
+  ) => RunMonadTransTrans (ApplyTT u)
   where
+    newtype InputTT (ApplyTT u) m
+      = ApplyTTIn
+          { unApplyTTIn :: InputTT u m
+          } deriving (Typeable)
+
+    newtype OutputTT (ApplyTT u) a
+      = ApplyTTOut
+          { unApplyTTOut :: OutputTT u a
+          } deriving (Typeable)
+
     runTT
       :: (Monad m, MonadTrans t)
-      => z m
+      => InputTT (ApplyTT u) m
       -> ApplyTT u t m a
-      -> t m (f a)
-    runTT z = runTT z . unApplyTT
+      -> t m (OutputTT (ApplyTT u) a)
+    runTT (ApplyTTIn z) = fmap ApplyTTOut . runTT z . unApplyTT

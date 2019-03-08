@@ -7,6 +7,7 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
@@ -16,14 +17,15 @@
 module Control.FX.Monad.Trans.Trans.Class (
     MonadTransTrans(..)
   , MonadTransFunctor(..)
+
   , RunMonadTransTrans(..)
+  , InputTT(..)
+  , OutputTT(..)
 
   -- * Specialized Lifts
   , LiftCatchT(..)
   , LiftDraftT(..)
   , LiftLocalT(..)
-
-  , Val(..)
 ) where
 
 
@@ -78,12 +80,18 @@ instance
 
 -- | Class representing monad transformer transformers which can be "run" in a context @z m@, producing a value in context @t m (f a)@.
 class
-  ( MonadTransTrans u, Commutant f
-  ) => RunMonadTransTrans z u f | u -> z f
+  ( MonadTransTrans u
+  ) => RunMonadTransTrans u
   where
+    data family InputTT u (m :: * -> *) :: *
+
+    data family OutputTT u :: * -> *
+
     runTT
       :: (Monad m, MonadTrans t)
-      => z m -> u t m a -> t m (f a)
+      => InputTT u m
+      -> u t m a
+      -> t m (OutputTT u a)
 
 
 
@@ -94,12 +102,12 @@ class
 -- | Class representing monad transformer transformers through
 -- which @catch@ from @MonadExcept@ can be lifted.
 class
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => LiftCatchT z u f
+  ( MonadTransTrans u, RunMonadTransTrans u
+  ) => LiftCatchT u
   where
     liftCatchT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (f x))
+      => (forall x. Catch e (t m) (OutputTT u x))
       -> (forall x. Catch e (u t m) x)
 
 
@@ -107,12 +115,12 @@ class
 -- | Class representing monad transformer transformers through
 -- which @draft@ from @MonadWriteOnly@ can be lifted.
 class
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => LiftDraftT z u f
+  ( MonadTransTrans u, RunMonadTransTrans u
+  ) => LiftDraftT u
   where
     liftDraftT
       :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (f x))
+      => (forall x. Draft w (t m) (OutputTT u x))
       -> (forall x. Draft w (u t m) x)
 
 
@@ -120,19 +128,10 @@ class
 -- | Class representing monad transformer transformers through
 -- which @local@ from @MonadReadOnly@ can be lifted.
 class
-  ( MonadTransTrans u, RunMonadTransTrans z u f
-  ) => LiftLocalT z u f
+  ( MonadTransTrans u, RunMonadTransTrans u
+  ) => LiftLocalT u
   where
     liftLocalT
       :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (f x))
+      => (forall x. Local r (t m) (OutputTT u x))
       -> (forall x. Local r (u t m) x)
-
-
-
-newtype Val
-  (a :: *)
-  (m :: * -> *)
-    = Val
-        { unVal :: a 
-        } deriving (Eq, Show, Typeable)

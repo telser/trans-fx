@@ -8,6 +8,7 @@
 
 {-# LANGUAGE GADTs                  #-}
 {-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE TypeFamilies           #-}
 {-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE DefaultSignatures      #-}
@@ -18,10 +19,14 @@
 
 module Control.FX.Monad.Class (
     Central(..)
+
   , RunMonad(..)
+  , Output(..)
 
   , MonadTrans(..)
   , RunMonadTrans(..)
+  , InputT(..)
+  , OutputT(..)
 
   -- * Specialized Lifts
   , Catch
@@ -44,6 +49,7 @@ module Control.FX.Monad.Class (
 
 
 
+import Control.FX.EqIn
 import Control.FX.Functor
 
 
@@ -69,17 +75,40 @@ instance
 
 
 
+
+
 -- | Class representing monads that can be "run" inside some context
 -- @z@, producing a value in some result context @f@.
 class
-  ( Monad m, Commutant f
-  ) => RunMonad z m f
+  ( Monad m
+  ) => RunMonad m
   where
-    -- | Run a monadic computation in context
-    run :: z -> m a -> f a
+    data Input m
+      :: *
 
-instance RunMonad () Maybe Maybe where
-  run () = id
+    data Output m
+      :: * -> *
+
+    -- | Run a monadic computation in context
+    run
+      :: Input m
+      -> m a
+      -> Output m a
+
+
+
+instance RunMonad Maybe where
+  data Input Maybe
+    = MaybeIn
+        { unMaybeIn :: ()
+        } deriving (Eq, Show)
+
+  data Output Maybe a
+    = MaybeOut
+        { unMaybeOut :: Maybe a
+        } deriving (Eq, Show)
+
+  run _ = MaybeOut
 
 
 
@@ -97,16 +126,24 @@ class
       => m a
       -> t m a
 
--- | Class representing monad transformers which can be run in a context @z@, producting a value in a context @f@
+
+
+-- | Class representing monad transformers which can be run in an input context, producting a monadic value in an output context.
 class
-  ( MonadTrans t, Commutant f
-  ) => RunMonadTrans z t f | t -> z f
+  ( MonadTrans t
+  ) => RunMonadTrans t
   where
+    data InputT t
+      :: *
+
+    data OutputT t
+      :: * -> *
+
     runT
       :: ( Monad m )
-      => z
+      => InputT t
       -> t m a
-      -> m (f a)
+      -> m (OutputT t a)
 
 
 
@@ -121,12 +158,12 @@ type Catch e m a = m a -> (e -> m a) -> m a
 --
 -- > (1) lift (catch x h) === liftCatch catch (lift x) (lift . h)
 class
-  ( MonadTrans t, RunMonadTrans z t f
-  ) => LiftCatch z t f
+  ( MonadTrans t, RunMonadTrans t
+  ) => LiftCatch t
   where
     liftCatch
       :: ( Monad m )
-      => Catch e m (f a)
+      => Catch e m (OutputT t a)
       -> Catch e (t m) a
 
 -- | The signature of @draft@ from @MonadWriteOnly@
@@ -138,12 +175,12 @@ type Draft w m a = m a -> m (Pair w a)
 --
 -- > (1) liftDraft draft (lift x) === lift (draft x)
 class
-  ( MonadTrans t, RunMonadTrans z t f
-  ) => LiftDraft z t f
+  ( MonadTrans t, RunMonadTrans t
+  ) => LiftDraft t
   where
     liftDraft
       :: ( Monad m, Monoid w )
-      => Draft w m (f a)
+      => Draft w m (OutputT t a)
       -> Draft w (t m) a
 
 -- | The signature of @local@ from @MonadReadOnly@
@@ -151,12 +188,12 @@ type Local r m a = (r -> r) -> m a -> m a
 
 -- | Class representing monad transformers through which @local@ from @MonadReadOnly@ can be lifted
 class
-  ( MonadTrans t, RunMonadTrans z t f
-  ) => LiftLocal z t f
+  ( MonadTrans t, RunMonadTrans t
+  ) => LiftLocal t
   where
     liftLocal
       :: ( Monad m )
-      => Local r m (f a)
+      => Local r m (OutputT t a)
       -> Local r (t m) a
 
 
@@ -239,7 +276,7 @@ class
 
     default catch
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , LiftCatch z t1 f, MonadExcept mark e m1 )
+         , LiftCatch t1, MonadExcept mark e m1 )
       => m a
       -> (mark e -> m a)
       -> m a
@@ -316,7 +353,7 @@ class
 
     default draft
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , LiftDraft z t1 f, MonadWriteOnly mark w m1 )
+         , LiftDraft t1, MonadWriteOnly mark w m1 )
       => m a
       -> m (Pair (mark w) a)
     draft = liftDraft draft
@@ -354,7 +391,7 @@ class
 
     default local
       :: ( Monad m1, MonadTrans t1, m ~ t1 m1
-         , LiftLocal z t1 f, MonadReadOnly mark r m1 )
+         , LiftLocal t1, MonadReadOnly mark r m1 )
       => (mark r -> mark r)
       -> m a
       -> m a
