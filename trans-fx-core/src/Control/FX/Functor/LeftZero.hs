@@ -34,6 +34,25 @@ data LeftZero
 
 
 
+instance
+  IsMaybe LeftZero
+  where
+    fromMaybe
+      :: Maybe a
+      -> LeftZero a
+    fromMaybe x = case x of
+      Nothing -> LeftUnit
+      Just a  -> LeftZero a
+
+    toMaybe
+      :: LeftZero a
+      -> Maybe a
+    toMaybe x = case x of
+      LeftUnit   -> Nothing
+      LeftZero a -> Just a
+
+
+
 instance Functor LeftZero where
   fmap
     :: (a -> b)

@@ -47,6 +47,15 @@ instance
         else LeftZero <$> arbitrary
 
 instance
+  ( CoArbitrary a
+  ) => CoArbitrary (LeftZero a)
+  where
+    coarbitrary x gen =
+      case x of
+        LeftUnit -> gen
+        LeftZero a -> coarbitrary a gen
+
+instance
   Arbitrary (Context LeftZero)
   where
     arbitrary = LeftZeroCtx <$> arbitrary
@@ -186,9 +195,9 @@ instance
   ) => Arbitrary (AppendOnly mark w a)
   where
     arbitrary = do
-      w1 <- arbitrary
+      w <- arbitrary
       a <- arbitrary
-      return $ AppendOnly $ \w -> Pair (w <> w1) a
+      return $ AppendOnly $ \_ -> Pair w a
 
 instance
   ( Arbitrary (mark ())
@@ -201,6 +210,31 @@ instance
   ) => Arbitrary (Input (AppendOnly mark w))
   where
     arbitrary = AppendOnlyIn <$> arbitrary
+
+
+
+{- WriteOnce -}
+
+instance
+  ( Arbitrary a, Arbitrary w
+  ) => Arbitrary (WriteOnce mark w a)
+  where
+    arbitrary = do
+      w1 <- arbitrary
+      a <- arbitrary
+      return $ WriteOnce $ \w -> Pair (w <> w1) a
+
+instance
+  ( Arbitrary (mark ())
+  ) => Arbitrary (Context (WriteOnce mark w))
+  where
+    arbitrary = WriteOnceCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark ())
+  ) => Arbitrary (Input (WriteOnce mark w))
+  where
+    arbitrary = WriteOnceIn <$> arbitrary
 
 
 
@@ -371,6 +405,28 @@ instance
   ) => Arbitrary (InputT (AppendOnlyT mark w))
   where
     arbitrary = AppendOnlyTIn <$> arbitrary
+
+
+
+{- WriteOnceT -}
+
+instance
+  ( Arbitrary (m (Pair (LeftZero w) a)), Arbitrary w, CoArbitrary w
+  ) => Arbitrary (WriteOnceT mark w m a)
+  where
+    arbitrary = WriteOnceT <$> arbitrary
+
+instance
+  ( Arbitrary (mark (Maybe w)), Arbitrary (Context m)
+  ) => Arbitrary (Context (WriteOnceT mark w m))
+  where
+    arbitrary = WriteOnceTCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark ())
+  ) => Arbitrary (InputT (WriteOnceT mark w))
+  where
+    arbitrary = WriteOnceTIn <$> arbitrary
 
 
 
@@ -573,6 +629,28 @@ instance
 
 
 
+{- WriteOnceTT -}
+
+instance
+  ( Arbitrary (t m (Pair (LeftZero w) a)), Arbitrary w, CoArbitrary w
+  ) => Arbitrary (WriteOnceTT mark w t m a)
+  where
+    arbitrary = WriteOnceTT <$> arbitrary
+
+instance
+  ( Arbitrary (mark ()), Arbitrary (Context (t m))
+  ) => Arbitrary (Context (WriteOnceTT mark w t m))
+  where
+    arbitrary = WriteOnceTTCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark ())
+  ) => Arbitrary (InputTT (WriteOnceTT mark w) m)
+  where
+    arbitrary = WriteOnceTTIn <$> arbitrary
+
+
+
 {- ReadOnlyTT -}
 
 instance
@@ -642,6 +720,13 @@ instance
       h <- arbitrary
       return $ PromptTTCtx (Eval $ return . unIdentity, h)
 
+instance
+  ( Monad m
+  ) => Arbitrary (Eval Identity m)
+  where
+    arbitrary = do
+      return $ Eval (return . unIdentity)
+
 
 
 {- OverTT -}
@@ -677,20 +762,6 @@ instance
 
 
 
-
-
-
-
-
-
-
-
-instance
-  ( Monad m
-  ) => Arbitrary (Eval Identity m)
-  where
-    arbitrary = do
-      return $ Eval (return . unIdentity)
 
 
 

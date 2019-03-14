@@ -18,6 +18,7 @@ module Control.FX.Monad (
   , module Control.FX.Monad.WriteOnly
   , module Control.FX.Monad.Halt
   , module Control.FX.Monad.AppendOnly
+  , module Control.FX.Monad.WriteOnce
 ) where
 
 import Control.FX.Monad.Class
@@ -31,3 +32,4 @@ import Control.FX.Monad.Except
 import Control.FX.Monad.WriteOnly
 import Control.FX.Monad.Halt
 import Control.FX.Monad.AppendOnly
+import Control.FX.Monad.WriteOnce

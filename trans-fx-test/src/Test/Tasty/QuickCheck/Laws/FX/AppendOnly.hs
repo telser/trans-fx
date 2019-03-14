@@ -3,12 +3,12 @@
 module Test.Tasty.QuickCheck.Laws.FX.AppendOnly (
     testAppendOnlyMonadLaws
 
---  -- * AppendOnly Monad Laws
---  , testWriterMonadLawDraftTell
---  , testWriterMonadLawTellMempty
---  , testWriterMonadLawTellMappend
---  , testWriterMonadLawDraftReturn
---  , testWriterMonadLawDraftBind
+  -- * AppendOnly Monad Laws
+  , testAppendOnlyMonadLawJotUnit
+  , testAppendOnlyMonadLawJotHom
+  , testAppendOnlyMonadLawLookUnit
+  , testAppendOnlyMonadLawJotLook
+  , testAppendOnlyMonadLawLookNeutral
 ) where
 
 

@@ -15,6 +15,8 @@ module Control.FX.Functor.Class (
     Commutant(..)
   , Bifunctor(..)
 
+  , IsMaybe(..)
+
   , Wrap(..)
   , Renaming(..)
 ) where
@@ -121,6 +123,38 @@ instance
       -> (a,b)
       -> (a,c)
     bimap2 f (a,b) = (a, f b)
+
+
+
+
+
+-- | Class representing type constructors which are isomorphic to @Maybe@.
+-- Instances should satisfy the following laws:
+--
+-- > (1) toMaybe . fromMaybe  ==  id
+-- >
+-- > (2) fromMaybe . toMaybe  ==  id
+class
+  IsMaybe (f :: * -> *)
+  where
+    -- | Convert from @Maybe a@
+    fromMaybe :: Maybe a -> f a
+
+    -- | Convert to @Maybe a@
+    toMaybe :: f a -> Maybe a
+
+instance
+  IsMaybe Maybe
+  where
+    fromMaybe
+      :: Maybe a
+      -> Maybe a
+    fromMaybe = id
+
+    toMaybe
+      :: Maybe a
+      -> Maybe a
+    toMaybe = id
 
 
 

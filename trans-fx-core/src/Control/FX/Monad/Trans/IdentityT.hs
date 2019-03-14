@@ -295,3 +295,7 @@ instance
 instance
   ( MonadAppendOnly mark w m
   ) => MonadAppendOnly mark w (IdentityT m)
+
+instance
+  ( MonadWriteOnce mark w m
+  ) => MonadWriteOnce mark w (IdentityT m)

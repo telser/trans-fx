@@ -40,6 +40,7 @@ library
     , Control.FX.Monad.Except
     , Control.FX.Monad.WriteOnly
     , Control.FX.Monad.AppendOnly
+    , Control.FX.Monad.WriteOnce
     , Control.FX.Monad.Trans
     , Control.FX.Monad.Trans.Class
     , Control.FX.Monad.Trans.IdentityT
@@ -50,6 +51,7 @@ library
     , Control.FX.Monad.Trans.HaltT
     , Control.FX.Monad.Trans.ExceptT
     , Control.FX.Monad.Trans.WriteOnlyT
+    , Control.FX.Monad.Trans.WriteOnceT
     , Control.FX.Monad.Trans.AppendOnlyT
     , Control.FX.Monad.Trans.Trans
     , Control.FX.Monad.Trans.Trans.Class
@@ -63,6 +65,7 @@ library
     , Control.FX.Monad.Trans.Trans.ExceptTT
     , Control.FX.Monad.Trans.Trans.HaltTT
     , Control.FX.Monad.Trans.Trans.AppendOnlyTT
+    , Control.FX.Monad.Trans.Trans.WriteOnceTT
 
 test-suite trans-fx-core-test
   default-language: Haskell2010

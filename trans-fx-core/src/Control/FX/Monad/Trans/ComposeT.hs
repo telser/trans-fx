@@ -32,6 +32,7 @@ import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
+import Control.FX.Monad.Trans.IdentityT
 import Control.FX.Monad.Trans.ApplyT
 import Control.FX.Monad.Trans.ExceptT
 import Control.FX.Monad.Trans.WriteOnlyT
@@ -39,6 +40,7 @@ import Control.FX.Monad.Trans.StateT
 import Control.FX.Monad.Trans.ReadOnlyT
 import Control.FX.Monad.Trans.HaltT
 import Control.FX.Monad.Trans.AppendOnlyT
+import Control.FX.Monad.Trans.WriteOnceT
 
 
 
@@ -51,6 +53,10 @@ newtype ComposeT
     = ComposeT
         { unComposeT :: t1 (t2 m) a
         } deriving (Typeable)
+
+type family ComposeT' t1 t2 m a where
+  ComposeT' IdentityT t2 m a = IdentityT (t2 m) a
+  ComposeT' (HaltT mark) t2 m a = HaltT mark (t2 m) a
 
 
 
@@ -248,7 +254,8 @@ instance
     liftCatch catch x h = do
       let
         catch' :: Catch e m (OutputT t2 (OutputT t1 a))
-        catch' x' h' = fmap (unCompose . unComposeTOut) $ catch (fmap (ComposeTOut . Compose) x') (fmap (ComposeTOut . Compose) . h')
+        catch' x' h' = fmap (unCompose . unComposeTOut) $
+          catch (fmap (ComposeTOut . Compose) x') (fmap (ComposeTOut . Compose) . h')
       ComposeT $ liftCatch (liftCatch catch') (unComposeT x) (unComposeT . h)
 
 instance
@@ -263,7 +270,8 @@ instance
     liftDraft draft x = do
       let
         draft' :: Draft w m (OutputT t2 (OutputT t1 a))
-        draft' y = fmap (fmap (unCompose . unComposeTOut)) $ draft (fmap (ComposeTOut . Compose) y)
+        draft' y = fmap (fmap (unCompose . unComposeTOut)) $
+          draft (fmap (ComposeTOut . Compose) y)
       ComposeT $ liftDraft (liftDraft draft') (unComposeT x)
 
 instance
@@ -278,7 +286,8 @@ instance
     liftLocal local f x = do
       let
         local' :: Local r m (OutputT t2 (OutputT t1 a))
-        local' g y = fmap (unCompose . unComposeTOut) $ local g (fmap (ComposeTOut . Compose) y)
+        local' g y = fmap (unCompose . unComposeTOut) $
+          local g (fmap (ComposeTOut . Compose) y)
       ComposeT $ liftLocal (liftLocal local') f $ unComposeT x
 
 
@@ -561,3 +570,47 @@ instance {-# OVERLAPPABLE #-}
       :: mark w
       -> ComposeT t1 t2 m ()
     jot = ComposeT . lift . jot
+
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t2, MonadIdentity mark
+  ) => MonadWriteOnce mark w (ComposeT (WriteOnceT mark w) t2 m)
+  where
+    press
+      :: ComposeT (WriteOnceT mark w) t2 m (Maybe (mark w))
+    press = ComposeT press
+
+    etch
+      :: mark w
+      -> ComposeT (WriteOnceT mark w) t2 m Bool
+    etch = ComposeT . etch
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnce mark w (t1 x)
+  ) => MonadWriteOnce mark w (ComposeT (ApplyT t1) t2 m)
+  where
+    press
+      :: ComposeT (ApplyT t1) t2 m (Maybe (mark w))
+    press = ComposeT $ ApplyT press
+
+    etch
+      :: mark w
+      -> ComposeT (ApplyT t1) t2 m Bool
+    etch = ComposeT . ApplyT . etch
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t1, MonadTrans t2
+  , LiftDraft t1, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnce mark w (t2 x)
+  ) => MonadWriteOnce mark w (ComposeT t1 t2 m)
+  where
+    press
+      :: ComposeT t1 t2 m (Maybe (mark w))
+    press = ComposeT $ lift press
+
+    etch
+      :: mark w
+      -> ComposeT t1 t2 m Bool
+    etch = ComposeT . lift . etch

@@ -1,5 +1,5 @@
 -- | Module      : Control.FX.Monad.Trans.AppendOnlyT
---   Description : Concrete mutable state monad transformer
+--   Description : Concrete append-only state monad transformer
 --   Copyright   : 2019, Automattic, Inc.
 --   License     : BSD3
 --   Maintainer  : Nathan Bloomfield (nbloomf@gmail.com)
@@ -269,6 +269,11 @@ instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w, Monoid w1
   , MonadAppendOnly mark w m
   ) => MonadAppendOnly mark w (AppendOnlyT mark1 w1 m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w, Monoid w1
+  , MonadWriteOnce mark w m
+  ) => MonadWriteOnce mark w (AppendOnlyT mark1 w1 m)
 
 instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w

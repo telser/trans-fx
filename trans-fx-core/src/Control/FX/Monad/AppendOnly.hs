@@ -30,7 +30,7 @@ import Control.FX.Monad.Class
 
 
 
--- | Concrete write-only state monad
+-- | Concrete append-only state monad
 newtype AppendOnly
   (mark :: * -> *)
   (w :: *)
@@ -61,9 +61,7 @@ instance
       :: (a -> b)
       -> AppendOnly mark w a
       -> AppendOnly mark w b
-    fmap f (AppendOnly x) = AppendOnly $ \w1 ->
-      let Pair w2 a = x w1 in
-      Pair (w1 <> w2) (f a)
+    fmap f x = x >>= (return . f)
 
 instance
   ( Monoid w, MonadIdentity mark
@@ -72,7 +70,7 @@ instance
     pure
       :: a
       -> AppendOnly mark w a
-    pure a = AppendOnly $ \w -> Pair w a
+    pure a = AppendOnly $ \_ -> Pair mempty a
 
     (<*>)
       :: AppendOnly mark w (a -> b)
@@ -81,8 +79,8 @@ instance
     (AppendOnly f') <*> (AppendOnly x') =
       AppendOnly $ \w1 ->
         let Pair w2 f = f' w1 in
-        let Pair w3 x = x' w2 in
-        Pair w3 (f x)
+        let Pair w3 x = x' (w1 <> w2) in
+        Pair (w2 <> w3) (f x)
 
 instance
   ( Monoid w, MonadIdentity mark
@@ -91,7 +89,7 @@ instance
     return
       :: a
       -> AppendOnly mark w a
-    return a = AppendOnly $ \w -> Pair w a
+    return a = AppendOnly $ \_ -> Pair mempty a
 
     (>>=)
       :: AppendOnly mark w a
@@ -100,8 +98,8 @@ instance
     (AppendOnly x') >>= f =
       AppendOnly $ \w1 ->
         let Pair w2 a = x' w1 in
-        let Pair w3 b = unAppendOnly (f a) w2 in
-        Pair w3 b
+        let Pair w3 b = unAppendOnly (f a) (w1 <> w2) in
+        Pair (w2 <> w3) b
 
 
 
@@ -182,10 +180,10 @@ instance
     look
       :: AppendOnly mark w (mark w)
     look = AppendOnly $ \w ->
-      Pair w (pure w)
+      Pair mempty (pure w)
 
     jot
       :: mark w
       -> AppendOnly mark w ()
     jot w =
-      AppendOnly $ \w1 -> Pair (w1 <> (unwrap w)) ()
+      AppendOnly $ \_ -> Pair (unwrap w) ()

@@ -265,6 +265,20 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x)
+  ) => MonadWriteOnce mark w (ApplyT t m)
+  where
+    press
+      :: ApplyT t m (Maybe (mark w))
+    press = ApplyT press
+
+    etch
+      :: mark w
+      -> ApplyT t m Bool
+    etch = ApplyT . etch
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
   , forall x. (Monad x) => MonadState mark s (t x)
   ) => MonadState mark s (ApplyT t m)
   where

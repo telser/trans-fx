@@ -44,6 +44,7 @@ module Control.FX.Monad.Class (
   , MonadWriteOnly(..)
   , MonadReadOnly(..)
   , MonadAppendOnly(..)
+  , MonadWriteOnce(..)
   , MonadPrompt(..)
 ) where
 
@@ -433,6 +434,38 @@ class
       => mark w
       -> m ()
     jot = lift . jot
+
+
+
+-- | Class representing monads with access to a write-once, read-many state
+-- @mark w@. Instances should satisfy the following laws.
+--
+-- > (1) etch a >> etch b  ===  etch a >> return False
+-- >
+-- > (2) etch a >> press  ===  return (Just $ pure a)
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadWriteOnce mark w m
+  where
+    -- | Attempt to record the write-once state, returning @True@ if and
+    -- only if the write succeeds.
+    etch :: mark w -> m Bool
+
+    default etch
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadWriteOnce mark w m1 )
+      => mark w
+      -> m Bool
+    etch = lift . etch
+
+    -- | Attempt to read a copy of the write-once state.
+    press :: m (Maybe (mark w))
+
+    default press
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadWriteOnce mark w m1 )
+      => m (Maybe (mark w))
+    press = lift press
 
 
 

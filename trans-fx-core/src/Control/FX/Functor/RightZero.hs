@@ -36,6 +36,25 @@ data RightZero
 
 
 instance
+  IsMaybe RightZero
+  where
+    fromMaybe
+      :: Maybe a
+      -> RightZero a
+    fromMaybe x = case x of
+      Nothing -> RightUnit
+      Just a  -> RightZero a
+
+    toMaybe
+      :: RightZero a
+      -> Maybe a
+    toMaybe x = case x of
+      RightUnit   -> Nothing
+      RightZero a -> Just a
+
+
+
+instance
   Functor RightZero
   where
     fmap

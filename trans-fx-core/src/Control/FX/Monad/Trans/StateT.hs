@@ -250,7 +250,7 @@ instance
 
 
 
-{- Effect Class -}
+{- Effect Classes -}
 
 instance {-# OVERLAPPING #-}
   ( Monad m, MonadIdentity mark
@@ -299,3 +299,8 @@ instance
   ( Monad m, MonadIdentity mark, MonadIdentity mark1
   , MonadAppendOnly mark w m, Monoid w
   ) => MonadAppendOnly mark w (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadWriteOnce mark w m
+  ) => MonadWriteOnce mark w (StateT mark1 s m)
