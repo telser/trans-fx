@@ -61,7 +61,8 @@ instance
       :: (a -> b)
       -> AppendOnly mark w a
       -> AppendOnly mark w b
-    fmap f x = x >>= (return . f)
+    fmap f x =
+      x >>= (return . f)
 
 instance
   ( Monoid w, MonadIdentity mark
@@ -70,7 +71,8 @@ instance
     pure
       :: a
       -> AppendOnly mark w a
-    pure a = AppendOnly $ \_ -> Pair mempty a
+    pure a = AppendOnly $ \_ ->
+      Pair mempty a
 
     (<*>)
       :: AppendOnly mark w (a -> b)
@@ -89,7 +91,8 @@ instance
     return
       :: a
       -> AppendOnly mark w a
-    return a = AppendOnly $ \_ -> Pair mempty a
+    return a = AppendOnly $ \_ ->
+      Pair mempty a
 
     (>>=)
       :: AppendOnly mark w a
@@ -185,5 +188,5 @@ instance
     jot
       :: mark w
       -> AppendOnly mark w ()
-    jot w =
-      AppendOnly $ \_ -> Pair (unwrap w) ()
+    jot w = AppendOnly $ \_ ->
+      Pair (unwrap w) ()

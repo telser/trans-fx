@@ -25,6 +25,7 @@ module Control.FX.Monad.Trans.AppendOnlyT (
 
 
 import Data.Typeable (Typeable, typeOf)
+import Control.Monad (ap)
 
 import Control.FX.EqIn
 import Control.FX.Functor
@@ -62,10 +63,8 @@ instance
       :: (a -> b)
       -> AppendOnlyT mark w m a
       -> AppendOnlyT mark w m b
-    fmap f (AppendOnlyT x) =
-      AppendOnlyT $ \s1 -> do
-        Pair s2 a <- x s1
-        return $ Pair s2 (f a)
+    fmap f x =
+      x >>= (return . f)
 
 instance
   ( Monad m, MonadIdentity mark, Monoid w
@@ -74,18 +73,13 @@ instance
     pure
       :: a
       -> AppendOnlyT mark w m a
-    pure x =
-      AppendOnlyT $ \w -> pure $ Pair w x
+    pure = return
 
     (<*>)
       :: AppendOnlyT mark w m (a -> b)
       -> AppendOnlyT mark w m a
       -> AppendOnlyT mark w m b
-    (AppendOnlyT f) <*> (AppendOnlyT x) =
-      AppendOnlyT $ \w1 -> do
-        Pair w2 g <- f w1
-        Pair w3 a <- x w2
-        return $ Pair w3 (g a)
+    (<*>) = ap
 
 instance
   ( Monad m, MonadIdentity mark, Monoid w
@@ -95,7 +89,8 @@ instance
       :: a
       -> AppendOnlyT mark w m a
     return x =
-      AppendOnlyT $ \w -> return $ Pair w x
+      AppendOnlyT $ \_ ->
+        return $ Pair mempty x
 
     (>>=)
       :: AppendOnlyT mark w m a
@@ -104,7 +99,8 @@ instance
     (AppendOnlyT x) >>= f =
       AppendOnlyT $ \w1 -> do
         Pair w2 a <- x w1
-        unAppendOnlyT (f a) w2
+        Pair w3 b <- unAppendOnlyT (f a) (w1 <> w2)
+        return $ Pair (w2 <> w3) b
 
 instance
   ( MonadIdentity mark, Monoid w
@@ -114,7 +110,8 @@ instance
       :: ( Monad m )
       => m a
       -> AppendOnlyT mark w m a
-    lift x = AppendOnlyT $ \w -> fmap (\a -> Pair w a) x
+    lift x = AppendOnlyT $ \_ ->
+      fmap (\a -> Pair mempty a) x
 
 instance
   ( MonadIdentity mark, Monoid w
@@ -128,7 +125,7 @@ instance
     hoist f (AppendOnlyT x) =
       AppendOnlyT $ \w -> do
         a <- f $ fmap slot2 (x w)
-        return $ Pair w a
+        return $ Pair mempty a
 
 
 
@@ -230,7 +227,8 @@ instance
       -> Draft w1 (AppendOnlyT mark w m) a
     liftDraft draft x =
       AppendOnlyT $ \w -> do
-        Pair w_ (AppendOnlyTOut (Pair w1 a)) <- draft $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w
+        Pair w_ (AppendOnlyTOut (Pair w1 a)) <-
+          draft $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w
         return $ Pair (unwrap w1) (Pair w_ a)
 
 instance
@@ -243,7 +241,8 @@ instance
       -> Local r (AppendOnlyT mark w m) a
     liftLocal local f x =
       AppendOnlyT $ \w1 -> do
-        AppendOnlyTOut (Pair w2 a) <- local f $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w1
+        AppendOnlyTOut (Pair w2 a) <-
+          local f $ fmap (AppendOnlyTOut . bimap1 pure) $ unAppendOnlyT x w1
         return $ Pair (unwrap w2) a
 
 
@@ -258,12 +257,14 @@ instance {-# OVERLAPPING #-}
   where
     look
       :: AppendOnlyT mark w m (mark w)
-    look = AppendOnlyT $ \w -> return (Pair w (pure w))
+    look = AppendOnlyT $ \w ->
+      return (Pair mempty (pure w))
 
     jot
       :: mark w
       -> AppendOnlyT mark w m ()
-    jot w2 = AppendOnlyT $ \w1 -> return (Pair (w1 <> (unwrap w2)) ())
+    jot w = AppendOnlyT $ \_ ->
+      return $ Pair (unwrap w) ()
 
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadIdentity mark, MonadIdentity mark1, Monoid w, Monoid w1

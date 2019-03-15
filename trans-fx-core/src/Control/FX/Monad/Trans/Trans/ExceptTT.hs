@@ -300,6 +300,20 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x)
+  ) => MonadWriteOnce mark w (ExceptTT mark1 e t m)
+  where
+    etch
+      :: mark w
+      -> ExceptTT mark1 e t m Bool
+    etch = ExceptTT . lift . etch
+
+    press
+      :: ExceptTT mark1 e t m (Maybe (mark w))
+    press = ExceptTT $ lift press
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
   , forall x. (Monad x) => MonadReadOnly mark r (t x)
   ) => MonadReadOnly mark r (ExceptTT mark1 e t m)
   where

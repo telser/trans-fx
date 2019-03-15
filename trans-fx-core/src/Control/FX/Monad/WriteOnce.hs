@@ -56,7 +56,8 @@ instance
       :: (a -> b)
       -> WriteOnce mark w a
       -> WriteOnce mark w b
-    fmap f x = x >>= (return . f)
+    fmap f x =
+      x >>= (return . f)
 
 instance
   ( MonadIdentity mark
@@ -84,7 +85,8 @@ instance
     return
       :: a
       -> WriteOnce mark w a
-    return a = WriteOnce $ \w -> Pair w a
+    return a = WriteOnce $ \_ ->
+      Pair mempty a
 
     (>>=)
       :: WriteOnce mark w a

@@ -25,6 +25,7 @@ module Control.FX.Monad.Trans.WriteOnceT (
 
 
 import Data.Typeable (Typeable, typeOf)
+import Control.Monad (ap)
 
 import Control.FX.EqIn
 import Control.FX.Functor
@@ -62,10 +63,8 @@ instance
       :: (a -> b)
       -> WriteOnceT mark w m a
       -> WriteOnceT mark w m b
-    fmap f (WriteOnceT x) =
-      WriteOnceT $ \s1 -> do
-        Pair s2 a <- x s1
-        return $ Pair s2 (f a)
+    fmap f x =
+      x >>= (return . f)
 
 instance
   ( Monad m, MonadIdentity mark
@@ -74,18 +73,13 @@ instance
     pure
       :: a
       -> WriteOnceT mark w m a
-    pure x =
-      WriteOnceT $ \w -> pure $ Pair w x
+    pure = return
 
     (<*>)
       :: WriteOnceT mark w m (a -> b)
       -> WriteOnceT mark w m a
       -> WriteOnceT mark w m b
-    (WriteOnceT f) <*> (WriteOnceT x) =
-      WriteOnceT $ \w1 -> do
-        Pair w2 g <- f w1
-        Pair w3 a <- x w2
-        return $ Pair w3 (g a)
+    (<*>) = ap
 
 instance
   ( Monad m, MonadIdentity mark
@@ -95,7 +89,8 @@ instance
       :: a
       -> WriteOnceT mark w m a
     return x =
-      WriteOnceT $ \w -> return $ Pair w x
+      WriteOnceT $ \_ ->
+        return $ Pair mempty x
 
     (>>=)
       :: WriteOnceT mark w m a
@@ -104,7 +99,8 @@ instance
     (WriteOnceT x) >>= f =
       WriteOnceT $ \w1 -> do
         Pair w2 a <- x w1
-        unWriteOnceT (f a) w2
+        Pair w3 b <- unWriteOnceT (f a) (w1 <> w2)
+        return $ Pair (w2 <> w3) b
 
 instance
   ( MonadIdentity mark
@@ -114,7 +110,8 @@ instance
       :: ( Monad m )
       => m a
       -> WriteOnceT mark w m a
-    lift x = WriteOnceT $ \w -> fmap (\a -> Pair w a) x
+    lift x = WriteOnceT $ \_ ->
+      fmap (\a -> Pair mempty a) x
 
 instance
   ( MonadIdentity mark
@@ -128,7 +125,7 @@ instance
     hoist f (WriteOnceT x) =
       WriteOnceT $ \w -> do
         a <- f $ fmap slot2 (x w)
-        return $ Pair w a
+        return $ Pair mempty a
 
 
 
@@ -140,7 +137,7 @@ instance
   where
     newtype Context (WriteOnceT mark w m)
       = WriteOnceTCtx
-          { unWriteOnceTCtx :: (mark (Maybe w), Context m)
+          { unWriteOnceTCtx :: (mark (), Context m)
           } deriving (Typeable)
 
     eqIn
@@ -150,14 +147,14 @@ instance
       -> WriteOnceT mark w m a
       -> Bool
     eqIn (WriteOnceTCtx (w,h)) (WriteOnceT x) (WriteOnceT y) =
-      eqIn h (x $ fromMaybe $ unwrap w) (y $ fromMaybe $ unwrap w)
+      eqIn h (x mempty) (y mempty)
 
 deriving instance
-  ( Eq (mark (Maybe w)), Eq (Context m)
+  ( Eq (mark ()), Eq (Context m)
   ) => Eq (Context (WriteOnceT mark w m))
 
 deriving instance
-  ( Show (mark (Maybe w)), Show (Context m)
+  ( Show (mark ()), Show (Context m)
   ) => Show (Context (WriteOnceT mark w m))
 
 
@@ -260,7 +257,8 @@ instance {-# OVERLAPPING #-}
   where
     press
       :: WriteOnceT mark w m (Maybe (mark w))
-    press = WriteOnceT $ \w -> return (Pair w (fmap pure $ toMaybe w))
+    press = WriteOnceT $ \w ->
+      return (Pair mempty (fmap pure $ toMaybe w))
 
     etch
       :: mark w
@@ -268,7 +266,7 @@ instance {-# OVERLAPPING #-}
     etch w = WriteOnceT $ \w1 ->
       case w1 of
         LeftUnit   -> return $ Pair (LeftZero $ unwrap w) True
-        LeftZero _ -> return $ Pair w1 False
+        LeftZero _ -> return $ Pair mempty False
 
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadIdentity mark, MonadIdentity mark1

@@ -298,6 +298,20 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark1
+  , MonadWriteOnce mark w (t m)
+  ) => MonadWriteOnce mark w (HaltTT mark1 t m)
+  where
+    etch
+      :: mark w
+      -> HaltTT mark1 t m Bool
+    etch = HaltTT . lift . etch
+
+    press
+      :: HaltTT mark1 t m (Maybe (mark w))
+    press = HaltTT $ lift press
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark1
   , MonadReadOnly mark r (t m)
   ) => MonadReadOnly mark r (HaltTT mark1 t m)
   where

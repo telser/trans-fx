@@ -220,9 +220,9 @@ instance
   ) => Arbitrary (WriteOnce mark w a)
   where
     arbitrary = do
-      w1 <- arbitrary
+      w <- arbitrary
       a <- arbitrary
-      return $ WriteOnce $ \w -> Pair (w <> w1) a
+      return $ WriteOnce $ \_ -> Pair w a
 
 instance
   ( Arbitrary (mark ())
@@ -389,16 +389,23 @@ instance
 {- AppendOnlyT -}
 
 instance
-  ( Arbitrary (m (Pair w a)), Arbitrary w, Monoid w, CoArbitrary w
+  ( Arbitrary (m (Pair w a)), Arbitrary w
+  , Monoid w, CoArbitrary w, Monad m, Arbitrary a
   ) => Arbitrary (AppendOnlyT mark w m a)
   where
-    arbitrary = AppendOnlyT <$> arbitrary
+    arbitrary = do
+      w <- arbitrary
+      a <- arbitrary
+      return $ AppendOnlyT $ \_ ->
+        return $ Pair w a
 
 instance
-  ( Arbitrary (mark w), Arbitrary (Context m)
+  ( Arbitrary (mark w), Arbitrary (Context m), MonadIdentity mark, Monoid w
   ) => Arbitrary (Context (AppendOnlyT mark w m))
   where
-    arbitrary = AppendOnlyTCtx <$> arbitrary
+    arbitrary = do
+      c <- arbitrary
+      return $ AppendOnlyTCtx (pure mempty, c)
 
 instance
   ( Arbitrary (mark ())
@@ -417,10 +424,12 @@ instance
     arbitrary = WriteOnceT <$> arbitrary
 
 instance
-  ( Arbitrary (mark (Maybe w)), Arbitrary (Context m)
+  ( Arbitrary (mark (Maybe w)), Arbitrary (Context m), MonadIdentity mark
   ) => Arbitrary (Context (WriteOnceT mark w m))
   where
-    arbitrary = WriteOnceTCtx <$> arbitrary
+    arbitrary = do
+      c <- arbitrary
+      return $ WriteOnceTCtx (pure mempty, c)
 
 instance
   ( Arbitrary (mark ())
@@ -495,10 +504,10 @@ instance
 {- ComposeT -}
 
 instance
-  ( Arbitrary (t1 (t2 m) a)
+  ( Arbitrary (t1 (t2 m) a), ComposableT t1
   ) => Arbitrary (ComposeT t1 t2 m a)
   where
-    arbitrary = ComposeT <$> arbitrary
+    arbitrary = toComposeT <$> arbitrary
 
 instance
   ( Arbitrary (Context (t1 (t2 m)))
@@ -610,7 +619,8 @@ instance
 {- AppendOnlyTT -}
 
 instance
-  ( Arbitrary (t m (Pair w a)), Arbitrary w, Monoid w, CoArbitrary w
+  ( Arbitrary (t m (Pair w a)), Arbitrary w, Arbitrary a
+  , Monoid w, CoArbitrary w, Monad m, MonadTrans t
   ) => Arbitrary (AppendOnlyTT mark w t m a)
   where
     arbitrary = AppendOnlyTT <$> arbitrary

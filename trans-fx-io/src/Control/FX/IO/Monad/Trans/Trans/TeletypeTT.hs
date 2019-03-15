@@ -293,6 +293,23 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x)
+  ) => MonadWriteOnce mark w (TeletypeTT mark1 t m)
+  where
+    etch
+      :: mark w
+      -> TeletypeTT mark1 t m Bool
+    etch = TeletypeTT . OverTT . lift . liftT . etch
+
+    press
+      :: TeletypeTT mark1 t m (Maybe (mark w))
+    press = TeletypeTT $ OverTT $ lift $ liftT press
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadIdentity mark1, Commutant mark1, Monoid w
   , forall x. (Monad x) => MonadWriteOnly mark w (t x)
   ) => MonadWriteOnly mark w (TeletypeTT mark1 t m)

@@ -318,6 +318,20 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadWriteOnce mark w (t m)
+  ) => MonadWriteOnce mark w (IdentityTT t m)
+  where
+    etch
+      :: mark w
+      -> IdentityTT t m Bool
+    etch = IdentityTT . etch
+
+    press
+      :: IdentityTT t m (Maybe (mark w))
+    press = IdentityTT press
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadExcept mark e (t m)
   ) => MonadExcept mark e (IdentityTT t m)
   where

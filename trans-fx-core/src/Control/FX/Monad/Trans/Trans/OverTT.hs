@@ -346,8 +346,6 @@ instance {-# OVERLAPS #-}
       :: OverTT (ApplyTT u) v t m (mark w)
     look = OverTT $ hoist ApplyTT $ lift look
 
-
-
 instance {-# OVERLAPPABLE #-}
   ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
   , MonadTransTrans u, MonadIdentity mark
@@ -362,6 +360,39 @@ instance {-# OVERLAPPABLE #-}
     look
       :: OverTT u v t m (mark w)
     look = OverTT look
+
+
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
+  , forall x y. (Monad x, MonadTrans y) => MonadWriteOnce mark w (u y x)
+  ) => MonadWriteOnce mark w (OverTT (ApplyTT u) v t m)
+  where
+    etch
+      :: mark w
+      -> OverTT (ApplyTT u) v t m Bool
+    etch = OverTT . lift . ApplyTT . etch
+
+    press
+      :: OverTT (ApplyTT u) v t m (Maybe (mark w))
+    press = OverTT $ hoist ApplyTT $ lift press
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadFunctor v
+  , MonadTransTrans u, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnce mark w (v x)
+  ) => MonadWriteOnce mark w (OverTT u v t m)
+  where
+    etch
+      :: mark w
+      -> OverTT u v t m Bool
+    etch = OverTT . etch
+
+    press
+      :: OverTT u v t m (Maybe (mark w))
+    press = OverTT press
 
 
 

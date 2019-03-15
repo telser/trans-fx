@@ -255,6 +255,20 @@ instance {-# OVERLAPPABLE #-}
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x), Monoid w1
+  ) => MonadWriteOnce mark w (AppendOnlyTT mark1 w1 t m)
+  where
+    press
+      :: AppendOnlyTT mark1 w1 t m (Maybe (mark w))
+    press = AppendOnlyTT $ lift press
+
+    etch
+      :: mark w
+      -> AppendOnlyTT mark1 w1 t m Bool
+    etch = AppendOnlyTT . lift . etch
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
   , forall x. (Monad x) => MonadState mark s (t x), Monoid w
   ) => MonadState mark s (AppendOnlyTT mark1 w t m)
   where

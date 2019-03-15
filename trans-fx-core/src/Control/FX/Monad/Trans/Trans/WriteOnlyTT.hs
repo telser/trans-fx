@@ -268,6 +268,20 @@ instance
     look = WriteOnlyTT $ lift look
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1, Monoid w1
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x)
+  ) => MonadWriteOnce mark w (WriteOnlyTT mark1 w1 t m)
+  where
+    etch
+      :: mark w
+      -> WriteOnlyTT mark1 w1 t m Bool
+    etch = WriteOnlyTT . lift . etch
+
+    press
+      :: WriteOnlyTT mark1 w1 t m (Maybe (mark w))
+    press = WriteOnlyTT $ lift press
+
+instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1, Monoid w
   , forall x. (Monad x) => MonadState mark s (t x)
   ) => MonadState mark s (WriteOnlyTT mark1 w t m)

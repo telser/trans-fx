@@ -375,6 +375,21 @@ instance
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
   , MonadIdentity mark1, Commutant mark1
+  , forall x. (Monad x) => MonadWriteOnce mark w (t x)
+  ) => MonadWriteOnce mark w (PromptTT mark1 p t m)
+  where
+    etch
+      :: mark w
+      -> PromptTT mark1 p t m Bool
+    etch = liftT . etch
+
+    press
+      :: PromptTT mark1 p t m (Maybe (mark w))
+    press = liftT press
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , MonadIdentity mark1, Commutant mark1
   , forall x. (Monad x) => MonadReadOnly mark r (t x)
   ) => MonadReadOnly mark r (PromptTT mark1 p t m)
   where
