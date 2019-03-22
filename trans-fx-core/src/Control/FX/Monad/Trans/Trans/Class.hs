@@ -49,9 +49,6 @@ class
       :: (Monad m, MonadTrans t)
       => t m a -> u t m a
 
-instance MonadTransTrans ApplyT where
-  liftT = ApplyT
-
 -- | Class representing monad functor functors; need to figure out what this means
 class
   ( MonadTransTrans u
@@ -69,12 +66,6 @@ class
       => (forall w. m1 w -> m2 w)
       -> u t m1 a
       -> u t m2 a
-
-instance
-  MonadTransFunctor ApplyT
-  where
-    hoistT f = ApplyT . f . unApplyT
-    raiseT f = ApplyT . hoist f . unApplyT
 
 
 

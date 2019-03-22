@@ -485,22 +485,6 @@ instance
 
 
 
-{- ApplyT -}
-
-instance
-  ( Arbitrary (t m a)
-  ) => Arbitrary (ApplyT t m a)
-  where
-    arbitrary = ApplyT <$> arbitrary
-
-instance
-  ( Arbitrary (InputT t)
-  ) => Arbitrary (InputT (ApplyT t))
-  where
-    arbitrary = ApplyTIn <$> arbitrary
-
-
-
 {- ComposeT -}
 
 instance

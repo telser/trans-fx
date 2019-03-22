@@ -12,6 +12,7 @@
 {-# LANGUAGE KindSignatures        #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE StandaloneDeriving    #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
@@ -288,17 +289,6 @@ instance
       fmap (unwrap . slot2) $
         draft (fmap pure $ unPromptTT x (end . pure) cont)
 
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftLocalT (PromptTT mark p)
-  where
-    liftLocalT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Local r (t m) (OutputTT (PromptTT mark p) x))
-      -> (forall x. Local r (PromptTT mark p t m) x)
-    liftLocalT local f x = PromptTT $ \end cont ->
-      fmap unwrap $ local f $ fmap (pure) $ unPromptTT x end cont
-
 
 
 
@@ -401,7 +391,11 @@ instance
       :: (mark r -> mark r)
       -> PromptTT mark1 p t m a
       -> PromptTT mark1 p t m a
-    local = liftLocalT local
+    local f x = PromptTT $ \end cont -> do
+      (r :: mark r) <- ask
+      local f $ unPromptTT x
+        (\a -> local (const r) $ end a)
+        (\e g -> local (const r) $ cont e (\u -> local f $ g u))
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark

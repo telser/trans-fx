@@ -45,7 +45,6 @@ library
     , Control.FX.Monad.Trans.Class
     , Control.FX.Monad.Trans.IdentityT
     , Control.FX.Monad.Trans.ComposeT
-    , Control.FX.Monad.Trans.ApplyT
     , Control.FX.Monad.Trans.ReadOnlyT
     , Control.FX.Monad.Trans.StateT
     , Control.FX.Monad.Trans.HaltT

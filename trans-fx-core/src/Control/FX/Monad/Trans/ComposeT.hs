@@ -36,7 +36,6 @@ import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans.Class
 import Control.FX.Monad.Trans.IdentityT
-import Control.FX.Monad.Trans.ApplyT
 import Control.FX.Monad.Trans.ExceptT
 import Control.FX.Monad.Trans.WriteOnlyT
 import Control.FX.Monad.Trans.StateT
