@@ -37,8 +37,8 @@ testCommutantLaws
   -> TestTree
 testCommutantLaws pc pf pw pa eq =
   let
-    label = "Commutant Laws for " ++ (show $ typeRep pc) ++ " on " ++
-      "f :: " ++ (show $ typeRep pf) ++ " with " ++
+    label = "Commutant Laws for " ++ (show $ typeRep pc) ++ " with " ++
+      "f :: " ++ (show $ typeRep pf) ++ ", " ++
       "a :: " ++ (show $ typeRep pa)
   in
     testGroup label

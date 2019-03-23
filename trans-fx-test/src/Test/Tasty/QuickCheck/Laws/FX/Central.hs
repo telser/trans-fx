@@ -124,8 +124,8 @@ testCentralLaws
   -> TestTree
 testCentralLaws pc pm pw pa eq =
   let
-    label = "Central Laws for " ++ (show $ typeRep pc) ++ " on " ++
-      "m :: " ++ (show $ typeRep pm) ++ " with " ++
+    label = "Central Laws for " ++ (show $ typeRep pc) ++ " with " ++
+      "m :: " ++ (show $ typeRep pm) ++ ", " ++
       "a :: " ++ (show $ typeRep pa)
   in
     testGroup label

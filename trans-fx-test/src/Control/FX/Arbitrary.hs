@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE UndecidableInstances  #-}
@@ -5,13 +6,11 @@
 
 module Control.FX.Arbitrary () where
 
-import Test.QuickCheck (Arbitrary(..), CoArbitrary(..), Gen)
+import Test.QuickCheck (Arbitrary(..), CoArbitrary(..), Gen, elements)
+import System.IO.Error
 
-import Control.FX.EqIn
-import Control.FX.Functor
-import Control.FX.Monad
-import Control.FX.Monad.Trans
-import Control.FX.Monad.Trans.Trans
+import Control.FX
+import Control.FX.IO
 
 
 
@@ -112,6 +111,12 @@ instance
   where
     arbitrary = return $ IdentityIn ()
 
+instance
+  ( Arbitrary a
+  ) => Arbitrary (Output Identity a)
+  where
+    arbitrary = IdentityOut <$> arbitrary
+
 
 
 {- Halt -}
@@ -137,6 +142,12 @@ instance
   ) => Arbitrary (Input (Halt mark))
   where
     arbitrary = HaltIn <$> arbitrary
+
+instance
+  ( Arbitrary a
+  ) => Arbitrary (Output (Halt mark) a)
+  where
+    arbitrary = HaltOut <$> arbitrary
 
 
 
@@ -164,6 +175,12 @@ instance
   where
     arbitrary = ExceptIn <$> arbitrary
 
+instance
+  ( Arbitrary a, Arbitrary e
+  ) => Arbitrary (Output (Except mark e) a)
+  where
+    arbitrary = ExceptOut <$> arbitrary
+
 
 
 {- WriteOnly -}
@@ -185,6 +202,12 @@ instance
   ) => Arbitrary (Input (WriteOnly mark w))
   where
     arbitrary = WriteOnlyIn <$> arbitrary
+
+instance
+  ( Arbitrary a, Arbitrary (mark w)
+  ) => Arbitrary (Output (WriteOnly mark w) a)
+  where
+    arbitrary = WriteOnlyOut <$> arbitrary
 
 
 
@@ -211,6 +234,12 @@ instance
   where
     arbitrary = AppendOnlyIn <$> arbitrary
 
+instance
+  ( Arbitrary a, Arbitrary (mark w)
+  ) => Arbitrary (Output (AppendOnly mark w) a)
+  where
+    arbitrary = AppendOnlyOut <$> arbitrary
+
 
 
 {- WriteOnce -}
@@ -236,6 +265,12 @@ instance
   where
     arbitrary = WriteOnceIn <$> arbitrary
 
+instance
+  ( Arbitrary a, Arbitrary (mark (Maybe w))
+  ) => Arbitrary (Output (WriteOnce mark w) a)
+  where
+    arbitrary = WriteOnceOut <$> arbitrary
+
 
 
 {- ReadOnly -}
@@ -258,6 +293,12 @@ instance
   where
     arbitrary = ReadOnlyIn <$> arbitrary
 
+instance
+  ( Arbitrary (mark a)
+  ) => Arbitrary (Output (ReadOnly mark r) a)
+  where
+    arbitrary = ReadOnlyOut <$> arbitrary
+
 
 
 {- State -}
@@ -279,6 +320,12 @@ instance
   ) => Arbitrary (Input (State mark s))
   where
     arbitrary = StateIn <$> arbitrary
+
+instance
+  ( Arbitrary a, Arbitrary (mark s)
+  ) => Arbitrary (Output (State mark s) a)
+  where
+    arbitrary = StateOut <$> arbitrary
 
 
 
@@ -748,9 +795,57 @@ instance
 
 
 
+{------}
+{- IO -}
+{------}
 
+{- TeletypeTT -}
 
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Arbitrary a
+  , Arbitrary (t m a)
+  ) => Arbitrary (TeletypeTT mark t m a)
+  where
+    arbitrary = do
+      p <- arbitrary
+      if p
+        then do
+          a <- arbitrary
+          return $ do
+            (_ :: mark String) <- readLine
+            return a
+        else do
+          x <- pure <$> arbitrary :: Gen (mark String)
+          a <- arbitrary
+          return $ do
+            printLine x
+            return a
 
+instance
+  ( Arbitrary (Context (t m)), Monad m, Applicative mark
+  ) => Arbitrary (Context (TeletypeTT mark t m))
+  where
+    arbitrary = do
+      (m :: String) <- arbitrary
+      (p1 :: Bool) <- arbitrary
+      (err1 :: mark IOException) <- pure <$> arbitrary
+      (p2 :: Bool) <- arbitrary
+      (err2 :: mark IOException) <- pure <$> arbitrary
+      let
+        eval :: TeletypeAction mark u -> m u
+        eval x = case x of
+          ReadLine ->
+            return $ if p1 then Except err1 else Accept m
+          PrintLine _ ->
+            return $ if p2 then Except err2 else Accept ()
+      h <- arbitrary
+      return $ TeletypeTTCtx (Eval eval, h)
+
+instance Arbitrary IOException where
+  arbitrary = do
+    t <- elements [doesNotExistErrorType]
+    s <- arbitrary
+    return $ mkIOError t s Nothing Nothing
 
 
 

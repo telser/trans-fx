@@ -37,7 +37,7 @@ testEqInLaws
 testEqInLaws pt pa =
   let
     label = "EqIn Laws for " ++ (show $ typeRep pt) ++ " with "
-      ++ " a = " ++ (show $ typeRep pa)
+      ++ "a :: " ++ (show $ typeRep pa)
   in
     testGroup label
       [ testEqInLawReflexive pt pa
@@ -81,7 +81,7 @@ testEqInLawSymmetric
   -> Proxy a -- ^ Value type
   -> TestTree
 testEqInLawSymmetric pt pa =
-  testProperty "eqIn env a a === True" $
+  testProperty "eqIn env a b === eqIn env b a" $
     eqInLawSymmetric pt pa
 
 eqInLawSymmetric
@@ -105,7 +105,7 @@ testEqInLawTransitive
   -> Proxy a -- ^ Value type
   -> TestTree
 testEqInLawTransitive pt pa =
-  testProperty "eqIn env a a === True" $
+  testProperty "transitivity" $
     eqInLawTransitive pt pa
 
 eqInLawTransitive

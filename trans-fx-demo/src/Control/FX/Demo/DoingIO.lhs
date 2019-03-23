@@ -27,16 +27,15 @@ Here's a simple type using `TeletypeTT`. (`S` and `T` are again boilerplate `Mon
 
 > newtype Bar t m a = Bar
 >   { unBar ::
->       TeletypeTT S
->       (StateTT T String
+>       StateTT T String
 >       (ExceptTT S Bool
+>       (TeletypeTT S
 >       t)) m a
 >   } deriving
 >     ( Functor, Applicative, Monad, MonadTrans
 >     , MonadState T String
 >     , MonadExcept S Bool
 >     , MonadTeletype S
->     , MonadExcept TeletypeError (S IOException)
 >     )
 
 Couple things to note: with `TeletypeTT` added to our transformer transformer stack, we can derive two new interfaces: `MonadTeletype` comes with the functions for interacting with the teletype, and we can also derive a handler for IO exceptions originating in the teletype.
@@ -53,16 +52,16 @@ Anyway, here is an example.
 
 And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Again, it's much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.
 
-> runBar
->   :: Bar IdentityT IO a
->   -> IO (Except S Bool
->        (Pair (T String)
->        (Except TeletypeError (S IOException) a)))
+> --runBar
+> --  :: Bar IdentityT IO a
+> --  -> IO (Except S Bool
+> --       (Pair (T String)
+> --       (Except TeletypeError (S IOException) a)))
 > runBar =
 >   unIdentityT
+>     . runTeletypeTT (Eval evalTeletypeIO)
 >     . runExceptTT (S ())
 >     . runStateTT (T "")
->     . runTeletypeTT (Eval evalTeletypeIO)
 >     . unBar
 
 (Boilerplate)

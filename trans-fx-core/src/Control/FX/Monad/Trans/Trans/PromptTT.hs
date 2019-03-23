@@ -261,38 +261,6 @@ instance
 
 
 
-{- Specialized Lifts -}
-
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftCatchT (PromptTT mark p)
-  where
-    liftCatchT
-      :: ( Monad m, MonadTrans t )
-      => (forall x. Catch e (t m) (OutputTT (PromptTT mark p) x))
-      -> (forall x. Catch e (PromptTT mark p t m) x)
-
-    liftCatchT catch x h = PromptTT $ \end cont ->
-      fmap unwrap $ catch
-        (fmap pure $ unPromptTT x end cont)
-        (\e -> fmap pure $ unPromptTT (h e) end cont)
-
-instance
-  ( MonadIdentity mark, Commutant mark
-  ) => LiftDraftT (PromptTT mark p)
-  where
-    liftDraftT
-      :: ( Monad m, MonadTrans t, Monoid w )
-      => (forall x. Draft w (t m) (OutputTT (PromptTT mark p) x))
-      -> (forall x. Draft w (PromptTT mark p t m) x)
-    liftDraftT draft x = PromptTT $ \end cont ->
-      fmap (unwrap . slot2) $
-        draft (fmap pure $ unPromptTT x (end . pure) cont)
-
-
-
-
-
 {- Effect Class -}
 
 instance {-# OVERLAPS #-}
@@ -331,21 +299,25 @@ instance
       -> PromptTT mark1 p t m ()
     put = liftT . put
 
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , MonadIdentity mark1, Commutant mark1, Monoid w
-  , forall x. (Monad x) => MonadWriteOnly mark w (t x)
-  ) => MonadWriteOnly mark w (PromptTT mark1 p t m)
-  where
-    tell
-      :: mark w
-      -> PromptTT mark1 p t m ()
-    tell = liftT . tell
-
-    draft
-      :: PromptTT mark1 p t m a
-      -> PromptTT mark1 p t m (Pair (mark w) a)
-    draft = liftDraftT draft
+-- instance
+--   ( Monad m, MonadTrans t, MonadIdentity mark
+--   , MonadIdentity mark1, Commutant mark1, Monoid w
+--   , forall x. (Monad x) => MonadWriteOnly mark w (t x)
+--   ) => MonadWriteOnly mark w (PromptTT mark1 p t m)
+--   where
+--     tell
+--       :: mark w
+--       -> PromptTT mark1 p t m ()
+--     tell = liftT . tell
+-- 
+--     draft
+--       :: PromptTT mark1 p t m a
+--       -> PromptTT mark1 p t m (Pair (mark w) a)
+--     draft x = PromptTT $ \end cont -> do
+--       Pair (w :: mark w) a <- draft $ unPromptTT x
+--         (\a -> end $ Pair mempty a)
+--         (\e g -> cont e (\u -> g u))
+--       return a
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark
@@ -397,19 +369,19 @@ instance
         (\a -> local (const r) $ end a)
         (\e g -> local (const r) $ cont e (\u -> local f $ g u))
 
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , MonadIdentity mark1, Commutant mark1
-  , forall x. (Monad x) => MonadExcept mark e (t x)
-  ) => MonadExcept mark e (PromptTT mark1 p t m)
-  where
-    throw
-      :: mark e
-      -> PromptTT mark1 p t m a
-    throw = liftT . throw
-
-    catch
-      :: PromptTT mark1 p t m a
-      -> (mark e -> PromptTT mark1 p t m a)
-      -> PromptTT mark1 p t m a
-    catch = liftCatchT catch
+-- instance
+--   ( Monad m, MonadTrans t, MonadIdentity mark
+--   , MonadIdentity mark1, Commutant mark1
+--   , forall x. (Monad x) => MonadExcept mark e (t x)
+--   ) => MonadExcept mark e (PromptTT mark1 p t m)
+--   where
+--     throw
+--       :: mark e
+--       -> PromptTT mark1 p t m a
+--     throw = liftT . throw
+-- 
+--     catch
+--       :: PromptTT mark1 p t m a
+--       -> (mark e -> PromptTT mark1 p t m a)
+--       -> PromptTT mark1 p t m a
+--     catch = liftCatchT catch

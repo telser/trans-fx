@@ -102,8 +102,8 @@ testMonadTransLaws
   -> TestTree
 testMonadTransLaws pt pm pw pa pb eq =
   let
-    label = "MonadTrans Laws for " ++ (show $ typeRep pt) ++ " on " ++
-      "m :: " ++ (show $ typeRep pm) ++ " with " ++
+    label = "MonadTrans Laws for " ++ (show $ typeRep pt) ++ " with " ++
+      "m :: " ++ (show $ typeRep pm) ++ ", " ++
       "a :: " ++ (show $ typeRep pa) ++ ", " ++
       "b :: " ++ (show $ typeRep pb)
   in

@@ -19,7 +19,7 @@
 {-# LANGUAGE FunctionalDependencies     #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
+module Control.FX.Monad.Trans.Trans.IO.TeletypeTT (
     TeletypeTT(..)
   , TeletypeAction(..)
   , evalTeletypeIO
@@ -27,6 +27,7 @@ module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
   , TeletypeError(..)
   , IOException
   , runTeletypeTT
+  , Context(..)
   , InputTT(..)
   , OutputTT(..)
 ) where
@@ -34,12 +35,12 @@ module Control.FX.IO.Monad.Trans.Trans.TeletypeTT (
 
 
 import Data.Typeable
-  ( Typeable, Proxy )
+  ( Typeable, Proxy, typeOf )
 import Control.Exception
   ( IOException, try )
 
 import Control.FX
-import Control.FX.IO.Monad.Trans.Trans.Class
+import Control.FX.Monad.Trans.Trans.IO.Class
 
 
 
@@ -63,6 +64,15 @@ newtype TeletypeTT
 deriving instance {-# OVERLAPPING #-}
   ( Monad m, MonadTrans t, MonadIdentity mark
   ) => MonadExcept TeletypeError (mark IOException) (TeletypeTT mark t m)
+
+instance
+  ( Typeable mark, Typeable t, Typeable m, Typeable a
+  ) => Show (TeletypeTT mark t m a)
+  where
+    show
+      :: TeletypeTT mark t m a
+      -> String
+    show = show . typeOf
 
 
 
@@ -109,6 +119,35 @@ instance MonadIdentity TeletypeError where
 
 
 instance
+  ( Monad m, MonadTrans t, MonadIdentity mark
+  , Commutant mark, EqIn (t m)
+  ) => EqIn (TeletypeTT mark t m)
+  where
+    newtype Context (TeletypeTT mark t m)
+      = TeletypeTTCtx
+          { unTeletypeTTCtx :: (Eval (TeletypeAction mark) m, Context (t m))
+          } deriving (Typeable)
+
+    eqIn
+      :: (Eq a)
+      => Context (TeletypeTT mark t m)
+      -> TeletypeTT mark t m a
+      -> TeletypeTT mark t m a
+      -> Bool
+    eqIn (TeletypeTTCtx (eval,h)) x y =
+      eqIn h
+        (fmap unTeletypeTTOut $ runTT (TeletypeTTIn eval) x)
+        (fmap unTeletypeTTOut $ runTT (TeletypeTTIn eval) y)
+
+instance
+  ( Typeable mark, Typeable t, Typeable m
+  ) => Show (Context (TeletypeTT mark t m))
+  where
+    show = show . typeOf
+
+
+
+instance
   ( MonadIdentity mark, Commutant mark
   ) => RunMonadTransTrans (TeletypeTT mark)
   where
@@ -128,7 +167,18 @@ instance
       -> TeletypeTT mark t m a
       -> t m (OutputTT (TeletypeTT mark) a)
     runTT (TeletypeTTIn eval) (TeletypeTT x) =
-      fmap (TeletypeTTOut . unExceptTOut . unwrap . unCompose . unOverTTOut) $ runTT (OverTTIn (PromptTTIn eval, ExceptTIn (pure ()))) x
+      fmap (TeletypeTTOut . unExceptTOut . unwrap . unCompose . unOverTTOut) $
+        runTT (OverTTIn (PromptTTIn eval, ExceptTIn (pure ()))) x
+
+instance
+  ( Typeable mark, Typeable m
+  ) => Show (InputTT (TeletypeTT mark) m)
+  where
+    show = show . typeOf
+
+deriving instance
+  ( Show a, Show (mark IOException)
+  ) => Show (OutputTT (TeletypeTT mark) a)
 
 runTeletypeTT
   :: ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark )
@@ -232,25 +282,25 @@ instance
 
 
 
-instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , MonadIdentity mark1, Commutant mark1
-  , forall x. (Monad x) => MonadExcept mark e (t x)
-  ) => MonadExcept mark e (TeletypeTT mark1 t m)
-  where
-    throw
-      :: mark e
-      -> TeletypeTT mark1 t m a
-    throw = TeletypeTT . OverTT . lift . liftT . throw
-
-    catch
-      :: TeletypeTT mark1 t m a
-      -> (mark e -> TeletypeTT mark1 t m a)
-      -> TeletypeTT mark1 t m a
-    catch x h = TeletypeTT $ OverTT $
-      liftCatch (liftCatchT catch)
-        (unOverTT $ unTeletypeTT x)
-        (unOverTT . unTeletypeTT . h)
+-- instance {-# OVERLAPPABLE #-}
+--   ( Monad m, MonadTrans t, MonadIdentity mark
+--   , MonadIdentity mark1, Commutant mark1
+--   , forall x. (Monad x) => MonadExcept mark e (t x)
+--   ) => MonadExcept mark e (TeletypeTT mark1 t m)
+--   where
+--     throw
+--       :: mark e
+--       -> TeletypeTT mark1 t m a
+--     throw = TeletypeTT . OverTT . lift . liftT . throw
+-- 
+--     catch
+--       :: TeletypeTT mark1 t m a
+--       -> (mark e -> TeletypeTT mark1 t m a)
+--       -> TeletypeTT mark1 t m a
+--     catch x h = TeletypeTT $ OverTT $
+--       liftCatch (liftCatchT catch)
+--         (unOverTT $ unTeletypeTT x)
+--         (unOverTT . unTeletypeTT . h)
 
 
 
@@ -268,9 +318,8 @@ instance
       :: (mark r -> mark r)
       -> TeletypeTT mark1 t m a
       -> TeletypeTT mark1 t m a
-    local f x = TeletypeTT $ OverTT $
-      liftLocal (liftLocalT local) f
-        (unOverTT $ unTeletypeTT x)
+    local f (TeletypeTT (OverTT x)) =
+      TeletypeTT $ OverTT $ local f x
 
 
 
@@ -308,21 +357,21 @@ instance
 
 
 
-instance
-  ( Monad m, MonadTrans t, MonadIdentity mark
-  , MonadIdentity mark1, Commutant mark1, Monoid w
-  , forall x. (Monad x) => MonadWriteOnly mark w (t x)
-  ) => MonadWriteOnly mark w (TeletypeTT mark1 t m)
-  where
-    tell
-      :: mark w
-      -> TeletypeTT mark1 t m ()
-    tell = TeletypeTT . OverTT . lift . liftT . tell
-
-    draft
-      :: TeletypeTT mark1 t m a
-      -> TeletypeTT mark1 t m (Pair (mark w) a)
-    draft = TeletypeTT . OverTT . draft . unOverTT . unTeletypeTT
+-- instance
+--   ( Monad m, MonadTrans t, MonadIdentity mark
+--   , MonadIdentity mark1, Commutant mark1, Monoid w
+--   , forall x. (Monad x) => MonadWriteOnly mark w (t x)
+--   ) => MonadWriteOnly mark w (TeletypeTT mark1 t m)
+--   where
+--     tell
+--       :: mark w
+--       -> TeletypeTT mark1 t m ()
+--     tell = TeletypeTT . OverTT . lift . liftT . tell
+-- 
+--     draft
+--       :: TeletypeTT mark1 t m a
+--       -> TeletypeTT mark1 t m (Pair (mark w) a)
+--     draft = TeletypeTT . OverTT . draft . unOverTT . unTeletypeTT
 
 
 

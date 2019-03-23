@@ -8,6 +8,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE QuantifiedConstraints      #-}
 {-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE UndecidableInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Control.FX.Monad.Trans.Trans.HaltTT (
@@ -39,6 +40,10 @@ newtype HaltTT
         { unHaltTT :: HaltT mark (t m) a
         } deriving
           ( Typeable, Functor, Applicative, Monad )
+
+deriving instance
+  ( Show (t m (Halt mark a))
+  ) => Show (HaltTT mark t m a)
 
 instance
   ( MonadTrans t, MonadIdentity mark

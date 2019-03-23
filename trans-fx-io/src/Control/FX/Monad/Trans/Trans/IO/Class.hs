@@ -5,7 +5,7 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
-module Control.FX.IO.Monad.Trans.Trans.Class (
+module Control.FX.Monad.Trans.Trans.IO.Class (
     MonadTeletype(..)
 ) where
 
@@ -15,7 +15,9 @@ import Control.FX
 
 
 
--- | Class representing monads which can interact with a teletype-style interface
+-- | Class representing monads which can interact with a teletype-style
+-- interface. This is an effects-only typeclass with no laws, so lifting
+-- through any transformer is safe.
 class
   ( Monad m, MonadIdentity mark
   ) => MonadTeletype mark m
