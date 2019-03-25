@@ -40,6 +40,7 @@ import Control.Exception
   ( IOException, try )
 
 import Control.FX
+import Control.FX.Data
 import Control.FX.Monad.Trans.Trans.IO.Class
 
 
@@ -53,8 +54,8 @@ newtype TeletypeTT
     = TeletypeTT
         { unTeletypeTT
             :: OverTT
-                ( PromptTT mark (TeletypeAction mark) )
                 ( ExceptT TeletypeError (mark IOException) )
+                ( PromptTT mark (TeletypeAction mark) )
                 t m a
         } deriving
           ( Typeable, Functor, Applicative
@@ -233,7 +234,7 @@ instance {-# OVERLAPS #-}
   where
     readLine
       :: TeletypeTT mark t m (mark String)
-    readLine = TeletypeTT $ OverTT $ do
+    readLine = TeletypeTT $ toOverTT $ do
       x :: mark (Except TeletypeError (mark IOException) String)
         <- lift $ prompt $ return ReadLine
       case unwrap x of
@@ -243,7 +244,7 @@ instance {-# OVERLAPS #-}
     printLine
       :: mark String
       -> TeletypeTT mark t m ()
-    printLine msg = TeletypeTT $ OverTT $ do
+    printLine msg = TeletypeTT $ toOverTT $ do
       x :: mark (Except TeletypeError (mark IOException) ())
         <- lift $ prompt $ return $ PrintLine $ unwrap msg
       case unwrap x of
@@ -273,12 +274,12 @@ instance
   where
     get
       :: TeletypeTT mark1 t m (mark s)
-    get = TeletypeTT $ OverTT $ lift $ liftT get
+    get = TeletypeTT $ toOverTT $ lift $ liftT get
 
     put
       :: mark s
       -> TeletypeTT mark1 t m ()
-    put = TeletypeTT . OverTT . lift . liftT . put
+    put = TeletypeTT . toOverTT . lift . liftT . put
 
 
 
@@ -312,14 +313,14 @@ instance
   where
     ask
       :: TeletypeTT mark1 t m (mark r)
-    ask = TeletypeTT $ OverTT $ lift $ liftT ask
+    ask = TeletypeTT $ toOverTT $ lift $ liftT ask
 
     local
       :: (mark r -> mark r)
       -> TeletypeTT mark1 t m a
       -> TeletypeTT mark1 t m a
-    local f (TeletypeTT (OverTT x)) =
-      TeletypeTT $ OverTT $ local f x
+    local f (TeletypeTT x) =
+      TeletypeTT $ toOverTT $ local f $ unOverTT x
 
 
 
@@ -332,11 +333,11 @@ instance
     jot
       :: mark w
       -> TeletypeTT mark1 t m ()
-    jot = TeletypeTT . OverTT . lift . liftT . jot
+    jot = TeletypeTT . toOverTT . lift . liftT . jot
 
     look
       :: TeletypeTT mark1 t m (mark w)
-    look = TeletypeTT $ OverTT $ lift $ liftT look
+    look = TeletypeTT $ toOverTT $ lift $ liftT look
 
 
 
@@ -349,11 +350,11 @@ instance
     etch
       :: mark w
       -> TeletypeTT mark1 t m Bool
-    etch = TeletypeTT . OverTT . lift . liftT . etch
+    etch = TeletypeTT . toOverTT . lift . liftT . etch
 
     press
       :: TeletypeTT mark1 t m (Maybe (mark w))
-    press = TeletypeTT $ OverTT $ lift $ liftT press
+    press = TeletypeTT $ toOverTT $ lift $ liftT press
 
 
 
@@ -384,7 +385,7 @@ instance
     prompt
       :: mark (p a)
       -> TeletypeTT mark1 t m (mark a)
-    prompt = TeletypeTT . OverTT . lift . liftT . prompt
+    prompt = TeletypeTT . toOverTT . lift . liftT . prompt
 
 
 
@@ -396,4 +397,22 @@ instance
     halt
       :: mark ()
       -> TeletypeTT mark1 t m a
-    halt = TeletypeTT . OverTT . lift . liftT . halt
+    halt = TeletypeTT . toOverTT . lift . liftT . halt
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadStack mark f d (t x), IsStack f
+  ) => MonadStack mark f d (TeletypeTT mark1 t m)
+  where
+    push
+      :: Proxy f
+      -> mark d
+      -> TeletypeTT mark1 t m ()
+    push proxy = TeletypeTT . toOverTT . lift . liftT . push proxy
+
+    pop
+      :: Proxy f
+      -> TeletypeTT mark1 t m (mark (Maybe d))
+    pop proxy = TeletypeTT $ toOverTT $ lift $ liftT $ pop proxy

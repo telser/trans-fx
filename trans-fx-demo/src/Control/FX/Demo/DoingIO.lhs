@@ -91,3 +91,5 @@ And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Agai
 > 
 > instance Commutant T where
 >   commute = fmap T . unT
+
+When defining an effect stack it's important to remember that (1) changing the order of the effect layers changes the semantics of the monad, and (2) effect class instances do not always "commute". Fortunately in both cases the type checker is our friend.

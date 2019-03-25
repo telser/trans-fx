@@ -14,6 +14,7 @@ The closest thing to documentation is this [little tutorial](http://nbloomf.blog
 `trans-fx` is split into a few separate libraries to help keep dependencies under control.
 
 * `trans-fx-core` is the foundation of the effect system and depends only on `base`.
-* `trans-fx-demo` is a collection of tutorials on how to use and extend the library.
-* `trans-fx-test` includes helper code for writing tests: `Arbitrary` instances and lawful class tests.
 * `trans-fx-io` is a collection of simple effect layers using IO.
+* `trans-fx-data` is a collection of specialized state effect layers with the semantics of common data structures.
+* `trans-fx-test` includes helper code for writing tests: `Arbitrary` instances and lawful class tests.
+* `trans-fx-demo` is a collection of tutorials on how to use and extend the library.

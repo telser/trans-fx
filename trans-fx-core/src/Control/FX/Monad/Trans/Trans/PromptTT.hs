@@ -34,7 +34,6 @@ import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans.Class
 import Control.FX.Monad.Trans.Trans.IdentityTT
-import Control.FX.Monad.Trans.Trans.ApplyTT
 
 
 

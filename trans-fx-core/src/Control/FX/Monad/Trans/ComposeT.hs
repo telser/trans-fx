@@ -52,8 +52,8 @@ class
   ( MonadTrans t1
   ) => ComposableT t1
   where
+    -- | Concrete composite monad transformer
     data
-      -- | Concrete composite monad transformer
       ComposeT
         (t1 :: (* -> *) -> * -> *)
         (t2 :: (* -> *) -> * -> *)

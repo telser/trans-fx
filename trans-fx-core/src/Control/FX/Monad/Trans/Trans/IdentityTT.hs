@@ -135,23 +135,6 @@ instance
       -> IdentityTT t m a
     liftT = IdentityTT
 
-instance
-  MonadTransFunctor IdentityTT
-  where
-    hoistT
-      :: ( Monad m, MonadFunctor t1, MonadFunctor t2 )
-      => (forall n x. (Monad n) => t1 n x -> t2 n x)
-      -> IdentityTT t1 m a
-      -> IdentityTT t2 m a
-    hoistT f = IdentityTT . f . unIdentityTT
-
-    raiseT
-      :: ( Monad m1, Monad m2, MonadFunctor t )
-      => (forall x. m1 x -> m2 x)
-      -> IdentityTT t m1 x
-      -> IdentityTT t m2 x
-    raiseT f = IdentityTT . hoist f . unIdentityTT
-
 
 
 

@@ -18,7 +18,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Control.FX.Monad.Trans.Trans.OverTT (
-    OverTT(..)
+    OverableT(..)
+  , OverTT(..)
   , runOverTT
   , Context(..)
   , InputTT(..)
@@ -28,155 +29,262 @@ module Control.FX.Monad.Trans.Trans.OverTT (
 
 
 import Data.Typeable (Typeable, typeOf)
+import Control.Monad (ap)
 
 import Control.FX.EqIn
 import Control.FX.Functor
 import Control.FX.Monad
 import Control.FX.Monad.Trans
 import Control.FX.Monad.Trans.Trans.Class
-import Control.FX.Monad.Trans.Trans.ApplyTT
 
 
 
--- | Concrete monad transformer transformer which applies a monad functor
-data OverTT
-  (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)
-  (v :: (* -> *) -> * -> *)
-  (t :: (* -> *) -> * -> *)
-  (m :: * -> *)
-  (a :: *)
-    = OverTT
-        { unOverTT :: v (u t m) a
-        } deriving (Typeable)
+class
+  ( MonadTrans v
+  ) => OverableT v
+  where
+    -- | Concrete monad transformer transformer which applies a monad functor
+    data
+      OverTT
+        (v :: (* -> *) -> * -> *)
+        (u :: ((* -> *) -> * -> *) -> (* -> *) -> * -> *)
+        (t :: (* -> *) -> * -> *)
+        (m :: * -> *)
+        (a :: *)
 
-deriving instance
-  ( Show (v (u t m) a)
-  ) => Show (OverTT u v t m a)
+    toOverTT
+      :: v (u t m) a
+      -> OverTT v u t m a
+
+    unOverTT
+      :: OverTT v u t m a
+      -> v (u t m) a
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  ) => Functor (OverTT u v t m)
+  OverableT IdentityT
+  where
+    newtype (OverTT IdentityT u t m a) =
+      OverTT_IdentityT
+        { unOverTT_IdentityT :: IdentityT (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_IdentityT
+    unOverTT = unOverTT_IdentityT
+
+instance
+  ( MonadIdentity mark
+  ) => OverableT (HaltT mark)
+  where
+    newtype (OverTT (HaltT mark) u t m a) =
+      OverTT_HaltT
+        { unOverTT_HaltT :: HaltT mark (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_HaltT
+    unOverTT = unOverTT_HaltT
+
+instance
+  ( MonadIdentity mark
+  ) => OverableT (StateT mark s)
+  where
+    newtype (OverTT (StateT mark s) u t m a) =
+      OverTT_StateT
+        { unOverTT_StateT :: StateT mark s (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_StateT
+    unOverTT = unOverTT_StateT
+
+instance
+  ( MonadIdentity mark
+  ) => OverableT (ReadOnlyT mark r)
+  where
+    newtype (OverTT (ReadOnlyT mark r) u t m a) =
+      OverTT_ReadOnlyT
+        { unOverTT_ReadOnlyT :: ReadOnlyT mark r (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_ReadOnlyT
+    unOverTT = unOverTT_ReadOnlyT
+
+instance
+  ( MonadIdentity mark, Monoid w
+  ) => OverableT (WriteOnlyT mark w)
+  where
+    newtype (OverTT (WriteOnlyT mark w) u t m a) =
+      OverTT_WriteOnlyT
+        { unOverTT_WriteOnlyT :: WriteOnlyT mark w (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_WriteOnlyT
+    unOverTT = unOverTT_WriteOnlyT
+
+instance
+  ( MonadIdentity mark
+  ) => OverableT (WriteOnceT mark w)
+  where
+    newtype (OverTT (WriteOnceT mark w) u t m a) =
+      OverTT_WriteOnceT
+        { unOverTT_WriteOnceT :: WriteOnceT mark w (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_WriteOnceT
+    unOverTT = unOverTT_WriteOnceT
+
+instance
+  ( MonadIdentity mark, Monoid w
+  ) => OverableT (AppendOnlyT mark w)
+  where
+    newtype (OverTT (AppendOnlyT mark w) u t m a) =
+      OverTT_AppendOnlyT
+        { unOverTT_AppendOnlyT :: AppendOnlyT mark w (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_AppendOnlyT
+    unOverTT = unOverTT_AppendOnlyT
+
+instance
+  ( MonadIdentity mark
+  ) => OverableT (ExceptT mark e)
+  where
+    newtype (OverTT (ExceptT mark e) u t m a) =
+      OverTT_ExceptT
+        { unOverTT_ExceptT :: ExceptT mark e (u t m) a
+        } deriving (Typeable)
+
+    toOverTT = OverTT_ExceptT
+    unOverTT = unOverTT_ExceptT
+
+
+
+instance
+  ( Show (v (u t m) a), OverableT v
+  ) => Show (OverTT v u t m a)
+  where
+    show = show . unOverTT
+
+instance
+  ( Monad m, MonadTrans t, MonadTrans v
+  , MonadTransTrans u, OverableT v
+  ) => Functor (OverTT v u t m)
   where
     fmap
       :: (a -> b)
-      -> OverTT u v t m a
-      -> OverTT u v t m b
-    fmap f = OverTT . fmap f . unOverTT
+      -> OverTT v u t m a
+      -> OverTT v u t m b
+    fmap f = toOverTT . fmap f . unOverTT
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  ) => Applicative (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadTrans v
+  , MonadTransTrans u, OverableT v
+  ) => Applicative (OverTT v u t m)
   where
     pure
       :: a
-      -> OverTT u v t m a
-    pure = OverTT . pure
+      -> OverTT v u t m a
+    pure = return
 
     (<*>)
-      :: OverTT u v t m (a -> b)
-      -> OverTT u v t m a
-      -> OverTT u v t m b
-    (OverTT f) <*> (OverTT x) =
-      OverTT (f <*> x)
+      :: OverTT v u t m (a -> b)
+      -> OverTT v u t m a
+      -> OverTT v u t m b
+    (<*>) = ap
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  ) => Monad (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadTrans v
+  , MonadTransTrans u, OverableT v
+  ) => Monad (OverTT v u t m)
   where
     return
       :: a
-      -> OverTT u v t m a
-    return = OverTT . return
+      -> OverTT v u t m a
+    return = toOverTT . return
 
     (>>=)
-      :: OverTT u v t m a
-      -> (a -> OverTT u v t m b)
-      -> OverTT u v t m b
-    (OverTT x) >>= f =
-      OverTT (x >>= (unOverTT . f))
+      :: OverTT v u t m a
+      -> (a -> OverTT v u t m b)
+      -> OverTT v u t m b
+    x >>= f =
+      toOverTT $ (unOverTT x) >>= (unOverTT . f)
 
 instance
-  ( MonadIdentity (v (u t m)), Eq a
-  ) => Eq (OverTT u v t m a)
-  where
-    (==)
-      :: OverTT u v t m a
-      -> OverTT u v t m a
-      -> Bool
-    (OverTT x) == (OverTT y) =
-      (unwrap x) == (unwrap y)
-
-instance
-  ( MonadIdentity (v (u t m)), Semigroup a
-  ) => Semigroup (OverTT u v t m a)
-  where
-    (<>)
-      :: OverTT u v t m a
-      -> OverTT u v t m a
-      -> OverTT u v t m a
-    (OverTT x) <> (OverTT y) =
-      OverTT $ pure $ (unwrap x) <> (unwrap y)
-
-instance
-  ( MonadIdentity (v (u t m)), Monoid a
-  ) => Monoid (OverTT u v t m a)
-  where
-    mempty
-      :: OverTT u v t m a
-    mempty = OverTT $ pure mempty
-
-instance
-  ( MonadTrans t, MonadFunctor v, MonadTransTrans u
-  ) => MonadTrans (OverTT u v t)
+  ( MonadTrans t, MonadTrans v
+  , MonadTransTrans u, OverableT v
+  ) => MonadTrans (OverTT v u t)
   where
     lift
       :: ( Monad m )
       => m a
-      -> OverTT u v t m a
-    lift = OverTT . lift . lift
+      -> OverTT v u t m a
+    lift = toOverTT . lift . lift
 
 instance
-  ( MonadFunctor t, MonadFunctor v, MonadTransFunctor u
-  ) => MonadFunctor (OverTT u v t)
-  where
-    hoist
-      :: ( Monad m, Monad n )
-      => (forall x. m x -> n x)
-      -> OverTT u v t m a
-      -> OverTT u v t n a
-    hoist f = OverTT . hoist (hoist f) . unOverTT
-
-instance
-  ( MonadFunctor v, MonadTransTrans u
-  ) => MonadTransTrans (OverTT u v)
+  ( MonadTrans v, MonadTransTrans u, OverableT v
+  ) => MonadTransTrans (OverTT v u)
   where
     liftT
       :: ( Monad m, MonadTrans t )
       => t m a
-      -> OverTT u v t m a
-    liftT = OverTT . lift . liftT
-
-
+      -> OverTT v u t m a
+    liftT = toOverTT . lift . liftT
 
 
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u
-  , RunMonadTransTrans u, RunMonadTrans v
+  ( MonadIdentity (v (u t m))
+  , OverableT v, Eq a
+  ) => Eq (OverTT v u t m a)
+  where
+    (==)
+      :: OverTT v u t m a
+      -> OverTT v u t m a
+      -> Bool
+    x == y =
+      (==)
+        (unwrap $ unOverTT x)
+        (unwrap $ unOverTT y)
+
+instance
+  ( MonadIdentity (v (u t m))
+  , OverableT v, Semigroup a
+  ) => Semigroup (OverTT v u t m a)
+  where
+    (<>)
+      :: OverTT v u t m a
+      -> OverTT v u t m a
+      -> OverTT v u t m a
+    x <> y =
+      toOverTT $ pure $ (<>)
+        (unwrap $ unOverTT x)
+        (unwrap $ unOverTT y)
+
+instance
+  ( MonadIdentity (v (u t m))
+  , OverableT v, Monoid a
+  ) => Monoid (OverTT v u t m a)
+  where
+    mempty
+      :: OverTT v u t m a
+    mempty = toOverTT $ pure mempty
+
+
+instance
+  ( Monad m, MonadTrans t, MonadTrans v, MonadTransTrans u
+  , RunMonadTransTrans u, RunMonadTrans v, OverableT v
   , forall x. (Eq x) => Eq (OutputTT u (OutputT v x))
   , EqIn (t m)
-  ) => EqIn (OverTT u v t m)
+  ) => EqIn (OverTT v u t m)
   where
-    newtype Context (OverTT u v t m)
+    newtype Context (OverTT v u t m)
       = OverTTCtx
           { unOverTTCtx :: ((InputTT u m, InputT v), Context (t m))
           } deriving (Typeable)
 
     eqIn
       :: (Eq a)
-      => Context (OverTT u v t m)
-      -> OverTT u v t m a
-      -> OverTT u v t m a
+      => Context (OverTT v u t m)
+      -> OverTT v u t m a
+      -> OverTT v u t m a
       -> Bool
     eqIn (OverTTCtx (k,h)) x y =
       eqIn h
@@ -185,58 +293,59 @@ instance
 
 deriving instance
   ( Eq (InputTT u m), Eq (InputT v), Eq (Context (t m))
-  ) => Eq (Context (OverTT u v t m))
+  ) => Eq (Context (OverTT v u t m))
 
 deriving instance
   ( Show (InputTT u m), Show (InputT v), Show (Context (t m))
-  ) => Show (Context (OverTT u v t m))
+  ) => Show (Context (OverTT v u t m))
 
 
 
 instance
-  ( RunMonadTransTrans u, RunMonadTrans v, MonadFunctor v
-  ) => RunMonadTransTrans (OverTT u v)
+  ( RunMonadTransTrans u, RunMonadTrans v
+  , MonadTrans v, OverableT v
+  ) => RunMonadTransTrans (OverTT v u)
   where
-    newtype InputTT (OverTT u v) m
+    newtype InputTT (OverTT v u) m
       = OverTTIn
           { unOverTTIn :: (InputTT u m, InputT v)
           } deriving (Typeable)
 
-    newtype OutputTT (OverTT u v) a
+    newtype OutputTT (OverTT v u) a
       = OverTTOut
           { unOverTTOut :: Compose (OutputTT u) (OutputT v) a
           } deriving (Typeable)
 
     runTT
       :: ( Monad m, MonadTrans t )
-      => InputTT (OverTT u v) m
-      -> OverTT u v t m a
-      -> t m (OutputTT (OverTT u v) a)
+      => InputTT (OverTT v u) m
+      -> OverTT v u t m a
+      -> t m (OutputTT (OverTT v u) a)
     runTT (OverTTIn (z1,z2)) =
       fmap (OverTTOut . Compose) . runTT z1 . runT z2 . unOverTT
 
 deriving instance
   ( Eq (InputTT u m), Eq (InputT v)
-  ) => Eq (InputTT (OverTT u v) m)
+  ) => Eq (InputTT (OverTT v u) m)
 
 deriving instance
   ( Show (InputTT u m), Show (InputT v)
-  ) => Show (InputTT (OverTT u v) m)
+  ) => Show (InputTT (OverTT v u) m)
 
 deriving instance
   ( Eq (OutputTT u a), Eq (OutputTT u (OutputT v a))
-  ) => Eq (OutputTT (OverTT u v) a)
+  ) => Eq (OutputTT (OverTT v u) a)
 
 deriving instance
   ( Show (OutputTT u a) , Show (OutputTT u (OutputT v a))
-  ) => Show (OutputTT (OverTT u v) a)
+  ) => Show (OutputTT (OverTT v u) a)
 
 runOverTT
-  :: ( RunMonadTransTrans u, RunMonadTrans v
-     , Monad m, MonadTrans t, MonadFunctor v )
+  :: ( RunMonadTransTrans u, RunMonadTrans v, OverableT v
+     , Monad m, MonadTrans t, MonadTrans v )
   => InputTT u m
   -> InputT v
-  -> OverTT u v t m a
+  -> OverTT v u t m a
   -> t m (OutputTT u (OutputT v a))
 runOverTT z1 z2 =
   fmap (unCompose . unOverTTOut) . runTT (OverTTIn (z1,z2))
@@ -248,251 +357,240 @@ runOverTT z1 z2 =
 {- Effect Instances -}
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
   , MonadTransTrans u, MonadIdentity (v (u t m))
-  ) => MonadIdentity (OverTT u v t m)
+  ) => MonadIdentity (OverTT v u t m)
   where
     unwrap
-      :: OverTT u v t m a
+      :: OverTT v u t m a
       -> a
     unwrap = unwrap . unOverTT
 
+
+
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t
+  , MonadTransTrans u, MonadIdentity mark
+  ) => MonadExcept mark e (OverTT (ExceptT mark e) u t m)
+  where
+    throw
+      :: mark e
+      -> OverTT (ExceptT mark e) u t m a
+    throw = toOverTT . throw
+
+    catch
+      :: OverTT (ExceptT mark e) u t m a
+      -> (mark e -> OverTT (ExceptT mark e) u t m a)
+      -> OverTT (ExceptT mark e) u t m a
+    catch x h = toOverTT $ catch (unOverTT x) (unOverTT . h)
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
   , MonadTransTrans u, MonadIdentity mark, LiftCatch v
-  , forall x y. (Monad x, MonadTrans y) => MonadExcept mark e (u y x)
-  ) => MonadExcept mark e (OverTT (ApplyTT u) v t m)
+  , forall x. (Monad x) => MonadExcept mark e (u t x)
+  ) => MonadExcept mark e (OverTT v u t m)
   where
     throw
       :: mark e
-      -> OverTT (ApplyTT u) v t m a
-    throw = OverTT . hoist ApplyTT . lift . throw
+      -> OverTT v u t m a
+    throw = toOverTT . lift . throw
 
     catch
-      :: OverTT (ApplyTT u) v t m a
-      -> (mark e -> OverTT (ApplyTT u) v t m a)
-      -> OverTT (ApplyTT u) v t m a
-    catch x h = OverTT $ hoist ApplyTT $
-      liftCatch catch
-        (hoist unApplyTT $ unOverTT x)
-        (hoist unApplyTT . unOverTT . h)
-
-instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadExcept mark e (v x)
-  ) => MonadExcept mark e (OverTT u v t m)
-  where
-    throw
-      :: mark e
-      -> OverTT u v t m a
-    throw = OverTT . throw
-
-    catch
-      :: OverTT u v t m a
-      -> (mark e -> OverTT u v t m a)
-      -> OverTT u v t m a
-    catch x h = OverTT $ catch (unOverTT x) (unOverTT . h)
+      :: OverTT v u t m a
+      -> (mark e -> OverTT v u t m a)
+      -> OverTT v u t m a
+    catch x h = toOverTT $ liftCatch catch (unOverTT x) (unOverTT . h)
 
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
-  , forall x y. (Monad x, MonadTrans y) => MonadWriteOnly mark w (u y x)
-  ) => MonadWriteOnly mark w (OverTT (ApplyTT u) v t m)
+  ( Monad m, MonadTrans t, Monoid w
+  , MonadTransTrans u, MonadIdentity mark
+  ) => MonadWriteOnly mark w (OverTT (WriteOnlyT mark w) u t m)
   where
     tell
       :: mark w
-      -> OverTT (ApplyTT u) v t m ()
-    tell = OverTT . lift . ApplyTT . tell
+      -> OverTT (WriteOnlyT mark w) u t m ()
+    tell = toOverTT . tell
 
     draft
-      :: OverTT (ApplyTT u) v t m a
-      -> OverTT (ApplyTT u) v t m (Pair (mark w) a)
-    draft x = OverTT $ hoist ApplyTT $
-      liftDraft draft (hoist unApplyTT $ unOverTT x)
+      :: OverTT (WriteOnlyT mark w) u t m a
+      -> OverTT (WriteOnlyT mark w) u t m (Pair (mark w) a)
+    draft = toOverTT . draft . unOverTT
 
 instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadWriteOnly mark w (v x)
-  ) => MonadWriteOnly mark w (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadTrans v, Monoid w, LiftDraft v
+  , MonadTransTrans u, MonadIdentity mark, OverableT v
+  , forall x. (Monad x) => MonadWriteOnly mark w (u t x)
+  ) => MonadWriteOnly mark w (OverTT v u t m)
   where
     tell
       :: mark w
-      -> OverTT u v t m ()
-    tell = OverTT . tell
+      -> OverTT v u t m ()
+    tell = toOverTT . lift . tell
 
     draft
-      :: OverTT u v t m a
-      -> OverTT u v t m (Pair (mark w) a)
-    draft = OverTT . draft . unOverTT
+      :: OverTT v u t m a
+      -> OverTT v u t m (Pair (mark w) a)
+    draft = toOverTT . liftDraft draft . unOverTT
 
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
-  , forall x y. (Monad x, MonadTrans y) => MonadAppendOnly mark w (u y x)
-  ) => MonadAppendOnly mark w (OverTT (ApplyTT u) v t m)
+  ( Monad m, MonadTrans t, Monoid w
+  , MonadTransTrans u, MonadIdentity mark
+  ) => MonadAppendOnly mark w (OverTT (AppendOnlyT mark w) u t m)
   where
     jot
       :: mark w
-      -> OverTT (ApplyTT u) v t m ()
-    jot = OverTT . lift . ApplyTT . jot
+      -> OverTT (AppendOnlyT mark w) u t m ()
+    jot = toOverTT . jot
 
     look
-      :: OverTT (ApplyTT u) v t m (mark w)
-    look = OverTT $ hoist ApplyTT $ lift look
+      :: OverTT (AppendOnlyT mark w) u t m (mark w)
+    look = toOverTT look
 
 instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, Monoid w
-  , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadAppendOnly mark w (v x)
-  ) => MonadAppendOnly mark w (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadTrans v, Monoid w
+  , MonadTransTrans u, MonadIdentity mark, OverableT v
+  , forall x. (Monad x) => MonadAppendOnly mark w (u t x)
+  ) => MonadAppendOnly mark w (OverTT v u t m)
   where
     jot
       :: mark w
-      -> OverTT u v t m ()
-    jot = OverTT . jot
+      -> OverTT v u t m ()
+    jot = toOverTT . lift . jot
 
     look
-      :: OverTT u v t m (mark w)
-    look = OverTT look
-
+      :: OverTT v u t m (mark w)
+    look = toOverTT $ lift look
 
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u, MonadIdentity mark, LiftDraft v
-  , forall x y. (Monad x, MonadTrans y) => MonadWriteOnce mark w (u y x)
-  ) => MonadWriteOnce mark w (OverTT (ApplyTT u) v t m)
-  where
-    etch
-      :: mark w
-      -> OverTT (ApplyTT u) v t m Bool
-    etch = OverTT . lift . ApplyTT . etch
-
-    press
-      :: OverTT (ApplyTT u) v t m (Maybe (mark w))
-    press = OverTT $ hoist ApplyTT $ lift press
-
-instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t
   , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadWriteOnce mark w (v x)
-  ) => MonadWriteOnce mark w (OverTT u v t m)
+  ) => MonadWriteOnce mark w (OverTT (WriteOnceT mark w) u t m)
   where
     etch
       :: mark w
-      -> OverTT u v t m Bool
-    etch = OverTT . etch
+      -> OverTT (WriteOnceT mark w) u t m Bool
+    etch = toOverTT . etch
 
     press
-      :: OverTT u v t m (Maybe (mark w))
-    press = OverTT press
-
-
-
-
-
-instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u, MonadIdentity mark
-  , forall x y. (Monad x, MonadTrans y) => MonadHalt mark (u y x)
-  ) => MonadHalt mark (OverTT (ApplyTT u) v t m)
-  where
-    halt
-      :: mark ()
-      -> OverTT (ApplyTT u) v t m a
-    halt = OverTT . hoist ApplyTT . lift . halt
+      :: OverTT (WriteOnceT mark w) u t m (Maybe (mark w))
+    press = toOverTT press
 
 instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v, MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadHalt mark (v x)
-  ) => MonadHalt mark (OverTT u v t m)
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
+  , MonadTransTrans u, MonadIdentity mark
+  , forall x. (Monad x) => MonadWriteOnce mark w (u t x)
+  ) => MonadWriteOnce mark w (OverTT v u t m)
   where
-    halt
-      :: mark ()
-      -> OverTT u v t m a
-    halt = OverTT . halt
+    etch
+      :: mark w
+      -> OverTT v u t m Bool
+    etch = toOverTT . lift . etch
+
+    press
+      :: OverTT v u t m (Maybe (mark w))
+    press = toOverTT $ lift press
 
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t
+  , MonadTransTrans u, MonadIdentity mark
+  ) => MonadHalt mark (OverTT (HaltT mark) u t m)
+  where
+    halt
+      :: mark ()
+      -> OverTT (HaltT mark) u t m a
+    halt = toOverTT . halt
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadTrans v
+  , MonadTransTrans u, MonadIdentity mark, OverableT v
+  , forall x. (Monad x) => MonadHalt mark (u t x)
+  ) => MonadHalt mark (OverTT v u t m)
+  where
+    halt
+      :: mark ()
+      -> OverTT v u t m a
+    halt = toOverTT . lift . halt
+
+
+
+instance {-# OVERLAPS #-}
+  ( Monad m, MonadTrans t
+  , MonadTransTrans u, MonadIdentity mark
+  ) => MonadReadOnly mark r (OverTT (ReadOnlyT mark r) u t m)
+  where
+    ask
+      :: OverTT (ReadOnlyT mark r) u t m (mark r)
+    ask = toOverTT ask
+
+    local
+      :: (mark r -> mark r)
+      -> OverTT (ReadOnlyT mark r) u t m a
+      -> OverTT (ReadOnlyT mark r) u t m a
+    local f = toOverTT . local f . unOverTT
+
+instance {-# OVERLAPPABLE #-}
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
   , MonadTransTrans u, MonadIdentity mark, LiftLocal v
-  , forall x y. (Monad x, MonadTrans y) => MonadReadOnly mark r (u y x)
-  ) => MonadReadOnly mark r (OverTT (ApplyTT u) v t m)
+  , forall x. (Monad x) => MonadReadOnly mark r (u t x)
+  ) => MonadReadOnly mark r (OverTT v u t m)
   where
     ask
-      :: OverTT (ApplyTT u) v t m (mark r)
-    ask = OverTT $ hoist ApplyTT $ lift ask
+      :: OverTT v u t m (mark r)
+    ask = toOverTT $ lift ask
 
     local
       :: (mark r -> mark r)
-      -> OverTT (ApplyTT u) v t m a
-      -> OverTT (ApplyTT u) v t m a
-    local f =
-      OverTT . hoist ApplyTT . liftLocal local f . hoist unApplyTT . unOverTT
-
-instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
-  , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadReadOnly mark r (v x)
-  ) => MonadReadOnly mark r (OverTT u v t m)
-  where
-    ask
-      :: OverTT u v t m (mark r)
-    ask = OverTT ask
-
-    local
-      :: (mark r -> mark r)
-      -> OverTT u v t m a
-      -> OverTT u v t m a
-    local f = OverTT . local f . unOverTT
+      -> OverTT v u t m a
+      -> OverTT v u t m a
+    local f = toOverTT . liftLocal local f . unOverTT
 
 
 
 instance {-# OVERLAPS #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t
   , MonadTransTrans u, MonadIdentity mark
-  , forall x y. (Monad x, MonadTrans y) => MonadState mark s (u y x)
-  ) => MonadState mark s (OverTT (ApplyTT u) v t m)
+  ) => MonadState mark s (OverTT (StateT mark s) u t m)
   where
     get
-      :: OverTT (ApplyTT u) v t m (mark s)
-    get = OverTT $ hoist ApplyTT $ lift get
+      :: OverTT (StateT mark s) u t m (mark s)
+    get = toOverTT get
 
     put
       :: mark s
-      -> OverTT (ApplyTT u) v t m ()
-    put = OverTT . lift . ApplyTT . put
+      -> OverTT (StateT mark s) u t m ()
+    put = toOverTT . put
 
 instance {-# OVERLAPPABLE #-}
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
   , MonadTransTrans u, MonadIdentity mark
-  , forall x. (Monad x) => MonadState mark s (v x)
-  ) => MonadState mark s (OverTT u v t m)
+  , forall x. (Monad x) => MonadState mark s (u t x)
+  ) => MonadState mark s (OverTT v u t m)
   where
     get
-      :: OverTT u v t m (mark s)
-    get = OverTT get
+      :: OverTT v u t m (mark s)
+    get = toOverTT $ lift get
 
     put
       :: mark s
-      -> OverTT u v t m ()
-    put = OverTT . put
+      -> OverTT v u t m ()
+    put = toOverTT . lift . put
 
 
 
 instance
-  ( Monad m, MonadTrans t, MonadFunctor v
+  ( Monad m, MonadTrans t, MonadTrans v, OverableT v
   , MonadTransTrans u, MonadPrompt mark p (u t m)
-  ) => MonadPrompt mark p (OverTT u v t m)
+  ) => MonadPrompt mark p (OverTT v u t m)
   where
     prompt
       :: mark (p a)
-      -> OverTT u v t m (mark a)
-    prompt = OverTT . lift . prompt
+      -> OverTT v u t m (mark a)
+    prompt = toOverTT . lift . prompt

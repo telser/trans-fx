@@ -12,6 +12,7 @@ module Control.FX.Monad.Trans.Trans.IO.Class (
 
 
 import Control.FX
+import Control.FX.Data
 
 
 
@@ -83,6 +84,13 @@ instance
   , MonadTeletype mark m
   ) => MonadTeletype mark (IdentityT m)
 
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark m, IsStack f
+  ) => MonadTeletype mark (StackT mark1 f d m)
+
+
+
 
 
 instance
@@ -115,17 +123,17 @@ instance
 
 instance
   ( Monad m, MonadTrans t, MonadTransTrans u, MonadFunctor w
-  , MonadTeletype mark (u t m)
-  ) => MonadTeletype mark (OverTT u w t m)
+  , MonadTeletype mark (u t m), OverableT w
+  ) => MonadTeletype mark (OverTT w u t m)
   where
     readLine
-      :: OverTT u w t m (mark String)
-    readLine = OverTT $ lift readLine
+      :: OverTT w u t m (mark String)
+    readLine = toOverTT $ lift readLine
 
     printLine
       :: mark String
-      -> OverTT u w t m ()
-    printLine = OverTT . lift . printLine
+      -> OverTT w u t m ()
+    printLine = toOverTT . lift . printLine
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
@@ -224,3 +232,17 @@ instance
       :: mark String
       -> HaltTT mark1 t m ()
     printLine = HaltTT . lift . printLine
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadTeletype mark (t m)
+  ) => MonadTeletype mark (StackTT mark1 f d t m)
+  where
+    readLine
+      :: StackTT mark1 f d t m (mark String)
+    readLine = StackTT $ lift readLine
+
+    printLine
+      :: mark String
+      -> StackTT mark1 f d t m ()
+    printLine = StackTT . lift . printLine

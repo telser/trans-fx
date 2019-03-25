@@ -16,7 +16,6 @@
 
 module Control.FX.Monad.Trans.Trans.Class (
     MonadTransTrans(..)
-  , MonadTransFunctor(..)
 
   , RunMonadTransTrans(..)
   , InputTT(..)
@@ -48,24 +47,6 @@ class
     liftT
       :: (Monad m, MonadTrans t)
       => t m a -> u t m a
-
--- | Class representing monad functor functors; need to figure out what this means
-class
-  ( MonadTransTrans u
-  , forall t. (MonadFunctor t) => MonadFunctor (u t)
-  ) => MonadTransFunctor u
-  where
-    hoistT
-      :: ( Monad m, MonadFunctor t1, MonadFunctor t2 )
-      => (forall n w. (Monad n) => t1 n w -> t2 n w)
-      -> u t1 m a
-      -> u t2 m a
-
-    raiseT
-      :: ( Monad m1, Monad m2, MonadFunctor t )
-      => (forall w. m1 w -> m2 w)
-      -> u t m1 a
-      -> u t m2 a
 
 
 

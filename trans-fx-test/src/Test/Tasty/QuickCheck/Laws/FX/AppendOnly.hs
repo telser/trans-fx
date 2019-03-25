@@ -142,7 +142,7 @@ appendOnlyMonadLawLookUnit
   :: (Monoid w, Monad m, Eq w)
   => Proxy m -> Proxy t -> Proxy w
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (m w) -- ^ look
+  -> (m w) -- ^ @look@
   -> t -> Bool
 appendOnlyMonadLawLookUnit _ _ _ eq look t =
   (eq t) (look) (return mempty)
@@ -160,7 +160,7 @@ testAppendOnlyMonadLawJotLook
   -> Proxy t -- ^ Equality context for @m@
   -> Proxy w -- ^ Writer type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (m w) -- ^ look
+  -> (m w) -- ^ @look@
   -> (w -> m ()) -- ^ @jot@
   -> TestTree
 testAppendOnlyMonadLawJotLook pm pt pw eq look jot =
@@ -171,7 +171,7 @@ appendOnlyMonadLawJotLook
   :: (Monoid w, Monad m, Eq w)
   => Proxy m -> Proxy t -> Proxy w
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (m w) -- ^ look
+  -> (m w) -- ^ @look@
   -> (w -> m ()) -- ^ @jot@
   -> t -> w -> Bool
 appendOnlyMonadLawJotLook _ _ _ eq look jot t w =
@@ -194,7 +194,7 @@ testAppendOnlyMonadLawLookNeutral
   -> Proxy a -- ^ Value type
   -> Proxy b -- ^ Value type
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (m w) -- ^ look
+  -> (m w) -- ^ @look@
   -> TestTree
 testAppendOnlyMonadLawLookNeutral pm pt pw pa pb eq look =
   testProperty "x >> look >> y  ===  x >> y" $
@@ -204,7 +204,7 @@ appendOnlyMonadLawLookNeutral
   :: (Monoid w, Monad m, Eq w, Eq b)
   => Proxy m -> Proxy t -> Proxy w -> Proxy a -> Proxy b
   -> (forall u. (Eq u) => t -> m u -> m u -> Bool) -- ^ Equality test
-  -> (m w) -- ^ look
+  -> (m w) -- ^ @look@
   -> t -> m a -> m b -> Bool
 appendOnlyMonadLawLookNeutral _ _ _ _ _ eq look t x y =
   (eq t) (x >> look >> y) (x >> y)

@@ -11,6 +11,7 @@ import System.IO.Error
 
 import Control.FX
 import Control.FX.IO
+import Control.FX.Data
 
 
 
@@ -329,6 +330,34 @@ instance
 
 
 
+{- Stack -}
+
+instance
+  ( Arbitrary a, Arbitrary (f d), CoArbitrary (f d)
+  ) => Arbitrary (Stack mark f d a)
+  where
+    arbitrary = Stack <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d))
+  ) => Arbitrary (Context (Stack mark f d))
+  where
+    arbitrary = StackCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d))
+  ) => Arbitrary (Input (Stack mark f d))
+  where
+    arbitrary = StackIn <$> arbitrary
+
+instance
+  ( Arbitrary a, Arbitrary (mark (f d))
+  ) => Arbitrary (Output (Stack mark f d) a)
+  where
+    arbitrary = StackOut <$> arbitrary
+
+
+
 
 
 {--------------}
@@ -554,6 +583,28 @@ instance
 
 
 
+{- StackT -}
+
+instance
+  ( Arbitrary (m (Pair (f d) a)), CoArbitrary (f d)
+  ) => Arbitrary (StackT mark f d m a)
+  where
+    arbitrary = StackT <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d)), Arbitrary (Context m)
+  ) => Arbitrary (Context (StackT mark f d m))
+  where
+    arbitrary = StackTCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d))
+  ) => Arbitrary (InputT (StackT mark f d))
+  where
+    arbitrary = StackTIn <$> arbitrary
+
+
+
 
 
 {-------------------}
@@ -773,21 +824,21 @@ instance
 {- OverTT -}
 
 instance
-  ( Monad m, MonadTrans t, MonadTrans w
+  ( Monad m, MonadTrans t, MonadTrans w, OverableT w
   , MonadTransTrans u, Arbitrary (w (u t m) a)
-  ) => Arbitrary (OverTT u w t m a)
+  ) => Arbitrary (OverTT w u t m a)
   where
-    arbitrary = OverTT <$> arbitrary
+    arbitrary = toOverTT <$> arbitrary
 
 instance
   ( Arbitrary (Context (t m)), Arbitrary (InputTT u m), Arbitrary (InputT v)
-  ) => Arbitrary (Context (OverTT u v t m))
+  ) => Arbitrary (Context (OverTT v u t m))
   where
     arbitrary = OverTTCtx <$> arbitrary
 
 instance
   ( Arbitrary (InputTT u m), Arbitrary (InputT v)
-  ) => Arbitrary (InputTT (OverTT u v) m)
+  ) => Arbitrary (InputTT (OverTT v u) m)
   where
     arbitrary = OverTTIn <$> arbitrary
 
@@ -846,6 +897,34 @@ instance Arbitrary IOException where
     t <- elements [doesNotExistErrorType]
     s <- arbitrary
     return $ mkIOError t s Nothing Nothing
+
+
+
+
+
+{--------}
+{- Data -}
+{--------}
+
+{- StackTT -}
+
+instance
+  ( Arbitrary (t m (Pair (f d) a)), CoArbitrary (f d), IsStack f
+  ) => Arbitrary (StackTT mark f d t m a)
+  where
+    arbitrary = StackTT <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d)), Arbitrary (Context (t m))
+  ) => Arbitrary (Context (StackTT mark f d t m))
+  where
+    arbitrary = StackTTCtx <$> arbitrary
+
+instance
+  ( Arbitrary (mark (f d))
+  ) => Arbitrary (InputTT (StackTT mark f d) m)
+  where
+    arbitrary = StackTTIn <$> arbitrary
 
 
 

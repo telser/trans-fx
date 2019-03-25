@@ -68,7 +68,7 @@ instance
   where
     pure
       :: a
-      -> State mar s a
+      -> State mark s a
     pure a = State $ \s -> Pair s a
 
     (<*>)

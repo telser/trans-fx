@@ -7,44 +7,18 @@
 --   Portability : POSIX
 
 {-# LANGUAGE Rank2Types             #-}
-{-# LANGUAGE InstanceSigs           #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
 
 module Control.FX.Monad.Trans.Class (
-    MonadTrans(..)
-  , MonadFunctor(..)
+    MonadFunctor(..)
 ) where
 
 
 
-import Control.FX.Functor
 import Control.FX.Monad
 
 
-
-
-
-instance
-  MonadTrans Apply
-  where
-    lift
-      :: ( Monad m )
-      => m a
-      -> Apply m a
-    lift = Apply
-
-instance
-  ( Central c
-  ) => MonadTrans (Flip c)
-  where
-    lift
-      :: ( Monad m )
-      => m a
-      -> Flip c m a
-    lift = Flip . commute . return
 
 -- | Class representing monad functors
 class

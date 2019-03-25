@@ -32,8 +32,6 @@ library
     , Control.FX.Monad.Class
     , Control.FX.Monad.Identity
     , Control.FX.Monad.Compose
-    , Control.FX.Monad.Flip
-    , Control.FX.Monad.Apply
     , Control.FX.Monad.ReadOnly
     , Control.FX.Monad.State
     , Control.FX.Monad.Halt
@@ -56,7 +54,6 @@ library
     , Control.FX.Monad.Trans.Trans.Class
     , Control.FX.Monad.Trans.Trans.IdentityTT
     , Control.FX.Monad.Trans.Trans.PromptTT
-    , Control.FX.Monad.Trans.Trans.ApplyTT
     , Control.FX.Monad.Trans.Trans.OverTT
     , Control.FX.Monad.Trans.Trans.StateTT
     , Control.FX.Monad.Trans.Trans.ReadOnlyTT
@@ -65,14 +62,3 @@ library
     , Control.FX.Monad.Trans.Trans.HaltTT
     , Control.FX.Monad.Trans.Trans.AppendOnlyTT
     , Control.FX.Monad.Trans.Trans.WriteOnceTT
-
-test-suite trans-fx-core-test
-  default-language: Haskell2010
-  type: exitcode-stdio-1.0
-  main-is: Test.hs
-  hs-source-dirs: test
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
-  build-depends:
-      base >=4.7 && <5
-    , trans-fx-core
-    , trans-fx-test

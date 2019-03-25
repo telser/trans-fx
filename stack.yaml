@@ -1,10 +1,11 @@
 resolver: lts-13.6
 
 packages:
-- ./trans-fx-demo
 - ./trans-fx-core
 - ./trans-fx-io
+- ./trans-fx-data
 - ./trans-fx-test
+- ./trans-fx-demo
 
 extra-deps:
 - tasty-quickcheck-laws-0.0.3

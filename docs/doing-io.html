@@ -90,10 +90,11 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb1-2" data-line-number="2"><span class="ot">{-# LANGUAGE FlexibleInstances          #-}</span></a>
 <a class="sourceLine" id="cb1-3" data-line-number="3"><span class="ot">{-# LANGUAGE DerivingStrategies         #-}</span></a>
 <a class="sourceLine" id="cb1-4" data-line-number="4"><span class="ot">{-# LANGUAGE ScopedTypeVariables        #-}</span></a>
-<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE MultiParamTypeClasses      #-}</span></a>
-<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
-<a class="sourceLine" id="cb1-7" data-line-number="7"></a>
-<a class="sourceLine" id="cb1-8" data-line-number="8"><span class="kw">module</span> <span class="dt">Control.FX.Demo.DoingIO</span> <span class="kw">where</span></a></code></pre></div>
+<a class="sourceLine" id="cb1-5" data-line-number="5"><span class="ot">{-# LANGUAGE FlexibleContexts           #-}</span></a>
+<a class="sourceLine" id="cb1-6" data-line-number="6"><span class="ot">{-# LANGUAGE MultiParamTypeClasses      #-}</span></a>
+<a class="sourceLine" id="cb1-7" data-line-number="7"><span class="ot">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span></a>
+<a class="sourceLine" id="cb1-8" data-line-number="8"></a>
+<a class="sourceLine" id="cb1-9" data-line-number="9"><span class="kw">module</span> <span class="dt">Control.FX.Demo.DoingIO</span> <span class="kw">where</span></a></code></pre></div>
 <p>Some simple IO-lite monads are in the <code>trans-fx-io</code> package, which we can import all at once with <code>Control.FX.IO</code>.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb2-1" data-line-number="1"><span class="kw">import</span> <span class="dt">Control.FX</span></a>
 <a class="sourceLine" id="cb2-2" data-line-number="2"><span class="kw">import</span> <span class="dt">Control.FX.IO</span></a></code></pre></div>
@@ -102,17 +103,16 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <p>Here’s a simple type using <code>TeletypeTT</code>. (<code>S</code> and <code>T</code> are again boilerplate <code>MonadIdentity</code> types for disambiguation.)</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb3-1" data-line-number="1"><span class="kw">newtype</span> <span class="dt">Bar</span> t m a <span class="fu">=</span> <span class="dt">Bar</span></a>
 <a class="sourceLine" id="cb3-2" data-line-number="2">  {<span class="ot"> unBar ::</span></a>
-<a class="sourceLine" id="cb3-3" data-line-number="3">      <span class="dt">TeletypeTT</span> <span class="dt">S</span></a>
-<a class="sourceLine" id="cb3-4" data-line-number="4">      (<span class="dt">StateTT</span> <span class="dt">T</span> <span class="dt">String</span></a>
-<a class="sourceLine" id="cb3-5" data-line-number="5">      (<span class="dt">ExceptTT</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb3-3" data-line-number="3">      <span class="dt">StateTT</span> <span class="dt">T</span> <span class="dt">String</span></a>
+<a class="sourceLine" id="cb3-4" data-line-number="4">      (<span class="dt">ExceptTT</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
+<a class="sourceLine" id="cb3-5" data-line-number="5">      (<span class="dt">TeletypeTT</span> <span class="dt">S</span></a>
 <a class="sourceLine" id="cb3-6" data-line-number="6">      t)) m a</a>
 <a class="sourceLine" id="cb3-7" data-line-number="7">  } <span class="kw">deriving</span></a>
 <a class="sourceLine" id="cb3-8" data-line-number="8">    ( <span class="dt">Functor</span>, <span class="dt">Applicative</span>, <span class="dt">Monad</span>, <span class="dt">MonadTrans</span></a>
 <a class="sourceLine" id="cb3-9" data-line-number="9">    , <span class="dt">MonadState</span> <span class="dt">T</span> <span class="dt">String</span></a>
 <a class="sourceLine" id="cb3-10" data-line-number="10">    , <span class="dt">MonadExcept</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
 <a class="sourceLine" id="cb3-11" data-line-number="11">    , <span class="dt">MonadTeletype</span> <span class="dt">S</span></a>
-<a class="sourceLine" id="cb3-12" data-line-number="12">    , <span class="dt">MonadExcept</span> <span class="dt">TeletypeError</span> (<span class="dt">S</span> <span class="dt">IOException</span>)</a>
-<a class="sourceLine" id="cb3-13" data-line-number="13">    )</a></code></pre></div>
+<a class="sourceLine" id="cb3-12" data-line-number="12">    )</a></code></pre></div>
 <p>Couple things to note: with <code>TeletypeTT</code> added to our transformer transformer stack, we can derive two new interfaces: <code>MonadTeletype</code> comes with the functions for interacting with the teletype, and we can also derive a handler for IO exceptions originating in the teletype.</p>
 <p>Now the <code>run</code> function for <code>TeletypeTT</code> takes an <em>interpreter</em> that runs the teletype effects in some specific base monad. There’s a default IO implementation, but we could swap that out for one that runs in a test environment. Notably, because the teletype interface is named we could have more than one teletype layer in the stack and interpret them differently.</p>
 <p>Anyway, here is an example.</p>
@@ -122,16 +122,16 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb4-4" data-line-number="4">  put <span class="fu">$</span> <span class="dt">T</span> <span class="st">&quot;Foo&quot;</span></a>
 <a class="sourceLine" id="cb4-5" data-line-number="5">  return ()</a></code></pre></div>
 <p>And here is a runner. <code>evalTeletypeIO</code> is the default teletype interpreter. Again, it’s much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.</p>
-<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1">runBar</a>
-<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="ot">  ::</span> <span class="dt">Bar</span> <span class="dt">IdentityT</span> <span class="dt">IO</span> a</a>
-<a class="sourceLine" id="cb5-3" data-line-number="3">  <span class="ot">-&gt;</span> <span class="dt">IO</span> (<span class="dt">Except</span> <span class="dt">S</span> <span class="dt">Bool</span></a>
-<a class="sourceLine" id="cb5-4" data-line-number="4">       (<span class="dt">Pair</span> (<span class="dt">T</span> <span class="dt">String</span>)</a>
-<a class="sourceLine" id="cb5-5" data-line-number="5">       (<span class="dt">Except</span> <span class="dt">TeletypeError</span> (<span class="dt">S</span> <span class="dt">IOException</span>) a)))</a>
+<div class="sourceCode" id="cb5"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb5-1" data-line-number="1"><span class="co">--runBar</span></a>
+<a class="sourceLine" id="cb5-2" data-line-number="2"><span class="co">--  :: Bar IdentityT IO a</span></a>
+<a class="sourceLine" id="cb5-3" data-line-number="3"><span class="co">--  -&gt; IO (Except S Bool</span></a>
+<a class="sourceLine" id="cb5-4" data-line-number="4"><span class="co">--       (Pair (T String)</span></a>
+<a class="sourceLine" id="cb5-5" data-line-number="5"><span class="co">--       (Except TeletypeError (S IOException) a)))</span></a>
 <a class="sourceLine" id="cb5-6" data-line-number="6">runBar <span class="fu">=</span></a>
 <a class="sourceLine" id="cb5-7" data-line-number="7">  unIdentityT</a>
-<a class="sourceLine" id="cb5-8" data-line-number="8">    <span class="fu">.</span> runExceptTT (<span class="dt">S</span> ())</a>
-<a class="sourceLine" id="cb5-9" data-line-number="9">    <span class="fu">.</span> runStateTT (<span class="dt">T</span> <span class="st">&quot;&quot;</span>)</a>
-<a class="sourceLine" id="cb5-10" data-line-number="10">    <span class="fu">.</span> runTeletypeTT (<span class="dt">Eval</span> evalTeletypeIO)</a>
+<a class="sourceLine" id="cb5-8" data-line-number="8">    <span class="fu">.</span> runTeletypeTT (<span class="dt">Eval</span> evalTeletypeIO)</a>
+<a class="sourceLine" id="cb5-9" data-line-number="9">    <span class="fu">.</span> runExceptTT (<span class="dt">S</span> ())</a>
+<a class="sourceLine" id="cb5-10" data-line-number="10">    <span class="fu">.</span> runStateTT (<span class="dt">T</span> <span class="st">&quot;&quot;</span>)</a>
 <a class="sourceLine" id="cb5-11" data-line-number="11">    <span class="fu">.</span> unBar</a></code></pre></div>
 <p>(Boilerplate)</p>
 <div class="sourceCode" id="cb6"><pre class="sourceCode literate haskell"><code class="sourceCode haskell"><a class="sourceLine" id="cb6-1" data-line-number="1"><span class="kw">data</span> <span class="dt">S</span> a <span class="fu">=</span> <span class="dt">S</span> {<span class="ot"> unS ::</span> a }</a>
@@ -159,5 +159,6 @@ code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warni
 <a class="sourceLine" id="cb6-23" data-line-number="23"></a>
 <a class="sourceLine" id="cb6-24" data-line-number="24"><span class="kw">instance</span> <span class="dt">Commutant</span> <span class="dt">T</span> <span class="kw">where</span></a>
 <a class="sourceLine" id="cb6-25" data-line-number="25">  commute <span class="fu">=</span> fmap <span class="dt">T</span> <span class="fu">.</span> unT</a></code></pre></div>
+<p>When defining an effect stack it’s important to remember that (1) changing the order of the effect layers changes the semantics of the monad, and (2) effect class instances do not always “commute”. Fortunately in both cases the type checker is our friend.</p>
 </body>
 </html>
