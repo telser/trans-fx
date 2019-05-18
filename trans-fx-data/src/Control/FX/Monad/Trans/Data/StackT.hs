@@ -10,6 +10,7 @@
 
 module Control.FX.Monad.Trans.Data.StackT (
     StackT(..)
+  , runStackT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -266,6 +267,14 @@ instance
     runT (StackTIn s) (StackT x) = do
       Pair s1 a <- x (unwrap s)
       return $ StackTOut $ Pair (pure s1) a
+
+runStackT
+  :: ( Monad m, MonadIdentity mark )
+  => mark (f d)
+  -> StackT mark f d m a
+  -> m (Pair (mark (f d)) a)
+runStackT inp =
+  fmap unStackTOut . runT (StackTIn inp)
 
 deriving instance
   ( Eq (mark (f d))

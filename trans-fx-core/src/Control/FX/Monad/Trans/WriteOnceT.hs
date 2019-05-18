@@ -17,6 +17,7 @@
 
 module Control.FX.Monad.Trans.WriteOnceT (
     WriteOnceT(..)
+  , runWriteOnceT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -181,6 +182,13 @@ instance
     runT _ (WriteOnceT x) = do
       Pair w a <- x mempty
       return $ WriteOnceTOut $ Pair (pure $ toMaybe w) a
+
+runWriteOnceT
+  :: ( Monad m, MonadIdentity mark )
+  => WriteOnceT mark w m a
+  -> m (Pair (mark (Maybe w)) a)
+runWriteOnceT =
+  fmap unWriteOnceTOut . runT (WriteOnceTIn $ pure ())
 
 deriving instance
   ( Eq (mark ())

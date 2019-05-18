@@ -21,7 +21,7 @@ import Text.Show.Functions
   ()
 import Test.Tasty.QuickCheck.Laws.Class
 
-import Control.FX.EqIn
+import Control.FX
 
 
 

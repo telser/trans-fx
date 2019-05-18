@@ -30,7 +30,7 @@ import Control.FX.Monad.Class
 
 
 
--- | Concrete write-only state monad
+-- | Concrete write-only state monad with state type @w@
 newtype WriteOnly
   (mark :: * -> *)
   (w :: *)

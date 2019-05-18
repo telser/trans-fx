@@ -41,6 +41,8 @@ import Control.Exception
   ( IOException, try )
 import Data.Time.Clock.System
   ( SystemTime )
+import System.IO
+  ( Handle, hPutStrLn, hGetLine )
 
 import Control.FX
 import Control.FX.Data

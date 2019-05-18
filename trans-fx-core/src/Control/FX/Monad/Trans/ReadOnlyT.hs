@@ -17,6 +17,7 @@
 
 module Control.FX.Monad.Trans.ReadOnlyT (
     ReadOnlyT(..)
+  , runReadOnlyT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -172,6 +173,14 @@ instance
       -> m (OutputT (ReadOnlyT mark r) a)
     runT (ReadOnlyTIn r) (ReadOnlyT x) =
       fmap pure $ unReadOnly x (unwrap r)
+
+runReadOnlyT
+  :: ( Monad m, MonadIdentity mark, Commutant mark )
+  => mark r
+  -> ReadOnlyT mark r m a
+  -> m (mark a)
+runReadOnlyT inp =
+  fmap unReadOnlyTOut . runT (ReadOnlyTIn inp)
 
 deriving instance
   ( Eq (mark r)

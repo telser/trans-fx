@@ -32,7 +32,7 @@ import Control.FX.Monad.Identity
 
 
 
--- | Concrete read-only state monad
+-- | Concrete read-only state monad with state type @r@
 newtype ReadOnly
   (mark :: * -> *)
   (r :: *)

@@ -18,6 +18,7 @@
 
 module Control.FX.Monad.Trans.ExceptT (
     ExceptT(..)
+  , runExceptT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -182,6 +183,13 @@ instance
       -> ExceptT mark e m a
       -> m (OutputT (ExceptT mark e) a)
     runT _ (ExceptT x) = fmap ExceptTOut x
+
+runExceptT
+  :: ( Monad m, MonadIdentity mark )
+  => ExceptT mark e m a
+  -> m (Except mark e a)
+runExceptT =
+  fmap unExceptTOut . runT (ExceptTIn $ pure ())
 
 deriving instance
   ( Eq (mark ())

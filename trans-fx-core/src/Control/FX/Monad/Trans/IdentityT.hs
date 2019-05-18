@@ -18,6 +18,7 @@
 
 module Control.FX.Monad.Trans.IdentityT (
     IdentityT(..)
+  , runIdentityT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -212,6 +213,13 @@ instance
       -> m (OutputT IdentityT a)
     runT _ (IdentityT x) =
       fmap (IdentityTOut . Identity) x
+
+runIdentityT
+  :: ( Monad m )
+  => IdentityT m a
+  -> m (Identity a)
+runIdentityT =
+  fmap unIdentityTOut . runT (IdentityTIn ())
 
 
 

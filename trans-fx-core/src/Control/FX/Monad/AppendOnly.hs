@@ -31,7 +31,7 @@ import Control.FX.Monad.Class
 
 
 
--- | Concrete append-only state monad
+-- | Concrete append-only state monad with state type @w@
 newtype AppendOnly
   (mark :: * -> *)
   (w :: *)

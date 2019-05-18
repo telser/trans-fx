@@ -18,6 +18,7 @@
 
 module Control.FX.Monad.Trans.Trans.PromptTT (
     PromptTT(..)
+  , runPromptTT
   , Eval(..)
   , Context(..)
   , InputTT(..)

@@ -31,7 +31,7 @@ import Control.FX.Monad.Class
 
 
 
--- | Concrete exception monad, throwing marked exceptions of type
+-- | Concrete monad representing catastrophic failure
 -- @mark e@ and producing values of type @a@
 data Halt
   (mark :: * -> *)

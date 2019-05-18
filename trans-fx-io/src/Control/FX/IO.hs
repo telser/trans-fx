@@ -1,7 +1,33 @@
 module Control.FX.IO (
-    module Control.FX.Monad.Trans.Trans.IO.Class
-  , module Control.FX.Monad.Trans.Trans.IO.TeletypeTT
-  , module Control.FX.Monad.Trans.Trans.IO.SystemClockTT
+  -- * Effect Classes
+    MonadTeletype(..)
+  , MonadSystemClock(..)
+
+  -- * Concrete Types
+  -- ** Teletype
+  , TeletypeTT(..)
+  , runTeletypeTT
+  , TeletypeAction(..)
+  , TeletypeError(..)
+  , evalTeletypeStdIO
+  , evalTeletypeHandleIO
+
+  -- ** System Clock
+  , SystemClockTT(..)
+  , runSystemClockTT
+  , SystemClockAction(..)
+  , evalSystemTimeIO
+
+
+  -- * Values in Context
+  , InputTT(..)
+  , OutputTT(..)
+  , Context(..)
+
+
+  -- * Misc
+  , IOException
+  , SystemTime(..)
 ) where
 
 import Control.FX.Monad.Trans.Trans.IO.Class

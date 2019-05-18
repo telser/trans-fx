@@ -24,7 +24,8 @@ library
       base >=4.7 && <5
   exposed-modules:
       Control.FX
-    , Control.FX.EqIn
+  other-modules:
+      Control.FX.EqIn
     , Control.FX.Functor
     , Control.FX.Functor.Class
     , Control.FX.Functor.Pair

@@ -17,6 +17,7 @@
 
 module Control.FX.Monad.Trans.AppendOnlyT (
     AppendOnlyT(..)
+  , runAppendOnlyT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -181,6 +182,13 @@ instance
     runT _ (AppendOnlyT x) = do
       Pair w a <- x mempty
       return $ AppendOnlyTOut $ Pair (pure w) a
+
+runAppendOnlyT
+  :: ( Monad m, MonadIdentity mark, Monoid w )
+  => AppendOnlyT mark w m a
+  -> m (Pair (mark w) a)
+runAppendOnlyT =
+  fmap unAppendOnlyTOut . runT (AppendOnlyTIn $ pure ())
 
 deriving instance
   ( Eq (mark ())

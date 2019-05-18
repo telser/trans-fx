@@ -24,7 +24,7 @@ import Text.Show.Functions
   ()
 import Test.Tasty.QuickCheck.Laws.Class
 
-import Control.FX.Functor.Class
+import Control.FX
 
 
 

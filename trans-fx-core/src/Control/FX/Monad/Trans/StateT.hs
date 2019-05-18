@@ -17,6 +17,7 @@
 
 module Control.FX.Monad.Trans.StateT (
     StateT(..)
+  , runStateT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -184,6 +185,14 @@ instance
     runT (StateTIn s) (StateT x) = do
       Pair s1 a <- x (unwrap s)
       return $ StateTOut $ Pair (pure s1) a
+
+runStateT
+  :: ( Monad m, MonadIdentity mark )
+  => mark s
+  -> StateT mark s m a
+  -> m (Pair (mark s) a)
+runStateT inp =
+  fmap unStateTOut . runT (StateTIn inp)
 
 deriving instance
   ( Eq (mark s)

@@ -1,9 +1,41 @@
 module Control.FX.Data (
-    module Control.FX.Structure.Stack
-  , module Control.FX.Monad.Data.Class
-  , module Control.FX.Monad.Data.Stack
-  , module Control.FX.Monad.Trans.Data.StackT
-  , module Control.FX.Monad.Trans.Trans.Data.StackTT
+  -- * Structure Classes
+    IsStack(..)
+
+
+  -- * Effect Classes
+  , MonadStack(..)
+
+
+  -- * Concrete Types
+  -- ** Monads
+  , Stack(..)
+  , runStack
+
+  -- ** Transformers
+  , StackT(..)
+  , runStackT
+
+  -- ** Transformer Transformers
+  , StackTT(..)
+  , runStackTT
+
+
+  -- * Values in Context
+  -- ** Monads
+  , Input(..)
+  , Output(..)
+
+  -- ** Transformers
+  , InputT(..)
+  , OutputT(..)
+
+  -- ** Transformer Transformers
+  , InputTT(..)
+  , OutputTT(..)
+
+  -- ** Equality
+  , Context(..)
 ) where
 
 import Control.FX.Structure.Stack

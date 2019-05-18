@@ -18,6 +18,7 @@
 
 module Control.FX.Monad.Trans.WriteOnlyT (
     WriteOnlyT(..)
+  , runWriteOnlyT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -185,6 +186,13 @@ instance
       -> m (OutputT (WriteOnlyT mark w) a)
     runT _ (WriteOnlyT x) =
       fmap (WriteOnlyTOut . bimap1 pure . unWriteOnly) x
+
+runWriteOnlyT
+  :: ( Monad m, MonadIdentity mark, Monoid w )
+  => WriteOnlyT mark w m a
+  -> m (Pair (mark w) a)
+runWriteOnlyT =
+  fmap unWriteOnlyTOut . runT (WriteOnlyTIn $ pure ())
 
 deriving instance
   ( Show (mark ())

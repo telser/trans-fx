@@ -23,8 +23,7 @@ import Text.Show.Functions
   ()
 import Test.Tasty.QuickCheck.Laws.Class
 
-import Control.FX.Monad
-import Control.FX.Monad.Trans
+import Control.FX
 
 
 

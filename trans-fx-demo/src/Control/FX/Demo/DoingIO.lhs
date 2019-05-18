@@ -52,7 +52,7 @@ Anyway, here is an example.
 >   put $ T "Foo"
 >   return ()
 
-And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Again, it's much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.
+And here is a runner. `evalTeletypeStdIO` is the default teletype interpreter. Again, it's much easier to write the runner than to see in advance what its type is, so I did that and used GHC to infer the type.
 
 > --runBar
 > --  :: Bar IdentityT IO a
@@ -61,7 +61,7 @@ And here is a runner. `evalTeletypeIO` is the default teletype interpreter. Agai
 > --       (Except TeletypeError (S IOException) a)))
 > runBar =
 >   unIdentityT
->     . runTeletypeTT (Eval evalTeletypeIO)
+>     . runTeletypeTT (Eval evalTeletypeStdIO)
 >     . runExceptTT (S ())
 >     . runStateTT (T "")
 >     . unBar

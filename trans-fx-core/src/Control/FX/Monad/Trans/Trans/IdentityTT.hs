@@ -18,6 +18,7 @@
 
 module Control.FX.Monad.Trans.Trans.IdentityTT (
     IdentityTT(..)
+  , runIdentityTT
   , Context(..)
   , InputTT(..)
   , OutputTT(..)

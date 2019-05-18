@@ -20,8 +20,7 @@ import Text.Show.Functions
   ()
 import Test.Tasty.QuickCheck.Laws.Class
 
-import Control.FX.Monad.Class
-import Control.FX.Monad.Trans.Trans.Class
+import Control.FX
 
 
 -- | @liftT . return === return@

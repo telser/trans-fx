@@ -260,7 +260,7 @@ class
   ( Monad m, MonadIdentity mark
   ) => MonadSystemClock mark m
   where
-    -- | Read a line of input
+    -- | Get the current @SystemTime@
     getSystemTime :: m (mark SystemTime)
 
     default getSystemTime

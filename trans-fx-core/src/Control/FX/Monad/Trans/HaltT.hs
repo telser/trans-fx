@@ -17,6 +17,7 @@
 
 module Control.FX.Monad.Trans.HaltT (
     HaltT(..)
+  , runHaltT
   , Context(..)
   , InputT(..)
   , OutputT(..)
@@ -190,6 +191,13 @@ instance
       -> HaltT mark m a
       -> m (OutputT (HaltT mark) a)
     runT _ (HaltT x) = fmap HaltTOut x
+
+runHaltT
+  :: ( Monad m, MonadIdentity mark )
+  => HaltT mark m a
+  -> m (Halt mark a)
+runHaltT =
+  fmap unHaltTOut . runT (HaltTIn $ pure ())
 
 deriving instance
   ( Eq (mark ())
