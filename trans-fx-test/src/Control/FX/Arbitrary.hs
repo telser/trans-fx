@@ -13,6 +13,9 @@ import Control.FX
 import Control.FX.IO
 import Control.FX.Data
 
+import Data.Time.Clock.System
+  ( SystemTime(..) )
+
 
 
 {-----------}
@@ -897,6 +900,37 @@ instance Arbitrary IOException where
     t <- elements [doesNotExistErrorType]
     s <- arbitrary
     return $ mkIOError t s Nothing Nothing
+
+
+
+{- TeletypeTT -}
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Arbitrary a
+  , Arbitrary (t m a)
+  ) => Arbitrary (SystemClockTT mark t m a)
+  where
+    arbitrary = do
+      a <- arbitrary
+      return $ do
+        (_ :: mark SystemTime) <- getSystemTime
+        return a
+
+instance
+  ( Arbitrary (Context (t m)), Monad m, Applicative mark
+  ) => Arbitrary (Context (SystemClockTT mark t m))
+  where
+    arbitrary = do
+      (z :: SystemTime) <- arbitrary
+      let
+        eval :: SystemClockAction mark u -> m u
+        eval x = case x of
+          GetSystemTime -> return z
+      h <- arbitrary
+      return $ SystemClockTTCtx (Eval eval, h)
+
+instance Arbitrary SystemTime where
+  arbitrary = MkSystemTime <$> arbitrary <*> arbitrary
 
 
 

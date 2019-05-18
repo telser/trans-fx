@@ -15,6 +15,7 @@
 
 module Control.FX.Monad.AppendOnly (
     AppendOnly(..)
+  , runAppendOnly
   , Context(..)
   , Input(..)
   , Output(..)
@@ -125,6 +126,13 @@ instance
       -> AppendOnly mark w a
       -> Output (AppendOnly mark w) a
     run _ (AppendOnly x) = AppendOnlyOut $ bimap1 pure $ x mempty
+
+runAppendOnly
+  :: ( Monoid w, MonadIdentity mark )
+  => AppendOnly mark w a
+  -> Pair (mark w) a
+runAppendOnly =
+  unAppendOnlyOut . run (AppendOnlyIn $ pure ())
 
 deriving instance
   ( Eq (mark ())

@@ -12,6 +12,7 @@
 
 module Control.FX.Monad.Trans.Trans.Data.StackTT (
     StackTT(..)
+  , runStackTT
   , Context(..)
   , InputTT(..)
   , OutputTT(..)

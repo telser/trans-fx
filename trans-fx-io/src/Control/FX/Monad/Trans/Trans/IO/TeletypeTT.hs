@@ -22,7 +22,8 @@
 module Control.FX.Monad.Trans.Trans.IO.TeletypeTT (
     TeletypeTT(..)
   , TeletypeAction(..)
-  , evalTeletypeIO
+  , evalTeletypeStdIO
+  , evalTeletypeHandleIO
   , MonadTeletype(..)
   , TeletypeError(..)
   , IOException
@@ -38,6 +39,8 @@ import Data.Typeable
   ( Typeable, Proxy, typeOf )
 import Control.Exception
   ( IOException, try )
+import Data.Time.Clock.System
+  ( SystemTime )
 
 import Control.FX
 import Control.FX.Data
@@ -206,10 +209,10 @@ data TeletypeAction mark a where
         (Except TeletypeError (mark IOException) ())
 
 -- | Default @IO@ evaluator
-evalTeletypeIO
+evalTeletypeStdIO
   :: ( MonadIdentity mark )
   => TeletypeAction mark a -> IO a
-evalTeletypeIO x = case x of
+evalTeletypeStdIO x = case x of
   ReadLine -> do
     x <- try getLine
     return $ case x of
@@ -218,6 +221,24 @@ evalTeletypeIO x = case x of
 
   PrintLine msg -> do
     x <- try $ putStrLn msg
+    return $ case x of
+      Left e -> Except (pure e)
+      Right () -> Accept ()
+
+evalTeletypeHandleIO
+  :: ( MonadIdentity mark )
+  => Handle -- ^ Input
+  -> Handle -- ^ Output
+  -> TeletypeAction mark a -> IO a
+evalTeletypeHandleIO hIn hOut x = case x of
+  ReadLine -> do
+    x <- try $ hGetLine hIn
+    return $ case x of
+      Left e -> Except (pure e)
+      Right a -> Accept a
+
+  PrintLine msg -> do
+    x <- try $ hPutStrLn hOut msg
     return $ case x of
       Left e -> Except (pure e)
       Right () -> Accept ()
@@ -264,6 +285,17 @@ instance {-# OVERLAPPABLE #-}
       :: mark String
       -> TeletypeTT mark1 t m ()
     printLine = liftT . printLine
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadSystemClock mark (t x)
+  ) => MonadSystemClock mark (TeletypeTT mark1 t m)
+  where
+    getSystemTime
+      :: TeletypeTT mark1 t m (mark SystemTime)
+    getSystemTime = liftT getSystemTime
 
 
 

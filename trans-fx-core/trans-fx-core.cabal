@@ -1,7 +1,9 @@
 cabal-version:  1.12
 name:           trans-fx-core
-version:        0.1.0.0
-description:    Effect framework
+version:        0.0.1
+synopsis:       Monadic effects
+description:    Monadic effect framework
+category:       Effects
 homepage:       https://github.com/nbloomf/trans-fx#readme
 bug-reports:    https://github.com/nbloomf/trans-fx/issues
 author:         Nathan Bloomfield

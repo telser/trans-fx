@@ -180,6 +180,14 @@ instance
     runTT (PromptTTIn (Eval eval)) (PromptTT x) = fmap pure $
       x return (\p cont -> (lift $ eval p) >>= cont)
 
+runPromptTT
+  :: ( Monad m, MonadTrans t, MonadIdentity mark, Commutant mark )
+  => Eval p m
+  -> PromptTT mark p t m a
+  -> t m (mark a)
+runPromptTT eval =
+  fmap unPromptTTOut . runTT (PromptTTIn eval)
+
 instance
   ( Typeable mark, Typeable p, Typeable m
   ) => Show (InputTT (PromptTT mark p) m)

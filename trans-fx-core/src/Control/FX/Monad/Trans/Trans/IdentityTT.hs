@@ -187,6 +187,13 @@ instance
       -> t m (OutputTT IdentityTT a)
     runTT _ (IdentityTT x) = fmap (IdentityTTOut . Identity) x
 
+runIdentityTT
+  :: ( Monad m, MonadTrans t )
+  => IdentityTT t m a
+  -> t m (Identity a)
+runIdentityTT =
+  fmap unIdentityTTOut . runTT (IdentityTTIn ())
+
 
 
 

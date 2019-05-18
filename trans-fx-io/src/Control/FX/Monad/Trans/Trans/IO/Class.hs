@@ -7,12 +7,16 @@
 
 module Control.FX.Monad.Trans.Trans.IO.Class (
     MonadTeletype(..)
+  , MonadSystemClock(..)
+  , SystemTime(..)
 ) where
 
 
 
 import Control.FX
 import Control.FX.Data
+
+import Data.Time.Clock.System ( SystemTime )
 
 
 
@@ -246,3 +250,169 @@ instance
       :: mark String
       -> StackTT mark1 f d t m ()
     printLine = StackTT . lift . printLine
+
+
+
+
+
+-- | Class representing monads which have access to the current time in UTC format.
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadSystemClock mark m
+  where
+    -- | Read a line of input
+    getSystemTime :: m (mark SystemTime)
+
+    default getSystemTime
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSystemClock mark m1 )
+      => m (mark SystemTime)
+    getSystemTime = lift getSystemTime
+
+
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m, Monoid w
+  ) => MonadSystemClock mark (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m, Monoid w
+  ) => MonadSystemClock mark (AppendOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (WriteOnceT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (HaltT mark1 m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadSystemClock mark m
+  ) => MonadSystemClock mark (IdentityT m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark m, IsStack f
+  ) => MonadSystemClock mark (StackT mark1 f d m)
+
+
+
+instance
+  ( Monad m, MonadTrans t
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (IdentityTT t m)
+  where
+    getSystemTime
+      :: IdentityTT t m (mark SystemTime)
+    getSystemTime = IdentityTT $ getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (PromptTT mark1 p t m)
+  where
+    getSystemTime
+      :: PromptTT mark1 p t m (mark SystemTime)
+    getSystemTime = liftT getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadTransTrans u, MonadFunctor w
+  , MonadSystemClock mark (u t m), OverableT w
+  ) => MonadSystemClock mark (OverTT w u t m)
+  where
+    getSystemTime
+      :: OverTT w u t m (mark SystemTime)
+    getSystemTime = toOverTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (StateTT mark1 s t m)
+  where
+    getSystemTime
+      :: StateTT mark1 s t m (mark SystemTime)
+    getSystemTime = StateTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (ReadOnlyTT mark1 r t m)
+  where
+    getSystemTime
+      :: ReadOnlyTT mark1 r t m (mark SystemTime)
+    getSystemTime = ReadOnlyTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m), Monoid w
+  ) => MonadSystemClock mark (WriteOnlyTT mark1 w t m)
+  where
+    getSystemTime
+      :: WriteOnlyTT mark1 w t m (mark SystemTime)
+    getSystemTime = WriteOnlyTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m), Monoid w
+  ) => MonadSystemClock mark (AppendOnlyTT mark1 w t m)
+  where
+    getSystemTime
+      :: AppendOnlyTT mark1 w t m (mark SystemTime)
+    getSystemTime = AppendOnlyTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (WriteOnceTT mark1 w t m)
+  where
+    getSystemTime
+      :: WriteOnceTT mark1 w t m (mark SystemTime)
+    getSystemTime = WriteOnceTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (ExceptTT mark1 e t m)
+  where
+    getSystemTime
+      :: ExceptTT mark1 e t m (mark SystemTime)
+    getSystemTime = ExceptTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (HaltTT mark1 t m)
+  where
+    getSystemTime
+      :: HaltTT mark1 t m (mark SystemTime)
+    getSystemTime = HaltTT $ lift getSystemTime
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSystemClock mark (t m)
+  ) => MonadSystemClock mark (StackTT mark1 f d t m)
+  where
+    getSystemTime
+      :: StackTT mark1 f d t m (mark SystemTime)
+    getSystemTime = StackTT $ lift getSystemTime

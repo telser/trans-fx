@@ -5,16 +5,18 @@ title: Doing IO
 Now let's add some IO effects.
 
 > {-# LANGUAGE DerivingVia                #-}
+> {-# LANGUAGE FlexibleContexts           #-}
 > {-# LANGUAGE FlexibleInstances          #-}
 > {-# LANGUAGE DerivingStrategies         #-}
 > {-# LANGUAGE ScopedTypeVariables        #-}
-> {-# LANGUAGE FlexibleContexts           #-}
 > {-# LANGUAGE MultiParamTypeClasses      #-}
 > {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 >
 > module Control.FX.Demo.DoingIO where
 
 Some simple IO-lite monads are in the `trans-fx-io` package, which we can import all at once with `Control.FX.IO`.
+
+> import Data.Proxy (Proxy(..))
 
 > import Control.FX
 > import Control.FX.IO

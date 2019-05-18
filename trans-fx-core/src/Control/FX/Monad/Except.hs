@@ -16,6 +16,7 @@
 
 module Control.FX.Monad.Except (
     Except(..)
+  , runExcept
   , Context(..)
   , Input(..)
   , Output(..)
@@ -177,6 +178,12 @@ instance
       -> Except mark e a
       -> Output (Except mark e) a
     run _ = ExceptOut
+
+runExcept
+  :: ( MonadIdentity mark )
+  => Except mark e a
+  -> Except mark e a
+runExcept = id
 
 deriving instance
   ( Eq (mark ())
