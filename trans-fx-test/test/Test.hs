@@ -1850,8 +1850,8 @@ pContextT _ _ = Proxy
 {- MonadTransTrans -}
 {-------------------}
 
-test_all_MonadTransTrans_FAM :: TestTree
-test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
+test_all_MonadTransTrans_FAM_1 :: TestTree
+test_all_MonadTransTrans_FAM_1 = testGroup "All MonadTransTrans (FAM)"
   [ testGroup "MonadTransTrans (IdentityTT)"
     -- IdentityT
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy IdentityTT)
@@ -1865,8 +1865,11 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StateTT Identity Int))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StateTT Identity Bool))
     ]
+  ]
 
-  , testGroup "MonadTransTrans (ReadOnlyTT)"
+test_all_MonadTransTrans_FAM_2 :: TestTree
+test_all_MonadTransTrans_FAM_2 = testGroup "All MonadTransTrans (FAM)"
+  [ testGroup "MonadTransTrans (ReadOnlyTT)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyTT Identity Int))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyTT Identity Bool))
     ]
@@ -1880,8 +1883,11 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyTT Identity Int))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyTT Identity Bool))
     ]
+  ]
 
-  , testGroup "MonadTransTrans (WriteOnceTT)"
+test_all_MonadTransTrans_FAM_3 :: TestTree
+test_all_MonadTransTrans_FAM_3 = testGroup "All MonadTransTrans (FAM)"
+  [ testGroup "MonadTransTrans (WriteOnceTT)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (WriteOnceTT Identity Int))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (WriteOnceTT Identity Bool))
     ]
@@ -1899,8 +1905,11 @@ test_all_MonadTransTrans_FAM = testGroup "All MonadTransTrans (FAM)"
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT (ExceptT Identity Bool) IdentityTT))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (OverTT (ExceptT Identity Int)  IdentityTT))
     ]
+  ]
 
-  , testGroup "MonadTransTrans (StackTT)"
+test_all_MonadTransTrans_FAM_4 :: TestTree
+test_all_MonadTransTrans_FAM_4 = testGroup "All MonadTransTrans (FAM)"
+  [ testGroup "MonadTransTrans (StackTT)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StackTT Identity [] Int))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (StackTT Identity [] Bool))
     ]

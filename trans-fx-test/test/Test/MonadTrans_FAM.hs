@@ -13,8 +13,6 @@ main = do
   setEnv "TASTY_QUICKCHECK_TESTS" "1000"
   defaultMain $ testGroup "Laws"
     [ testGroup "MonadTrans"
-      [ test_all_MonadTrans_FX
-      , test_all_MonadTrans_LiftCatch
-      , test_all_MonadTrans_LiftDraft
+      [ test_all_MonadTrans_FAM
       ]
     ]
