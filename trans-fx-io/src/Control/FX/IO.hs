@@ -2,6 +2,7 @@ module Control.FX.IO (
   -- * Effect Classes
     MonadTeletype(..)
   , MonadSystemClock(..)
+  , MonadSimpleHttp(..)
 
   -- * Concrete Types
   -- ** Teletype
@@ -18,6 +19,13 @@ module Control.FX.IO (
   , SystemClockAction(..)
   , evalSystemTimeIO
 
+  -- ** Simple HTTP
+  , SimpleHttpTT(..)
+  , runSimpleHttpTT
+  , SimpleHttpAction(..)
+  , SimpleHttpError(..)
+  , evalSimpleHttpReqIO
+
 
   -- * Values in Context
   , InputTT(..)
@@ -33,3 +41,4 @@ module Control.FX.IO (
 import Control.FX.Monad.Trans.Trans.IO.Class
 import Control.FX.Monad.Trans.Trans.IO.TeletypeTT
 import Control.FX.Monad.Trans.Trans.IO.SystemClockTT
+import Control.FX.Monad.Trans.Trans.IO.SimpleHttpTT

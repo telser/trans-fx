@@ -8,6 +8,7 @@ module Control.FX.Arbitrary () where
 
 import Test.QuickCheck (Arbitrary(..), CoArbitrary(..), Gen, elements)
 import System.IO.Error
+import Network.HTTP.Req ( HttpException(..) )
 
 import Control.FX
 import Control.FX.IO
@@ -903,7 +904,35 @@ instance Arbitrary IOException where
 
 
 
-{- TeletypeTT -}
+{- SimpleHttpTT -}
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Arbitrary a
+  , Arbitrary (t m a)
+  ) => Arbitrary (SimpleHttpTT mark t m a)
+  where
+    arbitrary = return <$> arbitrary
+
+instance
+  ( Arbitrary (Context (t m)), Monad m, Applicative mark
+  ) => Arbitrary (Context (SimpleHttpTT mark t m))
+  where
+    arbitrary = do
+      (err :: mark HttpException) <- pure <$> arbitrary
+      let
+        eval :: SimpleHttpAction mark u -> m u
+        eval x = case x of
+          SimpleHttpReq _ _ _ _ _ ->
+            return $ Except err
+      h <- arbitrary
+      return $ SimpleHttpTTCtx (Eval eval, h)
+
+instance Arbitrary HttpException where
+  arbitrary = JsonHttpException <$> arbitrary
+
+
+
+{- SystemClockTT -}
 
 instance
   ( Monad m, MonadTrans t, MonadIdentity mark, Arbitrary a

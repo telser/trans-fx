@@ -8,6 +8,7 @@
 module Control.FX.Monad.Trans.Trans.IO.Class (
     MonadTeletype(..)
   , MonadSystemClock(..)
+  , MonadSimpleHttp(..)
   , SystemTime(..)
 ) where
 
@@ -16,7 +17,9 @@ module Control.FX.Monad.Trans.Trans.IO.Class (
 import Control.FX
 import Control.FX.Data
 
+import Data.Proxy (Proxy)
 import Data.Time.Clock.System ( SystemTime )
+import qualified Network.HTTP.Req as Req
 
 
 
@@ -416,3 +419,283 @@ instance
     getSystemTime
       :: StackTT mark1 f d t m (mark SystemTime)
     getSystemTime = StackTT $ lift getSystemTime
+
+
+
+
+
+-- | Class representing monads which can perform basic HTTP requests.
+-- API is based on that of the @req@ library, which also provides the
+-- default @IO@ evaluator.
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadSimpleHttp mark m
+  where
+    -- | Perform a simple HTTP request
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> m (mark response)
+
+    default simpleHttpReq
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1, MonadSimpleHttp mark m1
+         , Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> m (mark response)
+    simpleHttpReq method url body resp scheme =
+      lift $ simpleHttpReq method url body resp scheme
+
+
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m, Monoid w
+  ) => MonadSimpleHttp mark (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m, Monoid w
+  ) => MonadSimpleHttp mark (AppendOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (WriteOnceT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (HaltT mark1 m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadSimpleHttp mark m
+  ) => MonadSimpleHttp mark (IdentityT m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark m, IsStack f
+  ) => MonadSimpleHttp mark (StackT mark1 f d m)
+
+
+
+instance
+  ( Monad m, MonadTrans t
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (IdentityTT t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> IdentityTT t m (mark response)
+    simpleHttpReq method scheme body response opt = IdentityTT $
+      simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (PromptTT mark1 p t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> PromptTT mark1 p t m (mark response)
+    simpleHttpReq method scheme body response opt = liftT $
+      simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadTransTrans u, MonadFunctor w
+  , MonadSimpleHttp mark (u t m), OverableT w
+  ) => MonadSimpleHttp mark (OverTT w u t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> OverTT w u t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      toOverTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (StateTT mark1 s t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> StateTT mark1 s t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      StateTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (ReadOnlyTT mark1 r t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> ReadOnlyTT mark1 r t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      ReadOnlyTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m), Monoid w
+  ) => MonadSimpleHttp mark (WriteOnlyTT mark1 w t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> WriteOnlyTT mark1 w t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      WriteOnlyTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m), Monoid w
+  ) => MonadSimpleHttp mark (AppendOnlyTT mark1 w t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> AppendOnlyTT mark1 w t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      AppendOnlyTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (WriteOnceTT mark1 w t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> WriteOnceTT mark1 w t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      WriteOnceTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (ExceptTT mark1 e t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> ExceptTT mark1 e t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      ExceptTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (HaltTT mark1 t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> HaltTT mark1 t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      HaltTT $ lift $
+        simpleHttpReq method scheme body response opt
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleHttp mark (t m)
+  ) => MonadSimpleHttp mark (StackTT mark1 f d t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> StackTT mark1 f d t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      StackTT $ lift $
+        simpleHttpReq method scheme body response opt

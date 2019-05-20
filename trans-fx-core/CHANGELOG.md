@@ -1,0 +1,7 @@
+Changelog for trans-fx-core
+===========================
+
+0.0.1
+-----
+
+* Initial release

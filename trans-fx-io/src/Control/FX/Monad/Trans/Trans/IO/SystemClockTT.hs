@@ -40,6 +40,7 @@ import Data.Time.Clock.System
   ( SystemTime )
 import qualified Data.Time.Clock.System as IO
   ( getSystemTime )
+import qualified Network.HTTP.Req as Req
 
 import Control.FX
 import Control.FX.Data
@@ -200,6 +201,25 @@ instance
       :: mark String
       -> SystemClockTT mark1 t m ()
     printLine = liftT . printLine
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadSimpleHttp mark (t x)
+  ) => MonadSimpleHttp mark (SystemClockTT mark1 t m)
+  where
+    simpleHttpReq
+      :: ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+      => method
+      -> Req.Url scheme
+      -> body
+      -> Proxy response
+      -> Req.Option scheme
+      -> SystemClockTT mark1 t m (mark response)
+    simpleHttpReq method scheme body response opt =
+      liftT $ simpleHttpReq method scheme body response opt
 
 
 
