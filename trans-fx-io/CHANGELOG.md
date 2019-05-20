@@ -6,6 +6,7 @@ Changelog for trans-fx-io
 
 * Added:
     * `SimpleHttpTT`
+    * `SimpleSQLiteTT`
 
 
 

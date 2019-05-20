@@ -429,16 +429,20 @@ test_Monad_C proxyC =
 {--------------}
 
 -- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
-test_all_MonadTrans_FAM :: TestTree
-test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
+test_all_MonadTrans_FAM_1 :: TestTree
+test_all_MonadTrans_FAM_1 = testGroup "All MonadTrans (FAM)"
   [ test_MonadTrans_FAM (Proxy :: Proxy IdentityT)
 
   , test_MonadTrans_FAM (Proxy :: Proxy (HaltT Identity))
 
   , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Bool))
   , test_MonadTrans_FAM (Proxy :: Proxy (ExceptT Identity Int))
+  ]
 
-  , test_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool))
+-- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
+test_all_MonadTrans_FAM_2 :: TestTree
+test_all_MonadTrans_FAM_2 = testGroup "All MonadTrans (FAM)"
+  [ test_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool))
   , test_MonadTrans_FAM (Proxy :: Proxy (WriteOnlyT Identity Int))
 
   , test_MonadTrans_FAM (Proxy :: Proxy (StateT Identity Bool))
@@ -446,8 +450,12 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
 
   , test_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyT Identity Bool))
   , test_MonadTrans_FAM (Proxy :: Proxy (ReadOnlyT Identity Int))
+  ]
 
-  , test_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyT Identity Bool))
+-- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
+test_all_MonadTrans_FAM_3 :: TestTree
+test_all_MonadTrans_FAM_3 = testGroup "All MonadTrans (FAM)"
+  [ test_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyT Identity Bool))
   , test_MonadTrans_FAM (Proxy :: Proxy (AppendOnlyT Identity Int))
 
   , test_MonadTrans_FAM (Proxy :: Proxy (WriteOnceT Identity Bool))
@@ -455,16 +463,25 @@ test_all_MonadTrans_FAM = testGroup "All MonadTrans (FAM)"
 
   , test_MonadTrans_FAM (Proxy :: Proxy (StackT Identity [] Bool))
   , test_MonadTrans_FAM (Proxy :: Proxy (StackT Identity [] Int))
+  ]
 
-  , testGroup "ComposeT"
+-- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
+test_all_MonadTrans_FAM_4 :: TestTree
+test_all_MonadTrans_FAM_4 = testGroup "All MonadTrans (FAM)"
+  [ testGroup "ComposeT"
     [ test_MonadTrans_ComposeT_FAM (Proxy :: Proxy IdentityT)
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (HaltT Identity))
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Bool))
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Int))
+    ]
 
-    , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool))
+-- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
+test_all_MonadTrans_FAM_5 :: TestTree
+test_all_MonadTrans_FAM_5 = testGroup "All MonadTrans (FAM)"
+  [ testGroup "ComposeT"
+    [ test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (WriteOnlyT Identity Bool))
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (WriteOnlyT Identity Int))
 
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ReadOnlyT Identity Bool))

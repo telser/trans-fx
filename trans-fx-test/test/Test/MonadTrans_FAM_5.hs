@@ -9,10 +9,10 @@ import Test
 main :: IO ()
 main = do
   test_all_show
-  setEnv "TASTY_NUM_THREADS" "6"
-  setEnv "TASTY_QUICKCHECK_TESTS" "1000"
+  setEnv "TASTY_NUM_THREADS" "3"
+  setEnv "TASTY_QUICKCHECK_TESTS" "100"
   defaultMain $ testGroup "Laws"
     [ testGroup "MonadTrans"
-      [ test_all_MonadTrans_FAM
+      [ test_all_MonadTrans_FAM_5
       ]
     ]
