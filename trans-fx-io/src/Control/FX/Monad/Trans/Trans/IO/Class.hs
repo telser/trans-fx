@@ -9,6 +9,7 @@ module Control.FX.Monad.Trans.Trans.IO.Class (
     MonadTeletype(..)
   , MonadSystemClock(..)
   , MonadSimpleHttp(..)
+  , MonadSimpleSQLite(..)
   , SystemTime(..)
 ) where
 
@@ -17,9 +18,11 @@ module Control.FX.Monad.Trans.Trans.IO.Class (
 import Control.FX
 import Control.FX.Data
 
+import Data.Int (Int64)
 import Data.Proxy (Proxy)
 import Data.Time.Clock.System ( SystemTime )
 import qualified Network.HTTP.Req as Req
+import qualified Database.SQLite.Simple as SQLite
 
 
 
@@ -699,3 +702,1084 @@ instance
     simpleHttpReq method scheme body response opt =
       StackTT $ lift $
         simpleHttpReq method scheme body response opt
+
+
+
+
+
+-- | Class representing monads which can interact with a SQLite database.
+-- API is based on that of the @sqlite-simple@ library, which also provides the
+-- default @IO@ evaluator.
+class
+  ( Monad m, MonadIdentity mark
+  ) => MonadSimpleSQLite mark m
+  where
+    -- Open a database connection
+    simpleSQLiteOpen
+      :: String
+      -> m (mark SQLite.Connection)
+
+    default simpleSQLiteOpen
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => String
+      -> m (mark SQLite.Connection)
+    simpleSQLiteOpen file =
+      lift $ simpleSQLiteOpen file
+
+    -- Close a database connection
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> m ()
+
+    default simpleSQLiteClose
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => mark SQLite.Connection
+      -> m ()
+    simpleSQLiteClose conn =
+      lift $ simpleSQLiteClose conn
+
+    -- Perform a query expected to return results
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> m (mark [r])
+
+    default simpleSQLiteQuery
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1
+         , SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> m (mark [r])
+    simpleSQLiteQuery conn query q =
+      lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> m (mark [r])
+
+    default simpleSQLiteQuery_
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1
+         , SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      lift $ simpleSQLiteQuery_ conn query
+
+    -- Perform a query expected to return results with named parameters
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> m (mark [r])
+
+    default simpleSQLiteQueryNamed
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1
+         , SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> m (mark Int64)
+
+    default simpleSQLiteLastInsertRowId
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => SQLite.Connection
+      -> m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> m (mark Int)
+
+    default simpleSQLiteChanges
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => SQLite.Connection
+      -> m (mark Int)
+    simpleSQLiteChanges conn =
+      lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> m (mark ())
+
+    default simpleSQLiteExecute
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1
+         , SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> m (mark ())
+    simpleSQLiteExecute conn query q =
+      lift $ simpleSQLiteExecute conn query q
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> m (mark ())
+
+    default simpleSQLiteExecute_
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> m (mark ())
+    simpleSQLiteExecute_ conn query =
+      lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> m (mark ())
+
+    default simpleSQLiteExecuteNamed
+      :: ( Monad m1, MonadTrans t1, m ~ t1 m1
+         , MonadSimpleSQLite mark m1 )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      lift $ simpleSQLiteExecuteNamed conn query params
+
+
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (ExceptT mark1 e m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (ReadOnlyT mark1 r m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m, Monoid w
+  ) => MonadSimpleSQLite mark (WriteOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m, Monoid w
+  ) => MonadSimpleSQLite mark (AppendOnlyT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (WriteOnceT mark1 w m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (StateT mark1 s m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (HaltT mark1 m)
+
+instance
+  ( Monad m, MonadIdentity mark
+  , MonadSimpleSQLite mark m
+  ) => MonadSimpleSQLite mark (IdentityT m)
+
+instance
+  ( Monad m, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark m, IsStack f
+  ) => MonadSimpleSQLite mark (StackT mark1 f d m)
+
+
+
+instance
+  ( Monad m, MonadTrans t
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (IdentityTT t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> IdentityTT t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      IdentityTT $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> IdentityTT t m ()
+    simpleSQLiteClose conn =
+      IdentityTT $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> IdentityTT t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      IdentityTT $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> IdentityTT t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      IdentityTT $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> IdentityTT t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      IdentityTT $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> IdentityTT t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      IdentityTT $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> IdentityTT t m (mark Int)
+    simpleSQLiteChanges conn =
+      IdentityTT $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> IdentityTT t m (mark ())
+    simpleSQLiteExecute conn query params =
+      IdentityTT $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> IdentityTT t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      IdentityTT $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> IdentityTT t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      IdentityTT $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (PromptTT mark1 p t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> PromptTT mark1 p t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      liftT $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> PromptTT mark1 p t m ()
+    simpleSQLiteClose conn =
+      liftT $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> PromptTT mark1 p t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      liftT $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> PromptTT mark1 p t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      liftT $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> PromptTT mark1 p t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      liftT $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> PromptTT mark1 p t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      liftT $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> PromptTT mark1 p t m (mark Int)
+    simpleSQLiteChanges conn =
+      liftT $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> PromptTT mark1 p t m (mark ())
+    simpleSQLiteExecute conn query params =
+      liftT $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> PromptTT mark1 p t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      liftT $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> PromptTT mark1 p t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      liftT $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadTransTrans u, MonadFunctor w
+  , MonadSimpleSQLite mark (u t m), OverableT w
+  ) => MonadSimpleSQLite mark (OverTT w u t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> OverTT w u t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      toOverTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> OverTT w u t m ()
+    simpleSQLiteClose conn =
+      toOverTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> OverTT w u t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      toOverTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> OverTT w u t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      toOverTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> OverTT w u t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      toOverTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> OverTT w u t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      toOverTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> OverTT w u t m (mark Int)
+    simpleSQLiteChanges conn =
+      toOverTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> OverTT w u t m (mark ())
+    simpleSQLiteExecute conn query params =
+      toOverTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> OverTT w u t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      toOverTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> OverTT w u t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      toOverTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (StateTT mark1 s t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> StateTT mark1 s t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      StateTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> StateTT mark1 s t m ()
+    simpleSQLiteClose conn =
+      StateTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> StateTT mark1 s t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      StateTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> StateTT mark1 s t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      StateTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> StateTT mark1 s t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      StateTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> StateTT mark1 s t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      StateTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> StateTT mark1 s t m (mark Int)
+    simpleSQLiteChanges conn =
+      StateTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> StateTT mark1 s t m (mark ())
+    simpleSQLiteExecute conn query params =
+      StateTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> StateTT mark1 s t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      StateTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> StateTT mark1 s t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      StateTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (ReadOnlyTT mark1 r t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> ReadOnlyTT mark1 r t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      ReadOnlyTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> ReadOnlyTT mark1 r t m ()
+    simpleSQLiteClose conn =
+      ReadOnlyTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow row )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> ReadOnlyTT mark1 r t m (mark [row])
+    simpleSQLiteQuery conn query q =
+      ReadOnlyTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow row )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> ReadOnlyTT mark1 r t m (mark [row])
+    simpleSQLiteQuery_ conn query =
+      ReadOnlyTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow row )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> ReadOnlyTT mark1 r t m (mark [row])
+    simpleSQLiteQueryNamed conn query params =
+      ReadOnlyTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> ReadOnlyTT mark1 r t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      ReadOnlyTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> ReadOnlyTT mark1 r t m (mark Int)
+    simpleSQLiteChanges conn =
+      ReadOnlyTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> ReadOnlyTT mark1 r t m (mark ())
+    simpleSQLiteExecute conn query params =
+      ReadOnlyTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> ReadOnlyTT mark1 r t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      ReadOnlyTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> ReadOnlyTT mark1 r t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      ReadOnlyTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m), Monoid w
+  ) => MonadSimpleSQLite mark (WriteOnlyTT mark1 w t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> WriteOnlyTT mark1 w t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      WriteOnlyTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> WriteOnlyTT mark1 w t m ()
+    simpleSQLiteClose conn =
+      WriteOnlyTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> WriteOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      WriteOnlyTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> WriteOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      WriteOnlyTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> WriteOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      WriteOnlyTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> WriteOnlyTT mark1 w t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      WriteOnlyTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> WriteOnlyTT mark1 w t m (mark Int)
+    simpleSQLiteChanges conn =
+      WriteOnlyTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> WriteOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecute conn query params =
+      WriteOnlyTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> WriteOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      WriteOnlyTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> WriteOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      WriteOnlyTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m), Monoid w
+  ) => MonadSimpleSQLite mark (AppendOnlyTT mark1 w t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> AppendOnlyTT mark1 w t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      AppendOnlyTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> AppendOnlyTT mark1 w t m ()
+    simpleSQLiteClose conn =
+      AppendOnlyTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> AppendOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      AppendOnlyTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> AppendOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      AppendOnlyTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> AppendOnlyTT mark1 w t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      AppendOnlyTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> AppendOnlyTT mark1 w t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      AppendOnlyTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> AppendOnlyTT mark1 w t m (mark Int)
+    simpleSQLiteChanges conn =
+      AppendOnlyTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> AppendOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecute conn query params =
+      AppendOnlyTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> AppendOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      AppendOnlyTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> AppendOnlyTT mark1 w t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      AppendOnlyTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (WriteOnceTT mark1 w t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> WriteOnceTT mark1 w t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      WriteOnceTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> WriteOnceTT mark1 w t m ()
+    simpleSQLiteClose conn =
+      WriteOnceTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> WriteOnceTT mark1 w t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      WriteOnceTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> WriteOnceTT mark1 w t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      WriteOnceTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> WriteOnceTT mark1 w t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      WriteOnceTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> WriteOnceTT mark1 w t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      WriteOnceTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> WriteOnceTT mark1 w t m (mark Int)
+    simpleSQLiteChanges conn =
+      WriteOnceTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> WriteOnceTT mark1 w t m (mark ())
+    simpleSQLiteExecute conn query params =
+      WriteOnceTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> WriteOnceTT mark1 w t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      WriteOnceTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> WriteOnceTT mark1 w t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      WriteOnceTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (ExceptTT mark1 e t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> ExceptTT mark1 e t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      ExceptTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> ExceptTT mark1 e t m ()
+    simpleSQLiteClose conn =
+      ExceptTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> ExceptTT mark1 e t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      ExceptTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> ExceptTT mark1 e t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      ExceptTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> ExceptTT mark1 e t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      ExceptTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> ExceptTT mark1 e t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      ExceptTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> ExceptTT mark1 e t m (mark Int)
+    simpleSQLiteChanges conn =
+      ExceptTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> ExceptTT mark1 e t m (mark ())
+    simpleSQLiteExecute conn query params =
+      ExceptTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> ExceptTT mark1 e t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      ExceptTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> ExceptTT mark1 e t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      ExceptTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (HaltTT mark1 t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> HaltTT mark1 t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      HaltTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> HaltTT mark1 t m ()
+    simpleSQLiteClose conn =
+      HaltTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> HaltTT mark1 t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      HaltTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> HaltTT mark1 t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      HaltTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> HaltTT mark1 t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      HaltTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> HaltTT mark1 t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      HaltTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> HaltTT mark1 t m (mark Int)
+    simpleSQLiteChanges conn =
+      HaltTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> HaltTT mark1 t m (mark ())
+    simpleSQLiteExecute conn query params =
+      HaltTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> HaltTT mark1 t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      HaltTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> HaltTT mark1 t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      HaltTT $ lift $ simpleSQLiteExecuteNamed conn query params
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , MonadSimpleSQLite mark (t m)
+  ) => MonadSimpleSQLite mark (StackTT mark1 f d t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> StackTT mark1 f d t m (mark SQLite.Connection)
+    simpleSQLiteOpen conn =
+      StackTT $ lift $ simpleSQLiteOpen conn
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> StackTT mark1 f d t m ()
+    simpleSQLiteClose conn =
+      StackTT $ lift $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> StackTT mark1 f d t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      StackTT $ lift $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> StackTT mark1 f d t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      StackTT $ lift $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> StackTT mark1 f d t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      StackTT $ lift $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> StackTT mark1 f d t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      StackTT $ lift $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> StackTT mark1 f d t m (mark Int)
+    simpleSQLiteChanges conn =
+      StackTT $ lift $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> StackTT mark1 f d t m (mark ())
+    simpleSQLiteExecute conn query params =
+      StackTT $ lift $ simpleSQLiteExecute conn query params
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> StackTT mark1 f d t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      StackTT $ lift $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> StackTT mark1 f d t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      StackTT $ lift $ simpleSQLiteExecuteNamed conn query params

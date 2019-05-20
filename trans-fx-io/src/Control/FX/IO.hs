@@ -3,6 +3,7 @@ module Control.FX.IO (
     MonadTeletype(..)
   , MonadSystemClock(..)
   , MonadSimpleHttp(..)
+  , MonadSimpleSQLite(..)
 
   -- * Concrete Types
   -- ** Teletype
@@ -26,6 +27,13 @@ module Control.FX.IO (
   , SimpleHttpError(..)
   , evalSimpleHttpReqIO
 
+  -- ** Simple SQLite
+  , SimpleSQLiteTT(..)
+  , runSimpleSQLiteTT
+  , SimpleSQLiteAction(..)
+  , SimpleSQLiteError(..)
+  , evalSimpleSQLiteIO
+
 
   -- * Values in Context
   , InputTT(..)
@@ -42,3 +50,4 @@ import Control.FX.Monad.Trans.Trans.IO.Class
 import Control.FX.Monad.Trans.Trans.IO.TeletypeTT
 import Control.FX.Monad.Trans.Trans.IO.SystemClockTT
 import Control.FX.Monad.Trans.Trans.IO.SimpleHttpTT
+import Control.FX.Monad.Trans.Trans.IO.SimpleSQLiteTT

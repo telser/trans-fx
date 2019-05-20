@@ -23,6 +23,7 @@ module Control.FX.Monad.Trans.Trans.IO.SimpleHttpTT (
     SimpleHttpTT(..)
   , SimpleHttpAction(..)
   , evalSimpleHttpReqIO
+  , evalSimpleHttpPure
   , SimpleHttpError(..)
   , HttpException
   , runSimpleHttpTT
@@ -33,12 +34,16 @@ module Control.FX.Monad.Trans.Trans.IO.SimpleHttpTT (
 
 
 
+import Data.Int
+  ( Int64 )
 import Data.Typeable
   ( Typeable, Proxy, typeOf )
 import Control.Exception
   ( try )
+
 import qualified Network.HTTP.Req as Req
 import           Network.HTTP.Req ( HttpException(..) )
+import qualified Database.SQLite.Simple as SQLite
 
 import Control.FX
 import Control.FX.Data
@@ -223,6 +228,19 @@ evalSimpleHttpReqIO config x = case x of
       Left e -> Except (pure e)
       Right a -> Accept a
 
+evalSimpleHttpPure
+  :: ( MonadIdentity mark, Monad eff )
+  => ( forall mark eff method scheme body response a.
+         ( Req.HttpMethod method, Req.HttpBody body, Req.HttpResponse response
+         , Req.HttpBodyAllowed (Req.AllowsBody method) (Req.ProvidesBody body) )
+       => method -> Req.Url scheme -> body -> Proxy response -> Req.Option scheme
+       -> Except SimpleHttpError (mark HttpException) response
+     )
+  -> SimpleHttpAction mark a -> eff a
+evalSimpleHttpPure f x = case x of
+  SimpleHttpReq method scheme body response opt ->
+    return $ f method scheme body response opt
+
 
 
 
@@ -297,6 +315,87 @@ instance
     getSystemTime
       :: SimpleHttpTT mark1 t m (mark SystemTime)
     getSystemTime = liftT getSystemTime
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadSimpleSQLite mark (t x)
+  ) => MonadSimpleSQLite mark (SimpleHttpTT mark1 t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> SimpleHttpTT mark1 t m (mark SQLite.Connection)
+    simpleSQLiteOpen path =
+      liftT $ simpleSQLiteOpen path
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> SimpleHttpTT mark1 t m ()
+    simpleSQLiteClose conn =
+      liftT $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> SimpleHttpTT mark1 t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      liftT $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> SimpleHttpTT mark1 t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      liftT $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> SimpleHttpTT mark1 t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      liftT $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> SimpleHttpTT mark1 t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      liftT $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> SimpleHttpTT mark1 t m (mark Int)
+    simpleSQLiteChanges conn =
+      liftT $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> SimpleHttpTT mark1 t m (mark ())
+    simpleSQLiteExecute conn query q =
+      liftT $ simpleSQLiteExecute conn query q
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> SimpleHttpTT mark1 t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      liftT $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> SimpleHttpTT mark1 t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      liftT $ simpleSQLiteExecuteNamed conn query params
 
 
 

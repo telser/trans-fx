@@ -32,6 +32,8 @@ module Control.FX.Monad.Trans.Trans.IO.SystemClockTT (
 
 
 
+import Data.Int
+  ( Int64 )
 import Data.Typeable
   ( Typeable, Proxy, typeOf )
 import Control.Exception
@@ -40,7 +42,9 @@ import Data.Time.Clock.System
   ( SystemTime )
 import qualified Data.Time.Clock.System as IO
   ( getSystemTime )
+
 import qualified Network.HTTP.Req as Req
+import qualified Database.SQLite.Simple as SQLite
 
 import Control.FX
 import Control.FX.Data
@@ -220,6 +224,87 @@ instance
       -> SystemClockTT mark1 t m (mark response)
     simpleHttpReq method scheme body response opt =
       liftT $ simpleHttpReq method scheme body response opt
+
+
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, MonadIdentity mark1
+  , forall x. (Monad x) => MonadSimpleSQLite mark (t x)
+  ) => MonadSimpleSQLite mark (SystemClockTT mark1 t m)
+  where
+    simpleSQLiteOpen
+      :: String
+      -> SystemClockTT mark1 t m (mark SQLite.Connection)
+    simpleSQLiteOpen path =
+      liftT $ simpleSQLiteOpen path
+
+    simpleSQLiteClose
+      :: mark SQLite.Connection
+      -> SystemClockTT mark1 t m ()
+    simpleSQLiteClose conn =
+      liftT $ simpleSQLiteClose conn
+
+    simpleSQLiteQuery
+      :: ( SQLite.ToRow q, SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> SystemClockTT mark1 t m (mark [r])
+    simpleSQLiteQuery conn query q =
+      liftT $ simpleSQLiteQuery conn query q
+
+    simpleSQLiteQuery_
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> SystemClockTT mark1 t m (mark [r])
+    simpleSQLiteQuery_ conn query =
+      liftT $ simpleSQLiteQuery_ conn query
+
+    simpleSQLiteQueryNamed
+      :: ( SQLite.FromRow r )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> SystemClockTT mark1 t m (mark [r])
+    simpleSQLiteQueryNamed conn query params =
+      liftT $ simpleSQLiteQueryNamed conn query params
+
+    simpleSQLiteLastInsertRowId
+      :: SQLite.Connection
+      -> SystemClockTT mark1 t m (mark Int64)
+    simpleSQLiteLastInsertRowId conn =
+      liftT $ simpleSQLiteLastInsertRowId conn
+
+    simpleSQLiteChanges
+      :: SQLite.Connection
+      -> SystemClockTT mark1 t m (mark Int)
+    simpleSQLiteChanges conn =
+      liftT $ simpleSQLiteChanges conn
+
+    simpleSQLiteExecute
+      :: ( SQLite.ToRow q )
+      => SQLite.Connection
+      -> SQLite.Query
+      -> q
+      -> SystemClockTT mark1 t m (mark ())
+    simpleSQLiteExecute conn query q =
+      liftT $ simpleSQLiteExecute conn query q
+
+    simpleSQLiteExecute_
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> SystemClockTT mark1 t m (mark ())
+    simpleSQLiteExecute_ conn query =
+      liftT $ simpleSQLiteExecute_ conn query
+
+    simpleSQLiteExecuteNamed
+      :: SQLite.Connection
+      -> SQLite.Query
+      -> [SQLite.NamedParam]
+      -> SystemClockTT mark1 t m (mark ())
+    simpleSQLiteExecuteNamed conn query params =
+      liftT $ simpleSQLiteExecuteNamed conn query params
 
 
 
