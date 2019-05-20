@@ -24,7 +24,7 @@ module Control.FX.Monad.Trans.Trans.IO.SimpleSQLiteTT (
   , SimpleSQLiteAction(..)
   , evalSimpleSQLiteIO
   , SimpleSQLiteError(..)
-  , SimpleSQLiteException
+  , SimpleSQLiteException(..)
   , runSimpleSQLiteTT
   , Context(..)
   , InputTT(..)

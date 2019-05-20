@@ -16,6 +16,7 @@ import Control.FX.Data
 
 import Data.Time.Clock.System
   ( SystemTime(..) )
+import qualified Database.SQLite.Simple as SQLite
 
 
 
@@ -929,6 +930,37 @@ instance
 
 instance Arbitrary HttpException where
   arbitrary = JsonHttpException <$> arbitrary
+
+
+
+{- SimpleSQLiteTT -}
+
+instance
+  ( Monad m, MonadTrans t, MonadIdentity mark, Arbitrary a
+  , Arbitrary (t m a)
+  ) => Arbitrary (SimpleSQLiteTT mark t m a)
+  where
+    arbitrary = return <$> arbitrary
+
+instance
+  ( Arbitrary (Context (t m)), Monad m, Applicative mark
+  ) => Arbitrary (Context (SimpleSQLiteTT mark t m))
+  where
+    arbitrary = do
+      (err :: mark SimpleSQLiteException) <- pure <$> arbitrary
+      let
+        eval :: SimpleSQLiteAction mark u -> m u
+        eval x = case x of
+          SimpleSQLiteOpen _ -> return $ Except err
+      h <- arbitrary
+      return $ SimpleSQLiteTTCtx (Eval eval, h)
+
+instance Arbitrary SimpleSQLiteException where
+  arbitrary = SQLiteFormatError <$>
+    (SQLite.FormatError <$> arbitrary <*> arbitrary <*> arbitrary)
+
+instance Arbitrary SQLite.Query where
+  arbitrary = error "Arbitrary instance for SQLite.Query"
 
 
 

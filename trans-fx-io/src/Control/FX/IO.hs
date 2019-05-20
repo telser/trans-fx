@@ -32,6 +32,7 @@ module Control.FX.IO (
   , runSimpleSQLiteTT
   , SimpleSQLiteAction(..)
   , SimpleSQLiteError(..)
+  , SimpleSQLiteException(..)
   , evalSimpleSQLiteIO
 
 

@@ -476,6 +476,7 @@ test_all_MonadTrans_FAM_4 = testGroup "All MonadTrans (FAM)"
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Bool))
     , test_MonadTrans_ComposeT_FAM (Proxy :: Proxy (ExceptT Identity Int))
     ]
+  ]
 
 -- Test Functor, Applicative, and Monad laws for several concrete monad transformers over several concrete monads.
 test_all_MonadTrans_FAM_5 :: TestTree
@@ -1948,6 +1949,11 @@ test_all_MonadTransTrans_FAM_5 = testGroup "All MonadTransTrans (FAM)"
     [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (SimpleHttpTT Identity))
     , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (SimpleHttpTT Identity))
     ]
+
+  , testGroup "MonadTransTrans (SimpleSQLiteTT)"
+    [ test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (SimpleSQLiteTT Identity))
+    , test_MonadTransTrans_MonadTrans_FAM (Proxy :: Proxy (SimpleSQLiteTT Identity))
+    ]
   ]
 
 
@@ -2313,6 +2319,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (PromptTT Identity Identity IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (TeletypeTT Identity        IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SimpleHttpTT Identity      IdentityT))) pId pI
+    , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SimpleSQLiteTT Identity   IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SystemClockTT Identity     IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (StackTT Q [] Int           IdentityT))) pId pI
 
@@ -2325,6 +2332,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_State (Proxy :: Proxy (PromptTT Identity Identity (StateTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (TeletypeTT Identity        (StateTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (SimpleHttpTT Identity      (StateTT Identity Int IdentityT))) pId pI
+    , test_MonadTrans_State (Proxy :: Proxy (SimpleSQLiteTT Identity    (StateTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (SystemClockTT Identity     (StateTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StackTT Q [] Int           (StateTT Identity Int IdentityT))) pId pI
 
@@ -2337,6 +2345,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (PromptTT Identity Identity (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (TeletypeTT Identity        (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SimpleHttpTT Identity      (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SimpleSQLiteTT Identity    (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (SystemClockTT Identity     (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StateTT Identity Int (StackTT Q [] Int           (ReadOnlyT Q Bool)))) pId pI
 
@@ -2348,6 +2357,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_State (Proxy :: Proxy (ExceptTT Q Int             (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (PromptTT Identity Identity (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (TeletypeTT Identity        (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_State (Proxy :: Proxy (SimpleSQLiteTT Identity    (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (SimpleHttpTT Identity      (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (SystemClockTT Identity     (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_State (Proxy :: Proxy (StackTT Q [] Int           (StateTT Identity Int (ReadOnlyT Q Bool)))) pId pI
@@ -2367,6 +2377,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (PromptTT Identity Identity IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (TeletypeTT Identity        IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SimpleHttpTT Identity      IdentityT))) pId pI
+    , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SimpleSQLiteTT Identity    IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SystemClockTT Identity     IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (StackTT Q [] Int           IdentityT))) pId pI
 
@@ -2379,6 +2390,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (PromptTT Identity Identity (ReadOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (TeletypeTT Identity        (ReadOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (SimpleHttpTT Identity      (ReadOnlyTT Identity Int IdentityT))) pId pI
+    , test_MonadTrans_ReadOnly (Proxy :: Proxy (SimpleSQLiteTT Identity    (ReadOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (SystemClockTT Identity     (ReadOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (StackTT Q [] Int           (ReadOnlyTT Identity Int IdentityT))) pId pI
 
@@ -2391,6 +2403,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (PromptTT Identity Identity (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (TeletypeTT Identity        (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SimpleHttpTT Identity      (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SimpleSQLiteTT Identity    (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (SystemClockTT Identity     (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (ReadOnlyTT Identity Int (StackTT Q [] Int           (ReadOnlyT Q Bool)))) pId pI
 
@@ -2403,6 +2416,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (PromptTT Identity Identity (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (TeletypeTT Identity        (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (SimpleHttpTT Identity      (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_ReadOnly (Proxy :: Proxy (SimpleSQLiteTT Identity    (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (SystemClockTT Identity     (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_ReadOnly (Proxy :: Proxy (StackTT Q [] Int           (ReadOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     ]
@@ -2421,6 +2435,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (PromptTT Identity Identity IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (TeletypeTT Identity        IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SimpleHttpTT Identity      IdentityT))) pId pI
+    , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SimpleSQLiteTT Identity    IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SystemClockTT Identity     IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (StackTT Q [] Int           IdentityT))) pId pI
 
@@ -2433,6 +2448,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (PromptTT Identity Identity (AppendOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (TeletypeTT Identity        (AppendOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (SimpleHttpTT Identity      (AppendOnlyTT Identity Int IdentityT))) pId pI
+    , test_MonadTrans_AppendOnly (Proxy :: Proxy (SimpleSQLiteTT Identity    (AppendOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (SystemClockTT Identity     (AppendOnlyTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (StackTT Q [] Int           (AppendOnlyTT Identity Int IdentityT))) pId pI
 
@@ -2445,6 +2461,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (PromptTT Identity Identity (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (TeletypeTT Identity        (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SimpleHttpTT Identity      (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SimpleSQLiteTT Identity    (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (SystemClockTT Identity     (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (AppendOnlyTT Identity Int (StackTT Q [] Int           (ReadOnlyT Q Bool)))) pId pI
 
@@ -2457,6 +2474,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (PromptTT Identity Identity (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (TeletypeTT Identity        (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (SimpleHttpTT Identity      (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_AppendOnly (Proxy :: Proxy (SimpleSQLiteTT Identity    (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (SystemClockTT Identity     (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_AppendOnly (Proxy :: Proxy (StackTT Q [] Int           (AppendOnlyTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     ]
@@ -2475,6 +2493,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (PromptTT Identity Identity IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (TeletypeTT Identity        IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SimpleHttpTT Identity      IdentityT))) pId pI
+    , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SimpleSQLiteTT Identity    IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SystemClockTT Identity     IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (StackTT Q [] Int           IdentityT))) pId pI
 
@@ -2487,6 +2506,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (PromptTT Identity Identity (WriteOnceTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (TeletypeTT Identity        (WriteOnceTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (SimpleHttpTT Identity      (WriteOnceTT Identity Int IdentityT))) pId pI
+    , test_MonadTrans_WriteOnce (Proxy :: Proxy (SimpleSQLiteTT Identity    (WriteOnceTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (SystemClockTT Identity     (WriteOnceTT Identity Int IdentityT))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (StackTT Q [] Int           (WriteOnceTT Identity Int IdentityT))) pId pI
 
@@ -2499,6 +2519,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (PromptTT Identity Identity (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (TeletypeTT Identity        (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SimpleHttpTT Identity      (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SimpleSQLiteTT Identity    (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (SystemClockTT Identity     (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (WriteOnceTT Identity Int (StackTT Q [] Int           (ReadOnlyT Q Bool)))) pId pI
 
@@ -2511,6 +2532,7 @@ test_MonadTransTrans_MonadTrans_Compose_FX = testGroup "MonadTransTrans Compose 
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (PromptTT Identity Identity (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (TeletypeTT Identity        (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (SimpleHttpTT Identity      (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
+    , test_MonadTrans_WriteOnce (Proxy :: Proxy (SimpleSQLiteTT Identity    (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (SystemClockTT Identity     (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     , test_MonadTrans_WriteOnce (Proxy :: Proxy (StackTT Q [] Int           (WriteOnceTT Identity Int (ReadOnlyT Q Bool)))) pId pI
     ]
