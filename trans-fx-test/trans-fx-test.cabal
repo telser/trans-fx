@@ -1,0 +1,319 @@
+cabal-version:  1.12
+name:           trans-fx-test
+version:        0.0.1
+description:    Please see the README on GitHub at <https://github.com/nbloomf/trans-fx#readme>
+homepage:       https://github.com/nbloomf/trans-fx#readme
+bug-reports:    https://github.com/nbloomf/trans-fx/issues
+author:         Nathan Bloomfield
+maintainer:     nbloomf@gmail.com
+copyright:      Automattic, Inc
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/nbloomf/trans-fx/trans-fx-test
+
+library
+  default-language: Haskell2010
+  hs-source-dirs: src
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , QuickCheck >=2.12.6.1
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+    , time >=1.8.0.2
+    , req >=1.2.1
+    , sqlite-simple >=0.4.16
+  exposed-modules:
+      Control.FX.Arbitrary
+    , Test.Tasty.QuickCheck.Laws.FX
+    , Test.Tasty.QuickCheck.Laws.FX.EqIn
+    , Test.Tasty.QuickCheck.Laws.FX.Central
+    , Test.Tasty.QuickCheck.Laws.FX.Bifunctor
+    , Test.Tasty.QuickCheck.Laws.FX.Commutant
+    , Test.Tasty.QuickCheck.Laws.FX.MonadTrans
+    , Test.Tasty.QuickCheck.Laws.FX.MonadTransTrans
+    , Test.Tasty.QuickCheck.Laws.FX.LiftCatch
+    , Test.Tasty.QuickCheck.Laws.FX.LiftDraft
+    , Test.Tasty.QuickCheck.Laws.FX.AppendOnly
+    , Test.Tasty.QuickCheck.Laws.FX.WriteOnce
+    , Test.Tasty.QuickCheck.Laws.FX.Data.Stack
+    , Test
+
+test-suite trans-fx-test-eq
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/Eq.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-functor
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/Functor.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monad
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/Monad.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-fam-1
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_FAM_1.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-fam-2
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_FAM_2.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-fam-3
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_FAM_3.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-fam-4
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_FAM_4.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-fam-5
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_FAM_5.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtrans-t
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTrans_T.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fam-1
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FAM_1.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fam-2
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FAM_2.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fam-3
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FAM_3.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fam-4
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FAM_4.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fam-5
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FAM_5.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-fx
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_FX.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
+
+test-suite trans-fx-test-monadtranstrans-tt
+  default-language: Haskell2010
+  type: exitcode-stdio-1.0
+  main-is: Test/MonadTransTrans_TT.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , trans-fx-core
+    , trans-fx-io
+    , trans-fx-data
+    , trans-fx-test
+    , tasty >=1.2
+    , tasty-quickcheck >=0.10
+    , tasty-quickcheck-laws >=0.0.2
