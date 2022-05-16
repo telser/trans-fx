@@ -6,7 +6,7 @@
 --   Stability   : experimental
 --   Portability : POSIX
 
-{-# LANGUAGE Rank2Types             #-}
+{-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE KindSignatures         #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Test.Tasty.QuickCheck.Laws.FX.Central (
     testCentralLaws

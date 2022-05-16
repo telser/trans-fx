@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE InstanceSigs          #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE KindSignatures        #-}

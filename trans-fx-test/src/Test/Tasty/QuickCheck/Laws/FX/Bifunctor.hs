@@ -1,4 +1,4 @@
-{-# LANGUAGE Rank2Types            #-}
+{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
 module Test.Tasty.QuickCheck.Laws.FX.Bifunctor (
